@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The Avalonia desktop code is shared with the Linux edition; the places where macOS differs are marked with COMPANION_MACOS. -->
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><RuntimeIdentifier>osx-arm64</RuntimeIdentifier><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AllowUnsafeBlocks>true</AllowUnsafeBlocks><AssemblyName>BigBlueFish.Mac</AssemblyName><DefineConstants>$(DefineConstants);COMPANION_OCR;COMPANION_MACOS</DefineConstants></PropertyGroup>
+  <PropertyGroup Condition="'$(CompanionEdition)' == 'Safe'"><NuGetLockFilePath>packages.safe.lock.json</NuGetLockFilePath></PropertyGroup>
+  <PropertyGroup>
+    <MacMinimumVersion>14.0</MacMinimumVersion>
+    <MacNativeDirectory>$(MSBuildProjectDirectory)/obj/native/</MacNativeDirectory>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <ProjectReference Include="../BigBlueFish.Control/BigBlueFish.Control.csproj" Condition="'$(CompanionEdition)' != 'Safe'" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionPreferences.cs" Link="Shared/CompanionPreferences.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionAnimationPolicy.cs" Link="Shared/CompanionAnimationPolicy.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionDialogue.cs" Link="Shared/CompanionDialogue.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionBrain.cs" Link="Shared/CompanionBrain.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionWeather.cs" Link="Shared/CompanionWeather.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionNews.cs" Link="Shared/CompanionNews.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionRegions.cs" Link="Shared/CompanionRegions.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionOcrLayout.cs" Link="Shared/CompanionOcrLayout.cs" />
+    <Compile Include="../../deployment/ModelStore.cs" Link="Shared/ModelStore.cs" />
+    <Compile Include="../../deployment/ArtifactDownload.cs" Link="Shared/ArtifactDownload.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxPetWindow.cs" Link="Avalonia/LinuxPetWindow.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxSettings.cs" Link="Avalonia/LinuxSettings.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxMaintenance.cs" Link="Avalonia/LinuxMaintenance.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxMcp.cs" Link="Avalonia/LinuxMcp.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxTray.cs" Link="Avalonia/LinuxTray.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxVisuals.cs" Link="Avalonia/LinuxVisuals.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxVideoPlayer.cs" Link="Avalonia/LinuxVideoPlayer.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxTestCommands.cs" Link="Avalonia/LinuxTestCommands.cs" />
+    <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/china-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.china-regions.json" />
+    <AvaloniaResource Include="../BigBlueFish.Windows/Res/Font/LemiXiaoNaiPaoTi.ttf" Link="Assets/LemiXiaoNaiPaoTi.ttf" />
+    <Content Include="../BigBlueFish.Windows/assets/fish/**/*" Link="assets/fish/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="../BigBlueFish.Windows/BigBlueFish.ico" Link="BigBlueFish.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Include="$(MacNativeDirectory)libBigBlueFishMac.dylib" Link="libBigBlueFishMac.dylib" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+    <None Include="$(MacNativeDirectory)BigBlueFish.RunnerGuard" Link="runtime/BigBlueFish.RunnerGuard" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+  <!-- Optional for source runs: a directory prepared by tools/prepare-macos-runtime.sh (FFmpeg and llama.cpp). -->
+  <ItemGroup Condition="'$(MacRuntimeDirectory)' != ''">
+    <None Include="$(MacRuntimeDirectory)/**/*" Link="runtime/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Visible="false" />
+  </ItemGroup>
+  <Target Name="BuildMacNative" BeforeTargets="AssignTargetPaths" Inputs="native/BigBlueFishMac.m;native/runner-guard.c" Outputs="$(MacNativeDirectory)libBigBlueFishMac.dylib;$(MacNativeDirectory)BigBlueFish.RunnerGuard">
+    <Error Condition="!$([MSBuild]::IsOSPlatform('OSX'))" Text="The macOS edition builds its native bridge with Xcode's clang and must be built on macOS." />
+    <MakeDir Directories="$(MacNativeDirectory)" />
+    <Exec Command="xcrun clang -O2 -Wall -Wextra -Werror -fobjc-arc -fvisibility=hidden -dynamiclib -arch arm64 -mmacosx-version-min=$(MacMinimumVersion) -framework AppKit -framework CoreGraphics -framework ImageIO -framework IOKit -framework ScreenCaptureKit -framework Vision -install_name @rpath/libBigBlueFishMac.dylib -o &quot;$(MacNativeDirectory)libBigBlueFishMac.dylib&quot; native/BigBlueFishMac.m" />
+    <Exec Command="xcrun clang -O2 -Wall -Wextra -Werror -arch arm64 -mmacosx-version-min=$(MacMinimumVersion) -o &quot;$(MacNativeDirectory)BigBlueFish.RunnerGuard&quot; native/runner-guard.c" />
+  </Target>
+</Project>

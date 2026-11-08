@@ -73,6 +73,8 @@ internal sealed class CompanionBrain : IDisposable
     internal CompanionBrain() : this(
 #if COMPANION_LINUX
         LinuxProcesses.Start,
+#elif COMPANION_MACOS
+        MacProcesses.Start,
 #else
         Process.Start,
 #endif
@@ -109,6 +111,8 @@ internal sealed class CompanionBrain : IDisposable
         {
 #if COMPANION_LINUX
             probe = LinuxProcesses.Start(start);
+#elif COMPANION_MACOS
+            probe = MacProcesses.Start(start);
 #else
             probe = Process.Start(start);
 #endif

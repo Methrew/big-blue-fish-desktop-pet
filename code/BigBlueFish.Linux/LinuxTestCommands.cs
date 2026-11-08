@@ -12,7 +12,7 @@ internal sealed partial class LinuxPetWindow
         if (!App.Args.Contains("--test-mode")) return;
         if (DateTime.UtcNow >= nextTestStatus) {
             nextTestStatus = DateTime.UtcNow.AddSeconds(1);
-            File.WriteAllText("test-status.json", JsonSerializer.Serialize(new { version = typeof(LinuxPetWindow).Assembly.GetName().Version!.ToString(3), currentAction, phase, frames = player.Frames, player.LastReadMs, player.LastUiMs, player.LastCopyMs, player.LastShapeMs, text = bubbleText.Text, bubbleVisible = bubbleWindow.IsVisible, Puppet, McpAvailable, visible = IsVisible, hidden, fullscreenHidden, modelPid = brain.RunnerPid, modelBusy = brain.Busy, modelStatus = brain.Status, generating, settingsOpen = settings != null, Position.X, Position.Y }));
+            File.WriteAllText("test-status.json", JsonSerializer.Serialize(new { version = typeof(LinuxPetWindow).Assembly.GetName().Version!.ToString(3), currentAction, phase, frames = player.Frames, player.LastReadMs, player.LastUiMs, player.LastCopyMs, player.LastShapeMs, text = bubbleText.Text, bubbleVisible = bubbleWindow.IsVisible, Puppet, McpAvailable, visible = IsVisible, hidden, fullscreenHidden, modelPid = brain.RunnerPid, modelBusy = brain.Busy, modelStatus = brain.Status, generating, settingsOpen = settings != null, Position.X, Position.Y, width = Bounds.Width, height = Bounds.Height, DesktopScaling }));
         }
         if (!File.Exists("test-command.txt")) return;
         string command = File.ReadAllText("test-command.txt").Trim(); File.Delete("test-command.txt");
@@ -32,6 +32,7 @@ internal sealed partial class LinuxPetWindow
                     File.WriteAllText("ocr-status.json", JsonSerializer.Serialize(ocr)); break;
                 case "render": RenderControl(this, "pet.png"); break;
                 case "render-settings": if (settings != null) RenderControl(settings, "settings.png"); break;
+                case "render-bubble": if (bubbleWindow.IsVisible) RenderControl(bubbleWindow, "bubble.png"); break;
 #if !COMPANION_SAFE
                 case "render-input": if (mcpInput != null) RenderControl(mcpInput, "input.png"); break;
 #endif

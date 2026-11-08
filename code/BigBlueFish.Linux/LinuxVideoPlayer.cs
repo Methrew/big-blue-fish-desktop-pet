@@ -29,13 +29,21 @@ internal sealed class LinuxVideoPlayer(Image image) : IDisposable
         image.Source = bitmap;
         image.RenderTransformOrigin = new(.5, .5, RelativeUnit.Relative);
         image.RenderTransform = new Avalonia.Media.ScaleTransform(mirror ? -1 : 1, 1);
+#if COMPANION_MACOS
+        var command = new ProcessStartInfo(MacProcesses.FfmpegPath) { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+#else
         var command = new ProcessStartInfo("/usr/bin/ffmpeg") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+#endif
         foreach (var arg in new[] { "-v", "error", "-nostdin", "-threads", "1", "-c:v", "libvpx-vp9" }) command.ArgumentList.Add(arg);
         if (startSeconds > 0) { command.ArgumentList.Add("-ss"); command.ArgumentList.Add(startSeconds.ToString("R", System.Globalization.CultureInfo.InvariantCulture)); }
         command.ArgumentList.Add("-i"); command.ArgumentList.Add(path);
         if (endSeconds.HasValue) { command.ArgumentList.Add("-t"); command.ArgumentList.Add((endSeconds.Value - startSeconds).ToString("R", System.Globalization.CultureInfo.InvariantCulture)); }
         foreach (var arg in new[] { "-an", "-sn", "-f", "rawvideo", "-pix_fmt", "bgra", "pipe:1" }) command.ArgumentList.Add(arg);
+#if COMPANION_MACOS
+        try { decoder = MacProcesses.Start(command); var process = decoder; _ = Task.Run(() => Decode(process, id, token, startSeconds, rate, mirror, completed)); }
+#else
         try { decoder = LinuxProcesses.Start(command); var process = decoder; _ = Task.Run(() => Decode(process, id, token, startSeconds, rate, mirror, completed)); }
+#endif
         catch (Exception error) { Failed?.Invoke(error.Message); }
     }
     async Task Decode(Process process, long id, CancellationToken token, double start, double rate, bool mirror, Action completed)

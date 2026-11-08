@@ -14,7 +14,11 @@ internal sealed partial class LinuxPetWindow
     Window? modelDialog;
     CancellationTokenSource? modelWindowCancellation;
     void CloseModelInstaller() { modelWindowCancellation?.Cancel(); modelDialog?.Close(); }
+#if COMPANION_MACOS
+    static void OpenUrl(string url) => MacProcesses.OpenUrl(url);
+#else
     static void OpenUrl(string url) { var start = new ProcessStartInfo("/usr/bin/xdg-open") { UseShellExecute = false }; start.ArgumentList.Add(url); Process.Start(start); }
+#endif
     async Task InstallModel()
     {
         if (closed || phase == "Exit") return;
@@ -113,28 +117,45 @@ internal sealed partial class LinuxPetWindow
         try {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("BigBlueFish/" + typeof(LinuxPetWindow).Assembly.GetName().Version!.ToString(3));
+#if COMPANION_MACOS
+            using var json = JsonDocument.Parse(await client.GetStringAsync(MacUpdates.LatestRelease));
+#else
             using var json = JsonDocument.Parse(await client.GetStringAsync("https://api.github.com/repos/Bai-Cute/big-blue-fish-desktop-pet/releases/latest"));
+#endif
             var root = json.RootElement; string tag = root.GetProperty("tag_name").GetString() ?? "";
             if (!Version.TryParse(tag.TrimStart('v'), out var latest) || latest <= typeof(LinuxPetWindow).Assembly.GetName().Version) { if (manual) await Confirm("检查更新", "当前已经是最新版本。", "知道了"); return; }
-#if COMPANION_SAFE
+#if COMPANION_MACOS
+            string asset = MacUpdates.AssetName(latest);
+            const string platform = "macOS";
+#elif COMPANION_SAFE
             string asset = $"BigBlueFish-v{latest.ToString(3)}-Safe-Linux-x64.deb";
 #else
             string asset = $"BigBlueFish-v{latest.ToString(3)}-Linux-x64.deb";
 #endif
+#if !COMPANION_MACOS
+            const string platform = "Linux";
+#endif
             var assets = root.GetProperty("assets").EnumerateArray().ToArray();
             string? Url(string name) => assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name).TryGetProperty("browser_download_url", out var value) ? value.GetString() : null;
-            string? url = Url(asset), checksum = Url(asset + ".sha256"); if (url == null || checksum == null) throw new IOException("该版本的 Linux 安装包尚未就绪。");
+            string? url = Url(asset), checksum = Url(asset + ".sha256"); if (url == null || checksum == null) throw new IOException($"该版本的 {platform} 安装包尚未就绪。");
+#if COMPANION_MACOS
+            MacUpdates.EnsureInstallable();
+#endif
             if (!await Confirm("发现新版本", "发现蓝色大肥鱼 " + latest.ToString(3) + "，是否下载并安装更新？", "下载更新")) return;
             string hash = (await client.GetStringAsync(checksum)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
             if (!Regex.IsMatch(hash, "^[a-f0-9]{64}$")) throw new IOException("更新校验信息无效。");
             string package = Path.Combine(Environment.CurrentDirectory, "cache/updates", asset);
             await ArtifactDownload.Download(url, package, hash);
+#if COMPANION_MACOS
+            MacUpdates.InstallAfterExit(package); CloseImmediately();
+#else
             var start = new ProcessStartInfo("/usr/bin/pkexec") { UseShellExecute = false };
             foreach (string item in new[] { "/usr/bin/apt-get", "install", "-y", package }) start.ArgumentList.Add(item);
             using var installer = Process.Start(start) ?? throw new IOException("无法启动系统安装器。");
             await installer.WaitForExitAsync(); if (installer.ExitCode != 0) throw new IOException("更新安装未完成，可再次检查更新后重试。");
             var restart = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux")) { UseShellExecute = false };
             restart.ArgumentList.Add("--wait-for-exit"); restart.ArgumentList.Add(Environment.ProcessId.ToString()); Process.Start(restart); CloseImmediately();
+#endif
         } catch (Exception error) { if (manual) await Confirm("检查更新", error.Message, "知道了"); }
         finally { updateChecking = false; }
     }

@@ -16,6 +16,12 @@ internal sealed partial class LinuxPetWindow
     bool consentOpen;
     Window? consentWindow;
     Action? refreshLinuxSettings;
+#if COMPANION_MACOS
+    const string DialogFont = "PingFang SC";
+    bool StartupEnabled => MacProcesses.StartupEnabled;
+    void SetStartup(bool on) => MacProcesses.SetStartup(on);
+#else
+    const string DialogFont = "Noto Sans CJK SC";
     static string AutostartFile => Path.Combine(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config"), "autostart/bigbluefish.desktop");
     bool StartupEnabled => File.Exists(AutostartFile);
     void SetStartup(bool on)
@@ -24,6 +30,7 @@ internal sealed partial class LinuxPetWindow
         Directory.CreateDirectory(Path.GetDirectoryName(AutostartFile)!);
         File.WriteAllText(AutostartFile, "[Desktop Entry]\nType=Application\nName=蓝色大肥鱼\nExec=\"" + Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\nTerminal=false\n");
     }
+#endif
     void ApplySettings(PixelPoint? requestedPosition = null)
     {
         speechVersion++; brain.Stop(); brain.UseGpu = Preferences.GpuEnabled; brain.StopOnBattery = Preferences.StopModelOnBattery; brain.WeatherRegionCode = Preferences.WeatherRegionCode;
@@ -40,7 +47,7 @@ internal sealed partial class LinuxPetWindow
     static TextBlock Paragraph(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 12), Foreground = Brushes.SlateGray };
     static Window Dialog(string title, Avalonia.Controls.Control content, double width = 630, double height = 460) => new() {
         Title = title, Width = width, Height = height, MinWidth = 480, MinHeight = 360,
-        FontFamily = new FontFamily("Noto Sans CJK SC"), FontSize = 14,
+        FontFamily = new FontFamily(DialogFont), FontSize = 14,
         WindowStartupLocation = WindowStartupLocation.CenterScreen, Background = new SolidColorBrush(Color.FromRgb(247, 248, 251)),
         Content = new Border { Padding = new Thickness(28), Child = content } };
     async Task<bool> Confirm(string title, string message, string accept = "确定", CancellationToken token = default, string reject = "取消")

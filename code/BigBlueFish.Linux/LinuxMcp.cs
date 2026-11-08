@@ -57,7 +57,11 @@ internal sealed partial class LinuxPetWindow
                     var handle = CompanionNative.ResolveForeground(CompanionNative.GetForegroundWindow(), lastForeground);
                     var identity = name == "capture_foreground" ? CompanionNative.ForegroundIdentity(handle) : "全部显示器组成的完整桌面";
                     var limit = ControlTools.ImageLimit(args, name == "capture_foreground" ? 2560 : 4096);
+#if COMPANION_MACOS
+                    var image = await MacCapture.CaptureAsync(handle, limit, name == "capture_screen", token);
+#else
                     var image = await LinuxCapture.CaptureAsync(handle, limit, name == "capture_screen", token);
+#endif
                     token.ThrowIfCancellationRequested();
                     if (!Preferences.McpEnabled) throw new OperationCanceledException();
                     return ControlTools.Image(image.DataUrl, new { target = name, identity, image.Width, image.Height, capturedAt = DateTimeOffset.UtcNow });
@@ -115,12 +119,17 @@ internal sealed partial class LinuxPetWindow
         if (!McpInputAvailable || closed || phase == "Exit") return false;
         if (mcpInput != null) { mcpInput.Show(this); mcpInput.Activate(); return true; }
         const string hint = "通过鱼鱼和已连接的Agent说话";
+#if COMPANION_MACOS
+        const string sendHint = "⌘+Enter 发送"; const KeyModifiers sendModifier = KeyModifiers.Meta;
+#else
+        const string sendHint = "Ctrl+Enter 发送"; const KeyModifiers sendModifier = KeyModifiers.Control;
+#endif
         var text = new TextBox { AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxLength = 4000,
             Height = 56, Padding = new Thickness(0, 2, 22, 0), FontSize = 14, Foreground = Hair,
             Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0), PlaceholderText = hint };
         Avalonia.Automation.AutomationProperties.SetName(text, hint);
         var editor = new Grid(); editor.Children.Add(text);
-        var status = new TextBlock { Text = "Ctrl+Enter 发送", Foreground = Avalonia.Media.Brushes.SlateGray, FontSize = 11,
+        var status = new TextBlock { Text = sendHint, Foreground = Avalonia.Media.Brushes.SlateGray, FontSize = 11,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(0, 0, 8, 0) };
         var panel = new StackPanel { Spacing = 4 }; panel.Children.Add(editor);
         var frame = new Border { Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(255, 251, 244)),
@@ -138,7 +147,7 @@ internal sealed partial class LinuxPetWindow
         text.TextChanged += (_,_) => send.IsEnabled = McpInputAvailable && !string.IsNullOrWhiteSpace(text.Text);
         dialog.AddHandler(InputElement.KeyDownEvent, (_,e) => {
             if (e.Key == Key.Escape) { e.Handled = true; dialog.Close(); }
-            else if(e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.Control) { e.Handled = true; Send(); }
+            else if(e.Key == Key.Enter && e.KeyModifiers == sendModifier) { e.Handled = true; Send(); }
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         bool positioning = false;
         void Follow()
@@ -170,9 +179,13 @@ internal sealed partial class LinuxPetWindow
             Follow();
             send.IsEnabled = McpInputAvailable && !string.IsNullOrWhiteSpace(text.Text);
             if (!McpInputAvailable) status.Text = "Agent 已断开，重新连接后可发送。";
-            else if (status.Text?.StartsWith("Agent 已断开") == true) status.Text = "Ctrl+Enter 发送";
+            else if (status.Text?.StartsWith("Agent 已断开") == true) status.Text = sendHint;
         };
-        mcpInput = dialog; dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; mcpInput = null; }; dialog.Opened += (_,_) => { text.Focus(); send.IsEnabled = false; };
+        mcpInput = dialog; dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; mcpInput = null; }; dialog.Opened += (_,_) => {
+#if COMPANION_MACOS
+            CompanionNative.ConfigureWindow(dialog);
+#endif
+            text.Focus(); send.IsEnabled = false; };
         clock.Start(); Follow(); dialog.Activate(); return true;
     }
 #endif

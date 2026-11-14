@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -23,15 +25,15 @@ internal sealed class UpdateWindow : ModernWindow
     private bool closeRequested, closed;
     internal bool InstallerStarted { get; private set; }
 
-    internal UpdateWindow(AvailableUpdate update, string directory, string? dataDirectory = null) : base("更新蓝色大肥鱼", "鱼鱼有新版本啦", "可更新到 " + update.Version, 630, 480)
+    internal UpdateWindow(AvailableUpdate update, string directory, string? dataDirectory = null) : base("更新藍色大肥魚", "魚魚有新版本啦", "可更新到 " + update.Version, 630, 480)
     {
         this.update = update; this.directory = Path.GetFullPath(directory);
         this.dataDirectory = dataDirectory ?? ApplicationData.DirectoryFor(directory);
-        Body.Children.Add(new TextBlock { Text = "更新内容", FontWeight = FontWeights.SemiBold, Foreground = ModernUI.Blue, Margin = new Thickness(0, 0, 0, 10) });
-        Body.Children.Add(string.IsNullOrWhiteSpace(update.Notes) ? ModernUI.Text("本次更新没有提供详细说明。") : MarkdownView.Render(update.Notes));
+        Body.Children.Add(new TextBlock { Text = "更新內容", FontWeight = FontWeights.SemiBold, Foreground = ModernUI.Blue, Margin = new Thickness(0, 0, 0, 10) });
+        Body.Children.Add(string.IsNullOrWhiteSpace(update.Notes) ? ModernUI.Text("本次更新沒有提供詳細說明。") : MarkdownView.Render(update.Notes));
         Body.Children.Add(progress); Body.Children.Add(status);
-        Actions.Children.Add(ModernUI.Button("稍后", () => { if (download != null) download.Cancel(); else Close(); }));
-        start = ModernUI.Button("下载并更新", async () => await Install(), true); Actions.Children.Add(start);
+        Actions.Children.Add(ModernUI.Button("稍後", () => { if (download != null) download.Cancel(); else Close(); }));
+        start = ModernUI.Button("下載並更新", async () => await Install(), true); Actions.Children.Add(start);
         Closing += (_, e) => { if (download != null) { closeRequested = true; download.Cancel(); e.Cancel = true; } };
         Closed += (_, _) => { closed = true; download?.Cancel(); };
     }
@@ -43,7 +45,7 @@ internal sealed class UpdateWindow : ModernWindow
         try
         {
             var installer = Path.Combine(dataDirectory, "cache", "updates", update.Name);
-            status.Text = "正在下载更新…";
+            status.Text = "正在下載更新…";
             // Release notes can be long, so make sure the download status is in view when work starts.
             status.BringIntoView();
             await ArtifactDownload.Download(update.Url, installer, update.Sha256,
@@ -54,7 +56,7 @@ internal sealed class UpdateWindow : ModernWindow
             process.ArgumentList.Add("--wait-pid"); process.ArgumentList.Add(Environment.ProcessId.ToString());
             Process.Start(process); InstallerStarted = true;
         }
-        catch (OperationCanceledException) { status.Text = "下载已暂停，可以稍后继续。"; }
+        catch (OperationCanceledException) { status.Text = "下載已暫停，可以稍後繼續。"; }
         catch (Exception error) { if (!closed && !closeRequested) ModernUI.Error(this, "更新未完成", error); }
         finally { download.Dispose(); download = null; start.IsEnabled = true; }
         if (InstallerStarted || closeRequested) Close();

@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using Microsoft.Win32;
 using System;
 using System.IO;
@@ -87,7 +89,7 @@ public partial class MainWindow
         if (wasFullscreenHidden != fullscreenHidden) DiagnosticLog.Write(DiagnosticEvent.VisibilityChanged, kind: "fullscreen", state: fullscreenHidden ? "hidden" : "visible");
         bool show = !hiddenByUser && !fullscreenHidden;
         if (show && !IsVisible) { Show(); ClampCompanion(); }
-        else if (!show && IsVisible) { InvalidateSpeechRequests(); Hide(); }
+        else if (!show && IsVisible) { CancelWalk("hidden"); InvalidateSpeechRequests(); Hide(); }
         if (videoPlayer != null) videoPlayer.Paused = !exitAnimation && !show;
     }
     private readonly IntPtr startupForeground = CompanionNative.GetForegroundWindow();
@@ -123,8 +125,10 @@ public partial class MainWindow
         {
             UseGpu = preferences.GpuEnabled,
             StopOnBattery = preferences.StopModelOnBattery,
-            WeatherRegionCode = preferences.WeatherRegionCode
+            WeatherRegionCode = preferences.WeatherRegionCode,
+            CwaApiKey = preferences.CwaApiKey
         };
+        ApplyCompanionModelSource();
         InitializeComponent();
         System.Windows.Shell.WindowChrome.SetWindowChrome(this, null);
         AllowsTransparency = true;
@@ -133,7 +137,7 @@ public partial class MainWindow
         ShowActivated = false;
         ShowInTaskbar = false;
         Topmost = true;
-        Title = "蓝色大肥鱼";
+        Title = "藍色大肥魚";
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.Manual;
         companionLayout = new Grid
@@ -146,7 +150,7 @@ public partial class MainWindow
             FontSize = 17,
             Foreground = new SolidColorBrush(global::BigBlueFish.Windows.CompanionBubble.HairBlue),
             FontFamily = new FontFamily(new Uri("pack://application:,,,/BigBlueFish;component/"),
-                "./Res/Font/#乐米小奶泡体"),
+                "./Res/Font/#jf-openhuninn-2.1"),
             Focusable = false
         };
         var bubbleContent = new Grid();
@@ -164,7 +168,7 @@ public partial class MainWindow
             Focusable = false,
             IsTabStop = false,
             Cursor = Cursors.Hand,
-            ToolTip = "关闭气泡",
+            ToolTip = "關閉氣泡",
             Content = new TextBlock
             {
                 Text = "\uE711",
@@ -175,7 +179,7 @@ public partial class MainWindow
                 VerticalAlignment = VerticalAlignment.Center
             }
         };
-        System.Windows.Automation.AutomationProperties.SetName(dismiss, "关闭气泡");
+        System.Windows.Automation.AutomationProperties.SetName(dismiss, "關閉氣泡");
         dismiss.Click += (_, e) =>
         {
             e.Handled = true;
@@ -219,6 +223,7 @@ public partial class MainWindow
         Panel.SetZIndex(loadingIndicator, 20);
         companionLayout.Children.Add(loadingIndicator);
         speech = new CompanionSpeech(bubbleText, bubble, () => CompanionEdgeLayout.Refresh(this), ResetBubbleDeadline);
+        CompanionTraditional.Warm();
         Content = companionLayout;
         ApplyCompanionScale(false);
         var a = SystemParameters.WorkArea;
@@ -251,7 +256,7 @@ public partial class MainWindow
         PreviewMouseLeftButtonUp += CompanionUp;
         LostMouseCapture += (_, _) =>
         {
-            if (dragging) { dragging = false; if (dragged) PublishMcpInteraction("drag_end", new { Left, Top, cancelled = true }); FinishDragAnimation(); }
+            if (dragging) { dragging = false; CancelWalk(dragged ? "drag" : "click"); if (dragged) PublishMcpInteraction("drag_end", new { Left, Top, cancelled = true }); FinishDragAnimation(); }
         };
         Closing += CompanionClosing;
         Closed += (_, _) => ShutdownCompanion();
@@ -275,7 +280,7 @@ public partial class MainWindow
         catch (Exception e)
         {
             DiagnosticLog.Write(DiagnosticEvent.AnimationFailed, error: e);
-            ShowCompanionNotice("动画未能加载，请检查文件是否完整。");
+            ShowCompanionNotice("動畫未能載入，請檢查檔案是否完整。");
         }
         return Task.CompletedTask;
     }
@@ -324,6 +329,14 @@ public partial class MainWindow
         });
     }
 
+    private void ApplyCompanionModelSource()
+    {
+        brain.UseRemoteModel(preferences.UseRemoteModel ? preferences.RemoteUrl : null, preferences.RemoteApiKey, preferences.RemoteModel);
+        brain.ScreenImages = preferences.ScreenImages;
+        brain.RefreshModelAvailability();
+        nextWarmup = DateTime.MinValue;
+    }
+
     private void ApplyCompanionPowerPolicy()
     {
         if (brain == null || preferences == null) return;
@@ -338,6 +351,7 @@ public partial class MainWindow
 
     private void CompanionDisplayChanged(object? s, EventArgs e) => Dispatcher.BeginInvoke(() =>
     {
+        CancelWalk("display_changed"); // Its target rectangle belonged to the old layout.
         ClampCompanion();
         anchor = new Point(Left, Top);
     });
@@ -405,11 +419,13 @@ public partial class MainWindow
             && Math.Abs(clickPosition.Y - lastClickPoint.Y) <= Forms.SystemInformation.DoubleClickSize.Height;
         if (doubleClick && TryOpenMcpInput()) {
             singleClickTimer?.Stop(); lastClickAt = DateTime.MinValue;
+            CancelWalk("click");
             PublishMcpInteraction("click", new { button = "left", count = 2, Left, Top });
             return;
         }
         dragging = true;
         dragged = false;
+        PressWalk(); // Stops at once; the release or the first drag movement reports click or drag.
         CancelMovement();
         CompanionNative.GetCursorPos(out var p);
         dragStart = new Point(p.X, p.Y);
@@ -433,6 +449,7 @@ public partial class MainWindow
         if (Math.Abs(dx) + Math.Abs(dy) > 4 && !dragged)
         {
             dragged = true;
+            CancelWalk("drag");
             PublishMcpInteraction("drag_start", new { Left, Top });
             if (!PuppetActive) PlayCompanion("drag");
         }
@@ -459,6 +476,8 @@ public partial class MainWindow
         else
         {
             PublishMcpInteraction("click", new { button = "left", Left, Top });
+            // The release names why a walk stopped at the press, even while the click clip waits for a possible double-click.
+            CancelWalk("click");
             CompanionNative.GetCursorPos(out var point);
             lastClickAt = DateTime.UtcNow; lastClickPoint = new Point(point.X, point.Y);
             if (McpInputAvailable)
@@ -475,9 +494,9 @@ public partial class MainWindow
     private void PlayCompanion(string name)
     {
         if (!companionReady || exitAnimation) return;
-        if (name == "drag") { CancelMovement(); PlayAnimation(animationPolicy.Find("被鼠标拖拽悬空反馈"), "Drag"); return; }
+        if (name == "drag") { CancelWalk("drag"); CancelMovement(); PlayAnimation(animationPolicy.Find("被鼠标拖拽悬空反馈"), "Drag"); return; }
         var id = name switch { "idle" => "待机呼吸休闲", "wave" => "点击回应-元气挥手", "angry" => "点击回应-傲娇生气", "sleep" => "原地小憩沉眠", _ => name };
-        CancelMovement();
+        CancelWalk("preview"); CancelMovement();
         var rule = animationPolicy.Rules.FirstOrDefault(r => r.Id == id);
         if (rule != null) PlayAnimation(rule, "Preview");
     }
@@ -499,11 +518,12 @@ public partial class MainWindow
         chatLog.Add(false, text);
     }
 
-    private void ShowCompanionPartial(string text, long? expectedVersion = null, bool agentTriggered = false)
+    // A streamed snapshot (not final) is converted to Taiwan Traditional once its last run of Chinese is complete.
+    private void ShowCompanionPartial(string text, long? expectedVersion = null, bool agentTriggered = false, bool final = false)
     {
         if (!Dispatcher.CheckAccess())
         {
-            Dispatcher.BeginInvoke(() => ShowCompanionPartial(text, expectedVersion, agentTriggered));
+            Dispatcher.BeginInvoke(() => ShowCompanionPartial(text, expectedVersion, agentTriggered, final));
             return;
         }
         if (companionClosed || exitAnimation || PuppetActive && !agentTriggered || text.Length == 0 || expectedVersion.HasValue && expectedVersion != speechRequestVersion)
@@ -511,13 +531,13 @@ public partial class MainWindow
         externalBubble = false;
         bubbleIsModelReply = true;
         bubbleUntil = DateTime.MaxValue;
-        speech.ShowPartial(text);
+        speech.ShowPartial(text, final);
     }
 
     private void FinishCompanionPartial(string text, bool agentTriggered = false)
     {
         DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: "local", chars: text.Length);
-        ShowCompanionPartial(text, agentTriggered: agentTriggered);
+        ShowCompanionPartial(text, agentTriggered: agentTriggered, final: true);
         ResetBubbleDeadline();
         if (speech.FullText == text) chatLog.Add(false, text);
     }
@@ -570,6 +590,7 @@ public partial class MainWindow
         if (companionClosed || exitAnimation)
             return;
         if (gap > 30 || gap < -1) RecoverCompanionSession();
+        ObserveActivity(now);
         if (preferences.PublicInfo) brain.RefreshWeather();
         if (App.Args.Contains("--test-mode") && now > diagnosticAt)
         {
@@ -595,10 +616,10 @@ public partial class MainWindow
                         companionSettings?.Close();
                         break;
                     case "bubble":
-                        ShowCompanionBubble("主人，小女仆今天也元气满满地来报到啦～");
+                        ShowCompanionBubble("主人，小女僕今天也元氣滿滿地來報到啦～");
                         break;
                     case "bubble-next":
-                        ShowCompanionBubble("主人，下一句已经送到啦，小尾巴也跟着摇起来～");
+                        ShowCompanionBubble("主人，下一句已經送到啦，小尾巴也跟著搖起來～");
                         break;
                     case "battery":
                         CompanionNative.TestPowerOverride = false;
@@ -660,6 +681,8 @@ public partial class MainWindow
                         }
                         break;
                     default:
+                        if (ReminderTestCommand(command))
+                            break;
                         if (command.StartsWith("event:"))
                             StartAnimationEvent(animationPolicy.Find(command[6..]));
                         else if (command.StartsWith("action:"))
@@ -687,6 +710,13 @@ public partial class MainWindow
             return;
         if (bubble.Visibility == Visibility.Visible && now > bubbleUntil)
         { DiagnosticLog.Write(DiagnosticEvent.BubbleClosed, state: "expired"); bubble.Visibility = Visibility.Collapsed; }
+        // An agent's bubble (MCP say), such as a progress report, is not talked over by the fish's own speech.
+        // A bubble kept until the next sentence (no deadline) gives way once the agent stops refreshing it.
+        if (externalBubble && bubble.Visibility == Visibility.Visible
+            && (speech.IsTyping || bubbleUntil != DateTime.MaxValue || now - externalBubbleAt < ExternalBubbleHold))
+            return;
+        if (Remind(now))
+            return;
         if (PuppetActive || now < nextSpeech || companionSettings != null || modelInstaller != null
             || !HasScheduledMcpSpeech && !AgentDailyActive && (speechRequestPending || brain.Busy || weatherRequestPending || !preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower))
             return;
@@ -764,21 +794,21 @@ public partial class MainWindow
         var menu = new CompanionTrayMenu();
         menu.Opening += (_, _) => {
             lastExternalForeground = CompanionNative.ResolveSpeechForeground(CompanionNative.GetForegroundWindow(), lastExternalForeground);
-            menu.Items[0].Text = IsVisible ? "隐藏桌宠" : "显示桌宠";
+            menu.Items[0].Text = IsVisible ? "隱藏桌寵" : "顯示桌寵";
             foreach (int index in new[] { 2, 3 }) if (menu.Items.Count > index) menu.Items[index].Enabled = true;
         };
-        menu.Items.Add("显示桌宠", null, (_, _) => Dispatcher.Invoke(() => { if (IsVisible) HideCompanion(); else RestoreCompanion(); }));
-        menu.Items.Add("设置", null, (_, _) => Dispatcher.Invoke(OpenCompanionSettings));
-        menu.Items.Add("天气", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionWeather).Task.Unwrap());
-        menu.Items.Add("吐字测试", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionTest).Task.Unwrap());
-        menu.Items.Add("关闭桌宠", null, (_, _) => Dispatcher.Invoke(() => base.Close()));
+        menu.Items.Add("顯示桌寵", null, (_, _) => Dispatcher.Invoke(() => { if (IsVisible) HideCompanion(); else RestoreCompanion(); }));
+        menu.Items.Add("設定", null, (_, _) => Dispatcher.Invoke(OpenCompanionSettings));
+        menu.Items.Add("天氣", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionWeather).Task.Unwrap());
+        menu.Items.Add("吐字測試", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionTest).Task.Unwrap());
+        menu.Items.Add("關閉桌寵", null, (_, _) => Dispatcher.Invoke(() => base.Close()));
         string[] icons = ["\uE7F4", "\uE713", "\uE706", "\uE8F2", "\uE8BB"];
         for (int index = 0; index < menu.Items.Count; index++) menu.Items[index].Tag = icons[index];
         using var sourceIcon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"));
         notifyIcon = new CompanionTrayIcon
         {
             Icon = new System.Drawing.Icon(sourceIcon, new System.Drawing.Size(32, 32)),
-            Text = "蓝色大肥鱼",
+            Text = "藍色大肥魚",
             ContextMenuStrip = menu
         };
         notifyIcon.DoubleClick += (_, _) => Dispatcher.Invoke(RestoreCompanion);
@@ -800,6 +830,7 @@ public partial class MainWindow
     {
         DiagnosticLog.Write(DiagnosticEvent.VisibilityChanged, state: "hidden", kind: "user");
         if (companionClosed || exitAnimation || exitReady) return;
+        CancelWalk("hidden");
         hiddenByUser = true;
         singleClickTimer?.Stop();
         companionMenuDismissal?.Reset();

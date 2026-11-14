@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using System.IO;
 using BigBlueFish.Windows;
@@ -9,10 +10,10 @@ internal static class InferenceDeviceVerification
         int count = 0;
         void Check(bool value, string label) { if (!value) throw new Exception(label); count++; }
         var devices = new CompanionInferenceDevices();
-        Check(devices.Describe(false) == "正在确认运行设备", "not loaded is not a claimed GPU");
+        Check(devices.Describe(false) == "正在確認執行裝置", "not loaded is not a claimed GPU");
         devices.Observe("Vulkan0: AMD Radeon(TM) Graphics (8886 MiB, 8441 MiB free)");
         devices.Observe("Vulkan1: NVIDIA GeForce RTX 3050 Laptop GPU (3979 MiB, 3382 MiB free)");
-        Check(devices.Describe(true) == "运行设备未确认", "enumeration alone does not prove actual placement");
+        Check(devices.Describe(true) == "執行裝置未確認", "enumeration alone does not prove actual placement");
         devices.Observe("0.04.498.307 I llama_prepare_model_devices: using device Vulkan1 (NVIDIA GeForce RTX 3050 Laptop GPU) (0000:01:00.0) - 3379 MiB free");
         devices.Observe("load_tensors: Vulkan_Host model buffer size = 497.31 MiB");
         devices.Observe("load_tensors: Vulkan0 model buffer size = 0.00 MiB");
@@ -57,10 +58,10 @@ internal static class InferenceDeviceVerification
         await brain.WarmUp();
         if (brain.RunnerPid == null) throw new Exception(brain.Status);
         Console.WriteLine("REAL MODEL DEVICE " + brain.ExecutionDevice);
-        if (!brain.ExecutionDevice.StartsWith("GPU：") || brain.ExecutionDevice.Contains("未确认"))
+        if (!brain.ExecutionDevice.StartsWith("GPU：") || brain.ExecutionDevice.Contains("未確認"))
             throw new Exception("Actual local GPU model placement was not observed");
         brain.Stop();
-        if (brain.ExecutionDevice != "未运行") throw new Exception("Stopped runner still claims a device");
+        if (brain.ExecutionDevice != "未執行") throw new Exception("Stopped runner still claims a device");
         return 0;
     }
 }

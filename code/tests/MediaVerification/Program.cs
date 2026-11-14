@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using BigBlueFish.Windows;
 using System.Diagnostics;
 using System.IO;
@@ -198,6 +199,13 @@ static class Program
             player.Play(file, false, () => completions++); Wait(() => player.Frames > 10, 3); player.Play(file, true, () => completions++); Wait(() => player.Frames > 10, 3); Check(((ScaleTransform)image.RenderTransform).ScaleX == -1, "mirror preserved");
             VerifySingleHwndHitTest(window, image, true);
             player.Stop(); Pump(300); count = player.Frames; Pump(200); Check(player.Frames == count, "cancelled decoder cannot publish stale frames");
+            player.Preload(file, 1.5); Wait(() => player.HasOpening(file, 1.5), 10);
+            completions = 0; error = null; segmentWatch.Restart(); player.Play(file, false, () => completions++, 1.5, 3, 1.5);
+            Check(player.Frames == 1 && player.PositionSeconds < 1.6, "preloaded opening shows its first frame before the pipeline is created");
+            VerifySingleHwndHitTest(window, image, false);
+            Wait(() => completions == 1 || error != null, 5);
+            Check(error == null && player.Frames > 6 && player.PositionSeconds >= 2.9 && player.PositionSeconds < 3, $"pipeline continues after the opening to the exact media end: position={player.PositionSeconds}, error={error}");
+            Check(segmentWatch.Elapsed.TotalSeconds >= .9 && segmentWatch.Elapsed.TotalSeconds < 2.2, "opening hand-off keeps the trimmed 1.5x wall duration");
             player.ForceSoftware = true; error = null; player.Play(sleepFile, false, () => ended = true); Wait(() => player.Frames > 24 || error != null, 8); Check(error == null && player.Backend.StartsWith("CPU"), "CPU compatibility playback works on sleep animation"); Check(player.OutputWidth == 640 && player.OutputHeight == 360, "CPU uses bounded original 24fps assets");
             player.ForceSoftware = false; error = null; ended = false; watch.Restart(); player.Play(file, false, () => ended = true); Wait(() => ended || error != null, 14); Check(error == null && watch.Elapsed.TotalSeconds > 9.8 && watch.Elapsed.TotalSeconds < 12, "full clip plays complete wall duration");
             player.Play(file, false, () => { }); Wait(() => player.PositionSeconds >= 1, 3); var proc = Process.GetCurrentProcess(); var cpu = proc.TotalProcessorTime; ulong before = player.RenderedFrames; watch.Restart(); Pump(6000); proc.Refresh();

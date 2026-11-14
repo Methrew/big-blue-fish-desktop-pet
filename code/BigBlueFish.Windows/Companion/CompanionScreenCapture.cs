@@ -1,3 +1,4 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
 using System;
 using System.Drawing;
 using System.Drawing.Drawing2D;
@@ -7,13 +8,14 @@ using System.Runtime.InteropServices;
 
 namespace BigBlueFish.Windows;
 
-internal sealed record CompanionWindowImage(string DataUrl, int Width, int Height)
+// Source: the physical-pixel rectangle of the virtual desktop the image shows, before any downscaling.
+internal sealed record CompanionWindowImage(string DataUrl, int Width, int Height, Rectangle Source = default)
 {
     internal void SaveJpeg(string path)
     {
         var comma = DataUrl.IndexOf(',');
         if (comma < 0)
-            throw new InvalidDataException("窗口图像数据格式无效");
+            throw new InvalidDataException("視窗影像資料格式無效");
         File.WriteAllBytes(path, Convert.FromBase64String(DataUrl[(comma + 1)..]));
     }
 }
@@ -26,7 +28,7 @@ internal static class CompanionScreenCapture
     [DllImport("user32.dll")]
     private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
 
-    private sealed class CaptureDpiScope : IDisposable
+    internal sealed class CaptureDpiScope : IDisposable
     {
         private readonly IntPtr previous;
         internal CaptureDpiScope()
@@ -107,7 +109,8 @@ internal static class CompanionScreenCapture
         return new CompanionWindowImage(
             (lossless ? "data:image/png;base64," : "data:image/jpeg;base64,") + Convert.ToBase64String(output.ToArray()),
             normalized.Width,
-            normalized.Height);
+            normalized.Height,
+            captureRect);
     }
 
     private static Bitmap Resize(Bitmap source, int maxDimension)
@@ -132,7 +135,7 @@ internal static class CompanionScreenCapture
         using var dpi = new CaptureDpiScope();
         var bounds = System.Windows.Forms.SystemInformation.VirtualScreen;
         if (bounds.Width <= 0 || bounds.Height <= 0 || (long)bounds.Width * bounds.Height > 150_000_000)
-            throw new IOException("屏幕尺寸无效或超过可用截图范围。");
+            throw new IOException("螢幕尺寸無效或超過可用截圖範圍。");
         using var bitmap = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format32bppArgb);
         try
         {
@@ -146,6 +149,6 @@ internal static class CompanionScreenCapture
         using var normalized = Resize(bitmap, maxDimension);
         using var output = new MemoryStream();
         normalized.Save(output, ImageFormat.Png);
-        return new("data:image/png;base64," + Convert.ToBase64String(output.ToArray()), normalized.Width, normalized.Height);
+        return new("data:image/png;base64," + Convert.ToBase64String(output.ToArray()), normalized.Width, normalized.Height, bounds);
     }
 }

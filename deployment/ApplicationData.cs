@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.IO;
 using System.Linq;
@@ -62,6 +63,6 @@ internal static class ApplicationData
     private static void RejectLink(string path)
     {
         if ((File.Exists(path) || System.IO.Directory.Exists(path)) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
-            throw new IOException("数据目录不能使用链接：" + path);
+            throw new IOException("資料目錄不能使用連結：" + path);
     }
 }

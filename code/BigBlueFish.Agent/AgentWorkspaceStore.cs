@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -30,14 +31,14 @@ public sealed class AgentWorkspaceStore
     }
     public static string Normalize(string path)
     {
-        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path)) throw new ArgumentException("请选择完整的工作区路径。");
+        if (string.IsNullOrWhiteSpace(path) || !Path.IsPathFullyQualified(path)) throw new ArgumentException("請選擇完整的工作區路徑。");
         return Path.TrimEndingDirectorySeparator(Path.GetFullPath(path));
     }
     public void EnsureCurrent() => Directory.CreateDirectory(Current);
     public void Open(string path)
     {
         path = Normalize(path);
-        if (!Directory.Exists(path)) throw new DirectoryNotFoundException("工作区目录不存在：" + path);
+        if (!Directory.Exists(path)) throw new DirectoryNotFoundException("工作區資料夾不存在：" + path);
         lock (gate)
         {
             var recent = new[] { path }.Concat(state.Recent.Where(p => !p.Equals(path, PathComparison))).Take(30).ToArray();
@@ -49,9 +50,9 @@ public sealed class AgentWorkspaceStore
     {
         parent = Normalize(parent);
         if (string.IsNullOrWhiteSpace(name) || name != name.Trim() || name is "." or ".." || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0
-            || name.Contains('/') || name.Contains('\\')) throw new ArgumentException("请填写有效的工作区文件夹名称。");
+            || name.Contains('/') || name.Contains('\\')) throw new ArgumentException("請填寫有效的工作區資料夾名稱。");
         string path = Path.Combine(parent, name);
-        if (Directory.Exists(path) || File.Exists(path)) throw new IOException("此名称已经存在，请使用“打开工作区”或更换名称。");
+        if (Directory.Exists(path) || File.Exists(path)) throw new IOException("這個名稱已經存在，請使用「開啟工作區」或換一個名稱。");
         Directory.CreateDirectory(path); Open(path);
     }
     public string SessionDirectory(string? workspace = null)
@@ -64,15 +65,15 @@ public sealed class AgentWorkspaceStore
     public void ValidateClear(string expected)
     {
         string path = Normalize(expected);
-        if (!path.Equals(Normalize(Current), PathComparison)) throw new IOException("当前工作区已改变，请重新确认。");
-        if (!Directory.Exists(path)) throw new DirectoryNotFoundException("工作区已不存在。");
+        if (!path.Equals(Normalize(Current), PathComparison)) throw new IOException("目前的工作區已經改變，請重新確認。");
+        if (!Directory.Exists(path)) throw new DirectoryNotFoundException("工作區已經不存在。");
         string[] protectedRoots = [Path.GetPathRoot(path)!, Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), Environment.GetFolderPath(Environment.SpecialFolder.Windows),
             Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), AppContext.BaseDirectory];
         if (protectedRoots.Where(p => !string.IsNullOrWhiteSpace(p)).Any(p => path.Equals(Normalize(p), PathComparison))
             || root.Equals(path, PathComparison) || root.StartsWith(path + Path.DirectorySeparatorChar, PathComparison))
-            throw new IOException("此目录是用户、系统或程序数据目录，不能作为清空目标。请使用专门的工作文件夹。");
-        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException("请打开实际文件夹后再清空，当前路径是目录链接。");
+            throw new IOException("這個資料夾是使用者、系統或程式的資料夾，不能清空。請使用專門的工作資料夾。");
+        if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) throw new IOException("目前的路徑是資料夾連結，請開啟實際的資料夾後再清空。");
     }
     public void Clear(string expected)
     {

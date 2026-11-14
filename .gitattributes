@@ -1,3 +1,5 @@
+# Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+# Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 * text=auto
 *.cs text eol=lf
 *.xaml text eol=lf
@@ -10,4 +12,7 @@
 *.dll binary
 *.zip binary
 *.sh text eol=lf
+# OpenCC dictionaries stay byte-identical to upstream (see assets/opencc/source.json).
+code/BigBlueFish.Windows/assets/opencc/*.txt -text
+code/tests/TraditionalTextVerification/corpora/*.txt -text
 .githooks/* text eol=lf

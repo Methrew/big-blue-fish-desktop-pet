@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Text.Json;
 
 namespace BigBlueFish.Agent;
@@ -23,7 +24,7 @@ public sealed record AgentAuthenticationMethod(string Id, string Name, string De
                 ? a.EnumerateArray().Where(v => v.ValueKind == JsonValueKind.String).Select(v => v.GetString()!).ToArray() : [];
             var env = source.TryGetProperty("env", out var e) && e.ValueKind == JsonValueKind.Object
                 ? e.EnumerateObject().Where(p => p.Value.ValueKind == JsonValueKind.String).ToDictionary(p => p.Name, p => p.Value.GetString()!) : [];
-            result.Add(new(Text(method, "id"), Text(method, "name", "登录"), Text(method, "description"), type, args, env, legacy));
+            result.Add(new(Text(method, "id"), Text(method, "name", "登入"), Text(method, "description"), type, args, env, legacy));
         }
         return result.DistinctBy(m => m.Id).ToArray();
     }

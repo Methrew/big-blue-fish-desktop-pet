@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Text;
 using Avalonia.Controls;
 using Avalonia.Layout;
@@ -27,7 +29,7 @@ internal sealed partial class LinuxPetWindow
         }));
         toolbar.Children.Add(follow); panel.Children.Add(toolbar);
         var count = Paragraph(""); panel.Children.Add(count);
-        var console = new TextBox { Name = "LogConsoleText", IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new FontFamily("DejaVu Sans Mono, Noto Sans CJK SC"), FontSize = 12, Height = 400 };
+        var console = new TextBox { Name = "LogConsoleText", IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new FontFamily("DejaVu Sans Mono, Noto Sans CJK TC"), FontSize = 12, Height = 400 };
         ScrollViewer.SetVerticalScrollBarVisibility(console, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         ScrollViewer.SetHorizontalScrollBarVisibility(console, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto); panel.Children.Add(console);
         long revision = -1;

@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Globalization;
 using System.Text.Json;
 using Avalonia.Threading;
@@ -15,6 +17,7 @@ internal sealed partial class LinuxPetWindow
 {
 #if COMPANION_SAFE
     static bool McpAvailable => false;
+    static string? TestAgentPipe => null;
     bool AgentDailyActive => false;
     void TickAgent(DateTime now) { }
     void ConfigureAgent() { }
@@ -28,6 +31,8 @@ internal sealed partial class LinuxPetWindow
     ControlServer? mcpServer;
     AgentCoordinator? agent;
     readonly string agentPipe = ControlTools.PipeName + "." + Guid.NewGuid().ToString("N");
+    // Linux MCP is only the Agent connection's own pipe; --test-mode reports it so LinuxVerification can attach a bridge.
+    string? TestAgentPipe => mcpServer == null ? null : agentPipe;
     bool AgentDailyActive => Preferences.AgentEnabled && Preferences.AgentDailySpeech;
     async Task<AgentSpeechBrief> BuildAgentSpeechBrief(string kind, bool allowImages, CancellationToken token)
     {
@@ -118,7 +123,9 @@ internal sealed partial class LinuxPetWindow
     }
     Dictionary<string, object?> CurrentSettings()
     {
-        var result = typeof(CompanionPreferences).GetProperties().Where(p => !Attribute.IsDefined(p, typeof(System.Text.Json.Serialization.JsonIgnoreAttribute))).ToDictionary(p => p.Name, p => p.GetValue(Preferences));
+        var result = typeof(CompanionPreferences).GetProperties()
+            .Where(p => !Attribute.IsDefined(p, typeof(System.Text.Json.Serialization.JsonIgnoreAttribute)) && !CompanionPreferences.PrivateSettings.Contains(p.Name))
+            .ToDictionary(p => p.Name, p => p.GetValue(Preferences));
         result["StartupEnabled"] = StartupEnabled; return result;
     }
     async Task<object> ExecuteMcp(string name, JsonElement args, CancellationToken token)
@@ -151,6 +158,7 @@ internal sealed partial class LinuxPetWindow
                     agent?.MarkSpoken();
                     if (name == "say") SayExternal(text); else nextExternalText = text;
                     return ControlTools.Text(new { displayed = name == "say", pending = name == "say_next", text });
+                case "walk_to": case "find_on_screen": case "get_context": throw new NotSupportedException($"Linux 版尚不支援 {name}。"); // The tool list is shared with Windows.
                 case "get_operation_guide": case "get_wakeups": case "schedule_wakeup": case "cancel_wakeup":
                     return ControlTools.Text(agent?.ExecuteTool(name, args) ?? throw new InvalidOperationException("Agent 尚未连接。"));
                 default: throw new ArgumentException("未知 MCP 工具。");
@@ -174,6 +182,11 @@ internal sealed partial class LinuxPetWindow
                 "Scale" or "BubbleScale" => Range(.5, 2), "AnimationIntervalSeconds" => Range(30, 300),
                 "BreakfastHour" or "LunchHour" or "DinnerHour" => Range(0, 23), "BubbleDurationIndex" => Range(0, 7),
                 "SpeechMinMinutes" => item.Value is int minutes && CompanionPreferences.SpeechRanges.Any(r => r.Min == minutes),
+                "SitReminderMinutes" => item.Value is int sit && CompanionPreferences.SitReminderChoices.Contains(sit),
+                "LateReminderHour" => item.Value is int late && CompanionPreferences.LateReminderChoices.Contains(late),
+                "WelcomeBackMinutes" => item.Value is int away && CompanionPreferences.WelcomeBackChoices.Contains(away),
+                "EventReminderMinutes" => item.Value is int ahead && CompanionPreferences.EventReminderChoices.Contains(ahead),
+                // Taiwan townships too: without a CWA authorization code (Linux has none) they get the Open-Meteo estimate.
                 "WeatherRegionCode" => item.Value is string region && CompanionRegions.District(region).Code == region,
                 "LastBrushDate" => item.Value == null || item.Value is string date && DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
                 "Left" or "Top" => item.Value == null || Range(-1000000, 1000000), _ => item.Value is bool };

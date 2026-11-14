@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
@@ -40,7 +41,7 @@ public sealed class AcpConnection : IAsyncDisposable
         this.permission = permission;
         terminalAuthentication = AgentTerminalLogin.CanLaunch(start);
         process = new Process { StartInfo = start };
-        if (!process.Start()) throw new IOException("未能启动 Agent。");
+        if (!process.Start()) throw new IOException("無法啟動 Agent。");
         ownership = new ProcessOwnership(process);
         errors = DrainErrors();
         reader = Read();
@@ -53,7 +54,7 @@ public sealed class AcpConnection : IAsyncDisposable
             clientCapabilities = new { fs = new { readTextFile = false, writeTextFile = false }, terminal = false, auth = new { terminal = terminalAuthentication },
                 session = new { configOptions = new { boolean = new { } } } } }, token, TimeSpan.FromSeconds(45));
         if (!result.TryGetProperty("protocolVersion", out var version) || version.GetInt32() != 1)
-            throw new IOException("Agent 未协商可用的 ACP v1 协议。");
+            throw new IOException("Agent 沒有協商出可用的 ACP v1 協定。");
         Capabilities = result.TryGetProperty("agentCapabilities", out var c) ? c.Clone() : JsonSerializer.SerializeToElement(new { });
         AuthenticationMethods = AgentAuthenticationMethod.Parse(result, terminalAuthentication);
         if (result.TryGetProperty("agentInfo", out var info))
@@ -85,9 +86,9 @@ public sealed class AcpConnection : IAsyncDisposable
             await Send(new { jsonrpc = "2.0", id, method, @params = parameters }, deadline.Token);
             try { return await completion.Task.WaitAsync(deadline.Token); }
             catch (OperationCanceledException) when (!token.IsCancellationRequested && !stop.IsCancellationRequested)
-            { throw new TimeoutException("Agent 请求超时：" + method); }
+            { throw new TimeoutException("Agent 要求逾時：" + method); }
             catch (OperationCanceledException) when (!token.IsCancellationRequested && stop.IsCancellationRequested)
-            { throw new IOException("Agent 进程已断开。" + DiagnosticTail); }
+            { throw new IOException("Agent 處理程序已中斷。" + DiagnosticTail); }
         }
         finally { pending.TryRemove(id, out _); }
     }
@@ -106,7 +107,7 @@ public sealed class AcpConnection : IAsyncDisposable
 
     private async Task Read()
     {
-        string reason = "Agent 已断开。";
+        string reason = "Agent 已中斷連線。";
         try
         {
             // Bounded records protect against a broken CLI emitting an unending line.
@@ -120,7 +121,7 @@ public sealed class AcpConnection : IAsyncDisposable
                     char ch = buffer[i];
                     if (ch != '\n')
                     {
-                        if (line.Length >= 8 * 1024 * 1024) throw new IOException("ACP 消息超过8MiB。");
+                        if (line.Length >= 8 * 1024 * 1024) throw new IOException("ACP 訊息超過 8 MiB。");
                         line.Append(ch); continue;
                     }
                     var value = line.ToString(); line.Clear();
@@ -158,7 +159,7 @@ public sealed class AcpConnection : IAsyncDisposable
                     }
                 }
             }
-            reason = "Agent 已退出或关闭连接。" + DiagnosticTail;
+            reason = "Agent 已結束或關閉連線。" + DiagnosticTail;
         }
         catch (OperationCanceledException) { }
         catch (Exception e) { reason = e.Message; }
@@ -179,9 +180,9 @@ public sealed class AcpConnection : IAsyncDisposable
                 await Send(new { jsonrpc = "2.0", id, error = new { code = -32601, message = "Client capability not advertised: " + method } }, stop.Token); return;
             }
             var call = args.GetProperty("toolCall");
-            string title = call.TryGetProperty("title", out var t) ? t.GetString() ?? "Agent 请求操作" : "Agent 请求操作";
+            string title = call.TryGetProperty("title", out var t) ? t.GetString() ?? "Agent 要求執行操作" : "Agent 要求執行操作";
             if (call.TryGetProperty("toolCallId", out var callId) && toolTitles.TryRemove(callId.GetString() ?? "", out var knownTitle)
-                && (title.StartsWith('{') || title.Length == 0 || title == "Agent 请求操作")) title = knownTitle;
+                && (title.StartsWith('{') || title.Length == 0 || title == "Agent 要求執行操作")) title = knownTitle;
             string detail = call.GetRawText();
             var options = args.GetProperty("options").EnumerateArray().Select(o => new AgentPermissionOption(
                 o.GetProperty("optionId").GetString()!, o.GetProperty("name").GetString()!, o.GetProperty("kind").GetString()!)).ToArray();

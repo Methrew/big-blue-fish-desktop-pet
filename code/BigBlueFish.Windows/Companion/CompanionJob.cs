@@ -1,3 +1,4 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
@@ -25,7 +26,7 @@ internal sealed class CompanionJob : IDisposable
                 Marshal.WriteByte(data, i, 0);
             Marshal.WriteInt32(data, 16, 0x2000);
             if (handle == IntPtr.Zero || !SetInformationJobObject(handle, 9, data, 144))
-                throw new InvalidOperationException("无法初始化进程退出保障");
+                throw new InvalidOperationException("無法初始化程式退出保障");
         }
         finally
         {

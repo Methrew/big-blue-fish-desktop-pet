@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http;
@@ -35,20 +36,23 @@ public static class DiagnosticLog
     static readonly byte[] pathSalt = RandomNumberGenerator.GetBytes(16);
     static long sequence, revision;
     static string appDirectory = Path.GetFullPath(AppContext.BaseDirectory), dataDirectory = Path.GetFullPath(Environment.CurrentDirectory);
-    static readonly HashSet<string> tokens = new(("start success failed cancelled blocked ready stopped hidden visible fullscreen user automatic test weather local agent "
+    static readonly HashSet<string> tokens = new(("start success failed cancelled blocked ready stopped hidden visible fullscreen user automatic test weather local remote agent "
         + "persona news screen image ocr text GPU CPU cache cold warm startup exit idle Event Idle Click Drag Greeting Daily Startup Exit External PuppetIdle "
-        + "Outbound Return BetweenMoves click drag_start drag_end user_message daily_care speech_test weather_request wakeup start_care connect reconnect new_conversation "
+        + "Outbound Return BetweenMoves WalkStart WalkLoop WalkStop click drag_start drag_end user_message user_returned daily_care speech_test weather_request wakeup start_care connect reconnect new_conversation "
         + "set_configuration authentication permission read write model mode thought_level other unavailable unsupported empty expired changed enabled disabled "
         + "Standard Safe OCR Vision Windows Linux Preview timeout first_content hardware_fallback notice manual busy power model_missing puppet "
-        + "get_settings update_settings list_actions capture_foreground capture_screen play_action interrupt_action say say_next request_local_speech "
+        + "get_settings get_context update_settings list_actions capture_foreground capture_screen play_action interrupt_action walk_to find_on_screen say say_next request_local_speech "
         + "get_operation_guide get_wakeups schedule_wakeup cancel_wakeup terminal oauth restored created "
-        + "claude codex gemini dsh kimi qwen antigravity copilot cursor opencode cline codebuddy qoder trae kiro pi devin grok hermes openclaw minimax").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+        + "codex gemini dsh kimi qwen antigravity copilot cursor opencode cline codebuddy qoder trae kiro pi devin grok hermes openclaw minimax").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
     static readonly HashSet<string> actions = LoadActions();
     static readonly Dictionary<string, string> previousSettings = new();
     static readonly HashSet<string> settingNames = new(("ModelEnabled GpuEnabled PublicInfo ForegroundEnabled StopModelOnBattery HideOnFullscreen CheckUpdatesOnStartup "
         + "AgentEnabled AgentHarnessId AgentDailySpeech PuppetMode AgentRespondToClick AgentRespondToDrag WeatherRegionCode Scale BubbleScale SpeechMinMinutes BubbleDurationIndex "
         + "AnimationIntervalSeconds BreakfastHour LunchHour DinnerHour LastBrushDate Left Top StartupEnabled "
-        + "McpEnabled McpDoubleClickChat McpWakeEnabled McpWakeOnText McpWakeOnClick McpWakeOnDrag AgentWorkspaceId").Split(' '), StringComparer.Ordinal);
+        + "McpEnabled McpDoubleClickChat McpWakeEnabled McpWakeOnText McpWakeOnClick McpWakeOnDrag AgentWorkspaceId "
+        // Taiwan edition settings, by name only: the remote API key and the CWA authorization code are never observed.
+        + "McpChatEnabled ModelSource RemoteUrl RemoteModel ScreenImages SitReminderMinutes MealReminder LateReminder LateReminderHour "
+        + "BatteryReminder RainReminder DailyBriefing WelcomeBackMinutes EventReminderMinutes").Split(' '), StringComparer.Ordinal);
     static HashSet<string> LoadActions()
     {
         using var stream = typeof(DiagnosticLog).Assembly.GetManifestResourceStream("BuiltinActions.json")!;
@@ -143,30 +147,30 @@ public static class DiagnosticLog
     public static string ExportText()
     {
         var snapshot = Snapshot();
-        return "蓝色大肥鱼 · 排障日志\nVersion: " + typeof(DiagnosticLog).Assembly.GetName().Version!.ToString(3)
+        return "藍色大肥魚 · 疑難排解記錄\nVersion: " + typeof(DiagnosticLog).Assembly.GetName().Version!.ToString(3)
             + "\nOS: " + RuntimeInformation.OSDescription + "\nArchitecture: " + RuntimeInformation.ProcessArchitecture
             + "\nRuntime: " + RuntimeInformation.FrameworkDescription + "\nEntries: " + snapshot.Length + "/" + Capacity
-            + "\n仅包含本次运行的排障元数据；目录已匿名化。\n\n" + string.Join(Environment.NewLine, snapshot.Select(x => x.ToString())) + Environment.NewLine;
+            + "\n只包含這次執行的疑難排解中繼資料；資料夾路徑已匿名化。\n\n" + string.Join(Environment.NewLine, snapshot.Select(x => x.ToString())) + Environment.NewLine;
     }
     public static void SaveText(string path) => File.WriteAllText(path, ExportText(), new UTF8Encoding(true));
     static string Message(DiagnosticEvent code) => code switch
     {
-        DiagnosticEvent.AppStarted => "桌宠启动", DiagnosticEvent.AppStopped => "桌宠退出", DiagnosticEvent.AppFailed => "桌宠运行异常", DiagnosticEvent.TrayState => "托盘图标状态变化",
-        DiagnosticEvent.SettingsOpened => "打开设置", DiagnosticEvent.SettingsClosed => "关闭设置", DiagnosticEvent.SettingsChanged => "设置已保存",
-        DiagnosticEvent.VisibilityChanged => "桌宠可见状态变化", DiagnosticEvent.SessionRecovery => "恢复桌面会话并清理旧任务", DiagnosticEvent.Interaction => "收到桌宠交互",
-        DiagnosticEvent.AnimationStarted => "开始播放动作", DiagnosticEvent.AnimationCompleted => "动作播放结束", DiagnosticEvent.AnimationFailed => "动画播放失败",
-        DiagnosticEvent.SpeechRequested => "收到吐字请求", DiagnosticEvent.SpeechSkipped => "本次吐字未执行", DiagnosticEvent.SpeechStarted => "开始准备吐字",
-        DiagnosticEvent.SpeechCompleted => "模型吐字生成完成", DiagnosticEvent.SpeechCancelled => "吐字已取消", DiagnosticEvent.SpeechFailed => "吐字生成失败",
-        DiagnosticEvent.ScreenReadStarted => "开始读取前台画面", DiagnosticEvent.ScreenReadCompleted => "前台资料准备完成", DiagnosticEvent.ScreenReadFallback => "读屏不可用，静默使用剩余资料生成",
-        DiagnosticEvent.BubbleShown => "文字已交给气泡显示", DiagnosticEvent.BubbleClosed => "气泡已关闭",
-        DiagnosticEvent.RunnerStarting => "启动本地推理程序", DiagnosticEvent.RunnerReady => "本地模型已就绪", DiagnosticEvent.RunnerStopped => "推理程序已停止",
-        DiagnosticEvent.RunnerFailed => "推理程序发生故障", DiagnosticEvent.RunnerCpuFallback => "切换到 CPU 兼容模式",
-        DiagnosticEvent.WeatherRefresh => "开始刷新天气", DiagnosticEvent.WeatherCached => "使用天气缓存", DiagnosticEvent.WeatherFailed => "天气获取失败",
-        DiagnosticEvent.NewsFetch => "获取科技新闻", DiagnosticEvent.NewsSelected => "本轮选用新闻资料", DiagnosticEvent.NewsFailed => "新闻获取失败",
-        DiagnosticEvent.AgentConnecting => "开始连接 Agent", DiagnosticEvent.AgentConnected => "Agent 会话已连接", DiagnosticEvent.AgentDisconnected => "Agent 连接已关闭",
-        DiagnosticEvent.AgentRequest => "向 Agent 提交事件", DiagnosticEvent.AgentMaterials => "准备或送交 Agent 资料", DiagnosticEvent.AgentReply => "Agent 本轮处理结束",
-        DiagnosticEvent.AgentCancelled => "Agent 请求已取消", DiagnosticEvent.AgentFailed => "Agent 请求失败", DiagnosticEvent.AgentPermission => "Agent 请求权限或认证",
-        DiagnosticEvent.AgentConfiguration => "调整 Agent 会话配置", DiagnosticEvent.AgentWorkspace => "Agent 工作区状态变化", DiagnosticEvent.McpTool => "收到 MCP 工具调用",
-        DiagnosticEvent.LogExported => "排障日志已保存为 TXT", DiagnosticEvent.LogExportFailed => "排障日志保存失败", _ => code.ToString()
+        DiagnosticEvent.AppStarted => "桌寵啟動", DiagnosticEvent.AppStopped => "桌寵結束", DiagnosticEvent.AppFailed => "桌寵執行異常", DiagnosticEvent.TrayState => "系統匣圖示狀態變化",
+        DiagnosticEvent.SettingsOpened => "開啟設定", DiagnosticEvent.SettingsClosed => "關閉設定", DiagnosticEvent.SettingsChanged => "設定已儲存",
+        DiagnosticEvent.VisibilityChanged => "桌寵顯示狀態變化", DiagnosticEvent.SessionRecovery => "恢復桌面工作階段並清理舊工作", DiagnosticEvent.Interaction => "收到桌寵互動",
+        DiagnosticEvent.AnimationStarted => "開始播放動作", DiagnosticEvent.AnimationCompleted => "動作播放結束", DiagnosticEvent.AnimationFailed => "動畫播放失敗",
+        DiagnosticEvent.SpeechRequested => "收到吐字要求", DiagnosticEvent.SpeechSkipped => "這次吐字沒有執行", DiagnosticEvent.SpeechStarted => "開始準備吐字",
+        DiagnosticEvent.SpeechCompleted => "模型吐字產生完成", DiagnosticEvent.SpeechCancelled => "吐字已取消", DiagnosticEvent.SpeechFailed => "吐字產生失敗",
+        DiagnosticEvent.ScreenReadStarted => "開始讀取前景畫面", DiagnosticEvent.ScreenReadCompleted => "前景資料準備完成", DiagnosticEvent.ScreenReadFallback => "無法讀取畫面，改用其餘資料產生",
+        DiagnosticEvent.BubbleShown => "文字已交給氣泡顯示", DiagnosticEvent.BubbleClosed => "氣泡已關閉",
+        DiagnosticEvent.RunnerStarting => "啟動本機推理程式", DiagnosticEvent.RunnerReady => "模型已就緒", DiagnosticEvent.RunnerStopped => "推理程式已停止",
+        DiagnosticEvent.RunnerFailed => "推理程式發生故障", DiagnosticEvent.RunnerCpuFallback => "切換到 CPU 相容模式",
+        DiagnosticEvent.WeatherRefresh => "開始更新天氣", DiagnosticEvent.WeatherCached => "使用天氣快取", DiagnosticEvent.WeatherFailed => "天氣取得失敗",
+        DiagnosticEvent.NewsFetch => "取得科技新聞", DiagnosticEvent.NewsSelected => "本輪選用新聞資料", DiagnosticEvent.NewsFailed => "新聞取得失敗",
+        DiagnosticEvent.AgentConnecting => "開始連線 Agent", DiagnosticEvent.AgentConnected => "Agent 工作階段已連線", DiagnosticEvent.AgentDisconnected => "Agent 連線已關閉",
+        DiagnosticEvent.AgentRequest => "向 Agent 提交事件", DiagnosticEvent.AgentMaterials => "準備或送交 Agent 資料", DiagnosticEvent.AgentReply => "Agent 本輪處理結束",
+        DiagnosticEvent.AgentCancelled => "Agent 要求已取消", DiagnosticEvent.AgentFailed => "Agent 要求失敗", DiagnosticEvent.AgentPermission => "Agent 要求權限或驗證",
+        DiagnosticEvent.AgentConfiguration => "調整 Agent 工作階段設定", DiagnosticEvent.AgentWorkspace => "Agent 工作區狀態變化", DiagnosticEvent.McpTool => "收到 MCP 工具呼叫",
+        DiagnosticEvent.LogExported => "疑難排解記錄已另存為 TXT", DiagnosticEvent.LogExportFailed => "疑難排解記錄儲存失敗", _ => code.ToString()
     };
 }

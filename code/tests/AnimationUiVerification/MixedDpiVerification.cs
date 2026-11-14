@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -26,8 +27,8 @@ internal static partial class Program
         {
             var area=screen.WorkingArea;
             Check(SetWindowPos(Handle(w),IntPtr.Zero,area.Left+area.Width/2-320,area.Top+area.Height/2-180,0,0,0x15),"move pet to monitor "+screen.DeviceName);Pump(200);
-            Invoke(w,"ClampCompanion");Invoke(w,"ShowCompanionNotice","主人，鱼鱼陪你检查不同缩放的屏幕呀~",false);Pump(180);
-            var popup=w.OwnedWindows.Cast<Window>().Single(p=>p.Title=="蓝色大肥鱼 · 对话");
+            Invoke(w,"ClampCompanion");Invoke(w,"ShowCompanionNotice","主人，魚魚陪你檢查不同縮放的螢幕呀~",false);Pump(180);
+            var popup=w.OwnedWindows.Cast<Window>().Single(p=>p.Title=="藍色大肥魚 · 對話");
             var pet=PhysicalRect(Handle(w));var bubble=PhysicalRect(Handle(popup));
             Check(popup.IsVisible&&bubble.Right>bubble.Left&&bubble.Bottom>bubble.Top,"bubble physically visible "+screen.DeviceName);
             Check(bubble.Left<pet.Right&&bubble.Right>pet.Left&&Math.Abs(bubble.Top-pet.Top)<800,"bubble physically follows pet on monitor "+screen.DeviceName);

@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Text.Json;
 using BigBlueFish.Agent;
 using BigBlueFish.Control;
@@ -51,7 +52,7 @@ static class LiveProbe
             };
             host.Configure(id, new(true, false, false));
             var limit = DateTime.UtcNow.AddMinutes(6);
-            while (!host.Connected && !host.Status.Contains("失败") && !host.Status.StartsWith("需要登录") && DateTime.UtcNow < limit) await Task.Delay(100);
+            while (!host.Connected && !host.Status.Contains("失敗") && !host.Status.StartsWith("需要登入") && DateTime.UtcNow < limit) await Task.Delay(100);
             if (!host.Connected) { Console.WriteLine("RESULT unavailable or authentication required; not a successful compatibility test."); return Finish(3, host.Status); }
             Console.WriteLine("ACP connected; version=" + host.Version + "; restores=" + host.RestoresSessions);
             if (configure)
@@ -68,7 +69,7 @@ static class LiveProbe
             if (!prompt) { Console.WriteLine("RESULT ACP session handshake verified; generation not tested."); return Finish(0, "ACP session handshake only"); }
             host.SendUser("这是蓝色大肥鱼联调测试。请使用big-blue-fish技能，读取操作说明和人设，仅调用say工具显示一句“主人，鱼鱼连上啦~”，然后结束本轮。");
             limit = DateTime.UtcNow.AddMinutes(3);
-            while (DateTime.UtcNow < limit && said == 0 && !host.Status.Contains("失败") && !host.Status.StartsWith("需要登录") && !host.Detail.StartsWith("本轮")) await Task.Delay(100);
+            while (DateTime.UtcNow < limit && said == 0 && !host.Status.Contains("失敗") && !host.Status.StartsWith("需要登入") && !host.Detail.StartsWith("本輪")) await Task.Delay(100);
             if (said == 0) { Console.WriteLine("RESULT no say tool call; real reply path not verified. guide calls=" + guide); return Finish(4, "No say tool call"); }
             while (host.Busy && DateTime.UtcNow < limit) await Task.Delay(100);
             if (wakeup)

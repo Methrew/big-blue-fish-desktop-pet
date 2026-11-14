@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Net;
 using System.Net.Http;
 using System.Text;
@@ -98,7 +99,7 @@ internal static class UpdateNotesVerification
         var blocks = Visual<TextBlock>(Content(window)).ToList();
         var inlines = blocks.SelectMany(block => AllInlines(block.Inlines)).ToList();
 
-        Check(blocks.Any(block => Text(block) == "更新内容"), "update page labels the release notes section");
+        Check(blocks.Any(block => Text(block) == "更新內容"), "update page labels the release notes section");
         Check(Text(Content(window)).Contains("可更新到 9.9.9"), "update page keeps the target version in its description");
 
         var heading = blocks.FirstOrDefault(block => Text(block) == "1.0.2 · 2026-11-01");
@@ -130,7 +131,7 @@ internal static class UpdateNotesVerification
             "raw Markdown markers do not leak into the rendered text");
 
         var actions = ((ModernWindow)window).Actions.Children.OfType<Button>().ToList();
-        Check(actions.Select(button => (string)button.Content).SequenceEqual(new[] { "稍后", "下载并更新" }), "update page keeps both download actions");
+        Check(actions.Select(button => (string)button.Content).SequenceEqual(new[] { "稍後", "下載並更新" }), "update page keeps both download actions");
 
         Render(window, root, "update-notes");
         CheckActions(window, actions);
@@ -142,7 +143,7 @@ internal static class UpdateNotesVerification
     {
         var empty = new UpdateWindow(new AvailableUpdate("9.9.9", "BigBlueFish.exe", "http://fixture/installer", new string('a', 64), "  \n "), Path.Combine(root, "install"));
         Show(empty);
-        Check(Visual<TextBlock>(Content(empty)).Any(block => Text(block) == "本次更新没有提供详细说明。"), "empty release notes show a placeholder instead of an empty page");
+        Check(Visual<TextBlock>(Content(empty)).Any(block => Text(block) == "本次更新沒有提供詳細說明。"), "empty release notes show a placeholder instead of an empty page");
         empty.Close(); Pump();
 
         var plain = new UpdateWindow(new AvailableUpdate("9.9.9", "BigBlueFish.exe", "http://fixture/installer", new string('a', 64), "修复了若干问题。\n感谢反馈。"), Path.Combine(root, "install"));

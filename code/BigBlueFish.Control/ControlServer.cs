@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Collections.Concurrent;
 using System.IO.Pipes;
 using System.Text;
@@ -99,7 +101,7 @@ public sealed class ControlServer : IDisposable
                         if (await reader.ReadAsync(character.AsMemory(), stop.Token) == 0) return;
                         int ch = character[0];
                         if (ch == '\n') break;
-                        if (line.Length >= 1024 * 1024) throw new IOException("MCP 请求过大。");
+                        if (line.Length >= 1024 * 1024) throw new IOException("MCP 請求過大。");
                         line.Append((char)ch);
                     }
                     if (line.Length == 0) continue;
@@ -148,12 +150,19 @@ public sealed class ControlServer : IDisposable
             }
             if (method == "initialize")
             {
-                if (negotiated) { Error(id, -32600, "已完成初始化协商。"); return Task.CompletedTask; }
+                if (negotiated) { Error(id, -32600, "已完成初始化協商。"); return Task.CompletedTask; }
                 negotiated = true;
                 var version = args.TryGetProperty("protocolVersion", out var requested) && requested.GetString() == "2025-03-26" ? "2025-03-26" : "2025-11-25";
                 Result(id, new { protocolVersion = version, capabilities = new { tools = new { listChanged = false }, logging = new { }, resources = new { subscribe = true, listChanged = false } },
                     serverInfo = new { name = "BigBlueFish", version = typeof(ControlServer).Assembly.GetName().Version!.ToString(3) },
-                    instructions = "蓝色大肥鱼内部控制工具。使用big-blue-fish技能；完整指南可调用get_operation_guide。让鱼鱼说话使用say或say_next，普通Agent文字不会进入气泡。先读get_settings和工具schema，动作名称取自list_actions。预约唤醒由鱼鱼计时执行。修改设置不会打开或激活设置窗口。提线木偶模式在连接中断后保持。工具成功表示提交操作，不表示主人已读或动画完成。" });
+                    // One text for both channels: the built-in Agent (ACP, private pipe) and MCP clients outside the fish.
+                    instructions = "藍色大肥魚的控制工具，內建Agent連線與外部MCP客戶端共用。內建Agent使用big-blue-fish技能，完整指南可呼叫get_operation_guide；get_operation_guide、get_wakeups、schedule_wakeup與cancel_wakeup只供內建Agent連線使用。"
+                        + "讓魚魚說話使用say或say_next，普通Agent文字不會進入氣泡；say/say_next顯示你提供的原文（Windows台灣版會把其中的簡體字轉成繁體），請使用台灣繁體中文與台灣用語。工具成功表示提交操作，不能當作主人已讀或動畫播放完成。"
+                        + "先讀get_settings與工具schema，動作名稱取自list_actions；AnimationIntervalSeconds只接受30–300整數秒，SpeechMinMinutes是列舉檔位；要知道使用者此刻的狀況（時間、閒置、前景程式、電源、天氣）時讀get_context（Windows版）。預約喚醒由魚魚計時執行。"
+                        + "點選、拖曳及雙擊輸入的user_message（detail.text為原文，可為空字串；使用者附加檔案時另有detail.attachments，最多10項，每項含path本機絕對路徑、name、kind為image/video/file、mimeType、size位元組與source，只有路徑不含檔案內容，需要時以與使用者相同的權限讀取該路徑；貼上的截圖已先存成PNG；沒有附件時省略此欄位；路徑也會交給所有收到這則事件的客戶端；Windows版的MCP介面只在使用者開啟「雙擊與魚魚對話」時收到user_message）透過notifications/message推送，logger為bigbluefish.interaction、level為info（Windows版另有user_returned：使用者離開5分鐘以上後回到電腦前，detail含breakMinutes、since、at與watching（離開期間大多開著全螢幕程式，例如看片或用手把玩遊戲，可能只是在看，不是離開））；需接收info記錄，或訂閱並讀取bigbluefish://interactions。"
+                        + "內建Agent會另外經ACP收到同一則輸入與它負責回應的事件，不必再處理通知；外部客戶端自行安排收到事件後的模型呼叫，本服務不會自動啟動你的Agent輪次。資源只在記憶體中保留最近128筆事件，依sequence去除重複，斷線後不保證補齊。"
+                        + "截圖會把螢幕內容交給目前客戶端；ForegroundEnabled僅控制內建模型讀取螢幕，不限制MCP截圖。截圖metadata附captureId、screen（來源矩形）、scale（影像畫素÷實體畫素）與pet（魚身矩形），皆以Windows實體畫素表示；walk_to的space=screen同樣是實體畫素虛擬桌面座標（與UI Automation及computer_use元素bounds相同，不是縮圖後的截圖畫素），space=capture則直接使用本服務截圖的影像座標。walk_to讓魚魚跑到目標旁並停在那裡，行走中state.animationPhase為WalkStart、WalkLoop或WalkStop。"
+                        + "開啟PuppetMode（提線木偶模式）需真實使用者確認，等待期間其他控制與拖曳可繼續；中斷連線後模式仍會保持，需明確關閉才能恢復自主功能。修改設定不會開啟或啟用設定視窗。多個客戶端共享狀態和佇列，沒有獨佔鎖。" });
                 return Task.CompletedTask;
             }
             if (method == "ping") { Result(id, new { }); return Task.CompletedTask; }
@@ -161,19 +170,19 @@ public sealed class ControlServer : IDisposable
             switch (method)
             {
                 case "tools/list": Result(id, new { tools = ControlTools.Definitions }); break;
-                case "resources/list": Result(id, new { resources = new[] { new { uri = "bigbluefish://interactions", name = "用户交互与输入", mimeType = "application/json" } } }); break;
+                case "resources/list": Result(id, new { resources = new[] { new { uri = "bigbluefish://interactions", name = "使用者互動與輸入", mimeType = "application/json" } } }); break;
                 case "resources/read":
-                    if (!args.TryGetProperty("uri", out var uri) || uri.GetString() != "bigbluefish://interactions") Error(id, -32602, "未知资源。");
+                    if (!args.TryGetProperty("uri", out var uri) || uri.GetString() != "bigbluefish://interactions") Error(id, -32602, "未知資源。");
                     else Result(id, new { contents = new[] { new { uri = "bigbluefish://interactions", mimeType = "application/json", text = JsonSerializer.Serialize(owner.recent.ToArray()) } } });
                     break;
                 case "resources/subscribe": case "resources/unsubscribe":
-                    if (!args.TryGetProperty("uri", out var subscription) || subscription.GetString() != "bigbluefish://interactions") Error(id, -32602, "未知资源。");
+                    if (!args.TryGetProperty("uri", out var subscription) || subscription.GetString() != "bigbluefish://interactions") Error(id, -32602, "未知資源。");
                     else { subscribed = method.EndsWith("/subscribe", StringComparison.Ordinal); Result(id, new { }); }
                     break;
                 case "logging/setLevel":
                     string[] levels = ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"];
                     var level = args.TryGetProperty("level", out var l) ? Array.IndexOf(levels, l.GetString()) : -1;
-                    if (level < 0) Error(id, -32602, "未知日志级别。"); else { logLevel = level; Result(id, new { }); }
+                    if (level < 0) Error(id, -32602, "未知記錄級別。"); else { logLevel = level; Result(id, new { }); }
                     break;
                 case "tools/call":
                     _ = Call(id.Clone(), args.Clone()); break;
@@ -184,7 +193,7 @@ public sealed class ControlServer : IDisposable
         private async Task Call(JsonElement id, JsonElement args)
         {
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(stop.Token);
-            if (!requests.TryAdd(id.ToString(), cancel)) { Error(id, -32600, "重复的请求编号。"); return; }
+            if (!requests.TryAdd(id.ToString(), cancel)) { Error(id, -32600, "重複的請求編號。"); return; }
             try
             {
                 var name = args.GetProperty("name").GetString()!;

@@ -1,3 +1,5 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
 using System.Net;
@@ -12,19 +14,41 @@ internal static class WeatherCacheVerification
         internal int Calls;
         internal bool Offline, Invalid, Stale;
         internal TaskCompletionSource? Block;
-        internal string LastUrl = "";
+        internal string LastUrl = "", LastAuthorization = "";
+        internal string? RefusedCode;
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
         {
             Interlocked.Increment(ref Calls);
-            LastUrl = request.RequestUri!.ToString();
+            var uri = request.RequestUri!;
+            LastUrl = uri.ToString();
             if (Block != null) await Block.Task.WaitAsync(token);
             if (Offline) throw new HttpRequestException("offline test");
+            if (uri.Host == "opendata.cwa.gov.tw")
+            {
+                LastAuthorization = request.Headers.TryGetValues("Authorization", out var values) ? string.Join(",", values) : "";
+                if (LastAuthorization == RefusedCode) return new(HttpStatusCode.Unauthorized);
+                return new(HttpStatusCode.OK) { Content = new StringContent(Invalid ? "broken json" : CwaBody(uri)) };
+            }
             var offset = LastUrl.Contains("timezone=auto") ? TimeSpan.FromHours(-7) : TimeSpan.FromHours(8);
             var observed = (Stale ? Now.AddHours(-7) : Now).ToOffset(offset);
             var text = JsonSerializer.Serialize(new { utc_offset_seconds = (int)offset.TotalSeconds, current = new { time = observed.ToString("yyyy-MM-ddTHH:mm"),
                 temperature_2m = 21, apparent_temperature = 20, relative_humidity_2m = 65, weather_code = 0, wind_speed_10m = 8 },
                 daily = new { temperature_2m_min = new[] { 18 }, temperature_2m_max = new[] { 25 }, precipitation_probability_max = new[] { 10 } } });
             return new(HttpStatusCode.OK) { Content = new StringContent(Invalid ? "broken json" : text) };
+        }
+
+        // CWA F-D0047 in its camelCase layout: three-hour periods of the asked township from 06:00 (UTC+8) on Now's date.
+        private string CwaBody(Uri uri)
+        {
+            var query = Uri.UnescapeDataString(uri.Query);
+            var name = query[(query.IndexOf("LocationName=", StringComparison.Ordinal) + "LocationName=".Length)..];
+            var day = Now.ToOffset(TimeSpan.FromHours(8)).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            object Period(int hour, string text) => new { startTime = $"{day} {hour:00}:00:00", endTime = $"{day} {hour + 3:00}:00:00",
+                elementValue = new[] { new { value = text, measures = "NA" } } };
+            return JsonSerializer.Serialize(new { success = "true", records = new { locations = new[] { new { locationsName = "臺北市", location = new[] { new {
+                locationName = name, weatherElement = new[] { new { elementName = "天氣預報綜合描述", time = new[] {
+                    Period(6, "晴。降雨機率10%。溫度攝氏24至27度。"), Period(9, "多雲。降雨機率20%。溫度攝氏27至30度。"),
+                    Period(12, "短暫陣雨。降雨機率70%。溫度攝氏28至31度。") } } } } } } } } });
         }
     }
     internal static async Task<int> Run(string directory, bool live)
@@ -96,8 +120,22 @@ internal static class WeatherCacheVerification
         Check(corrupt.CachedContext("350622").Length > 0, "cancelled manual waiter does not cancel shared background refresh");
         now = now.AddDays(-1);
         Check(corrupt.CachedContext("350622") == "", "clock rollback rejects future-dated cache");
+
+        // Region table: 臺灣 first and the default, then China, the US and the GeoNames world.
+        var taipei = CompanionRegions.District(null);
+        Check(CompanionRegions.DefaultCode == "TW-061-01" && taipei.Code == "TW-061-01" && CompanionRegions.FullName(taipei) == "臺灣 · 臺北市 · 中正區"
+            && CompanionRegions.Country(taipei) == CompanionRegions.Taiwan && CompanionRegions.IsTaiwan(taipei) && CompanionRegions.CwaDataset(taipei) == "F-D0047-061",
+            "new installs default to 臺北市中正區 and its CWA township dataset");
+        var counties = CompanionRegions.Children(CompanionRegions.Taiwan.Root);
+        Check(counties.Length == 22 && counties.Sum(c => CompanionRegions.Children(c.Code).Length) == 368
+            && counties.All(c => CompanionRegions.Children(c.Code).All(t => t.Latitude != null && t.Longitude != null && CompanionRegions.District(t.Code) == t)),
+            "Taiwan lists 22 counties and 368 located townships");
+        Check(CompanionRegions.Chain(taipei).Select(r => r.Name).SequenceEqual(["臺北市", "中正區"]) && CompanionRegions.Taiwan.LeafLevel == 1
+            && CompanionRegions.Taiwan.Captions.SequenceEqual(["縣市", "鄉鎮市區"])
+            && CompanionRegions.District("TW-061").Code == CompanionRegions.DefaultCode && CompanionRegions.District("TW").Code == CompanionRegions.DefaultCode,
+            "Taiwan picks a county, then a township; county and root codes fall back");
         var la = CompanionRegions.District("US-06037");
-        Check(la.Code == "US-06037" && CompanionRegions.FullName(la) == "美国 United States · 加利福尼亚州 CA · Los Angeles County", "US county is a valid weather leaf");
+        Check(la.Code == "US-06037" && CompanionRegions.FullName(la) == "美國 United States · 加利福尼亚州 CA · Los Angeles County", "US county is a valid weather leaf");
         Check(CompanionRegions.District("US-06").Code == CompanionRegions.DefaultCode && CompanionRegions.District("340100").Code == CompanionRegions.DefaultCode, "state and city codes fall back to default");
         Check(CompanionRegions.Children("0").All(r => !CompanionRegions.IsUs(r)) && CompanionRegions.Children("US").Length == 52, "China provinces and 52 US states stay separate");
         Check(CompanionRegions.Children("US").All(s => CompanionRegions.Children(s.Code).Length > 0 && CompanionRegions.Children(s.Code).All(c => c.Latitude != null)), "every US state has located counties");
@@ -105,24 +143,121 @@ internal static class WeatherCacheVerification
         await corrupt.RefreshIfDue("US-06037");
         var us = corrupt.CachedContext("US-06037");
         Check(feed.LastUrl.Contains("temperature_unit=fahrenheit") && feed.LastUrl.Contains("wind_speed_unit=mph") && feed.LastUrl.Contains("timezone=auto"), "US request asks for imperial units and local time zone");
-        Check(us.Contains("21℉") && us.Contains("英里/小时") && us.Contains("当地时间") && us.Contains("Los Angeles County"), "US weather context uses Fahrenheit, mph and local time");
+        Check(us.Contains("21℉") && us.Contains("英里/小時") && us.Contains("當地時間") && us.Contains("Los Angeles County"), "US weather context uses Fahrenheit, mph and local time");
         var countries = CompanionRegions.Countries;
-        Check(countries[0] == CompanionRegions.China && countries.Length == 240 && countries.Contains(CompanionRegions.UnitedStates)
-            && countries.Skip(1).All(c => c.Code is not ("TW" or "HK" or "MO" or "PR")), "China first, then 239 other countries without duplicating China or US data");
-        Check(new[] { "71", "81", "82" }.All(code => CompanionRegions.Children("0").Any(r => r.Code == code))
-            && CompanionRegions.All.All(r => r.Code[..2] is not ("TW" or "HK" or "MO")), "Taiwan, Hong Kong and Macau are provinces of China only");
+        Check(countries[0] == CompanionRegions.Taiwan && countries[1] == CompanionRegions.China && countries.Length == 241 && countries.Contains(CompanionRegions.UnitedStates)
+            && countries.Skip(2).All(c => c.Code is not ("TW" or "CN" or "HK" or "MO" or "PR")) && countries.Select(c => c.Code).Distinct().Count() == countries.Length,
+            "臺灣 first, China second, then 239 other countries without duplicating Taiwan, China or US data");
+        Check(!CompanionRegions.Children("0").Any(r => r.Code == "71") && new[] { "81", "82" }.All(code => CompanionRegions.Children("0").Any(r => r.Code == code))
+            && CompanionRegions.All.All(r => r.Code[..2] is not ("HK" or "MO")), "pickers offer Taiwan only as its own country; Hong Kong and Macau stay under China");
+        var saved = CompanionRegions.District("710101");
+        Check(saved.Code == "TW-061-01" && CompanionRegions.IsTaiwan(saved) && CompanionRegions.Country(saved) == CompanionRegions.Taiwan
+            && CompanionRegions.FullName(saved) == "臺灣 · 臺北市 · 中正區", "a saved 台湾省 district becomes the same Taiwan township");
+        var formerTaiwan = CompanionRegions.All.Where(r => r.Code.StartsWith("71") && r.Code.Length == 6).ToArray();
+        var moved = formerTaiwan.Select(r => CompanionRegions.District(r.Code)).ToArray();
+        Check(formerTaiwan.Length == 358 && moved.All(CompanionRegions.IsTaiwan) && moved.Select(r => r.Code).Distinct().Count() == 358
+            && formerTaiwan.Zip(moved).All(p => CompanionRegions.Parent(p.Second).AreaCityCode == p.First.ParentCode),
+            "every saved 台湾省 district moves to its own township in the same Taiwan county");
+        Check(CompanionRegions.District("7101").Code == "TW-061-01" && CompanionRegions.District("710299").Code == "TW-065-01"
+            && CompanionRegions.District("71").Code == CompanionRegions.DefaultCode && CompanionRegions.District("719999").Code == CompanionRegions.DefaultCode,
+            "other 台湾省 codes fall back to their county's first township, else the default");
+        Check(CompanionRegions.DefaultChain(CompanionRegions.Taiwan).Select(r => r.Code).SequenceEqual(["TW-061", "TW-061-01"])
+            && CompanionRegions.DefaultChain(CompanionRegions.China).Select(r => r.Code).SequenceEqual(["34", "3401", "340104"])
+            && CompanionRegions.DefaultChain(CompanionRegions.UnitedStates).Length == 0, "switching country starts at 臺北市中正區, 合肥市蜀山區 or the first entries");
         await corrupt.RefreshIfDue("710101");
-        Check(CompanionRegions.All.Where(r => r.Code.StartsWith("71")).All(r => r.Latitude != null) && corrupt.CachedContext("710101").Contains("台湾省")
-            && corrupt.CachedContext("710101").Contains("北京时间"), "Taiwan districts have coordinates and get China-style weather");
+        Check(corrupt.CachedContext("710101") == corrupt.CachedContext("TW-061-01") && corrupt.CachedContext("710101").Contains("臺灣 · 臺北市 · 中正區")
+            && corrupt.CachedContext("710101").Contains("臺灣時間") && feed.LastUrl.Contains("Asia%2FTaipei") && feed.LastUrl.Contains("latitude=25.03245"),
+            "a saved 台湾省 district gets the Taiwan township's weather");
         var tokyo = CompanionRegions.District("JP-1850147");
         Check(tokyo.Code == "JP-1850147" && CompanionRegions.FullName(tokyo).StartsWith("日本 Japan · ") && CompanionRegions.District("JP.40").Code == CompanionRegions.DefaultCode, "world city is a valid leaf and divisions fall back");
-        Check(countries.Where(c => c != CompanionRegions.China && c != CompanionRegions.UnitedStates).All(c => CompanionRegions.Children(c.Root).Length > 0
+        Check(countries.Where(c => c != CompanionRegions.Taiwan && c != CompanionRegions.China && c != CompanionRegions.UnitedStates).All(c => CompanionRegions.Children(c.Root).Length > 0
             && CompanionRegions.Children(c.Root).All(d => CompanionRegions.Children(d.Code).All(x => x.Latitude != null))), "every world country has located cities");
         await corrupt.RefreshIfDue("JP-1850147");
         var world = corrupt.CachedContext("JP-1850147");
-        Check(feed.LastUrl.Contains("timezone=auto") && !feed.LastUrl.Contains("fahrenheit") && world.Contains("21℃") && world.Contains("当地时间") && world.Contains("公里/小时"), "world weather uses Celsius, km/h and local time");
+        Check(feed.LastUrl.Contains("timezone=auto") && !feed.LastUrl.Contains("fahrenheit") && world.Contains("21℃") && world.Contains("當地時間") && world.Contains("公里/小時"), "world weather uses Celsius, km/h and local time");
         await corrupt.RefreshIfDue("350623");
-        Check(corrupt.CachedContext("350623").Contains("℃") && feed.LastUrl.Contains("Asia%2FShanghai"), "China weather keeps Celsius and Beijing time");
+        Check(corrupt.CachedContext("350623").Contains("℃") && corrupt.CachedContext("350623").Contains("北京時間") && feed.LastUrl.Contains("Asia%2FShanghai"), "China weather keeps Celsius and Beijing time");
+
+        // Taiwan: without a CWA authorization code an Open-Meteo estimate at the township centre, with one the CWA township
+        // forecast; the two never share an entry or a retry spacing.
+        var twNow = new DateTimeOffset(2026, 10, 7, 0, 0, 0, TimeSpan.Zero);
+        feed.Now = twNow; feed.Block = null; feed.Offline = feed.Invalid = feed.Stale = false;
+        string twFile = Path.Combine(directory, Guid.NewGuid() + ".json");
+        using var taiwan = new CompanionWeather(web, twFile, () => twNow);
+        await taiwan.RefreshIfDue("TW-061-01");
+        var estimate = taiwan.CachedContext("TW-061-01");
+        Check(feed.LastUrl.Contains("latitude=25.03245") && feed.LastUrl.Contains("timezone=Asia%2FTaipei") && !feed.LastUrl.Contains("fahrenheit"),
+            "Taiwan without a CWA code asks Open-Meteo at the township centre in Taiwan time");
+        Check(estimate.StartsWith("地點：臺灣 · 臺北市 · 中正區（鄉鎮市區中心附近的天氣估算）。天氣資料記錄時間：2026-10-07T08:00（臺灣時間）。記錄時晴朗，")
+            && estimate.Contains("氣溫21℃") && estimate.Contains("風速8公里/小時") && estimate.EndsWith("資料日期2026-10-07最低18℃、最高25℃，最高降水機率10%。"),
+            "the Taiwan estimate says it is near the township centre, in Celsius and km/h");
+        int calls = feed.Calls;
+        taiwan.CwaApiKey = "CWA-TEST-CODE";
+        Check(taiwan.CachedContext("TW-061-01") == "", "a CWA code never serves the Open-Meteo estimate");
+        await taiwan.RefreshIfDue("TW-061-01");
+        var forecast = taiwan.CachedContext("TW-061-01");
+        Check(feed.Calls == calls + 1 && feed.LastAuthorization == "CWA-TEST-CODE" && feed.LastUrl.Contains("/F-D0047-061?")
+            && Uri.UnescapeDataString(feed.LastUrl).EndsWith("LocationName=中正區"), "setting a CWA code fetches the township forecast at once with the code as Authorization");
+        Check(forecast == "地點：臺灣 · 臺北市 · 中正區（中央氣象署鄉鎮天氣預報）。10月7日06:00到10月7日09:00：晴。降雨機率10%。溫度攝氏24至27度。"
+            + "10月7日09:00到10月7日12:00：多雲。降雨機率20%。溫度攝氏27至30度。", "the CWA forecast reads the next two three-hour periods as before");
+        await taiwan.RefreshIfDue("TW-061-01");
+        Check(feed.Calls == calls + 1, "CWA forecasts keep the hourly spacing");
+        taiwan.CwaApiKey = "";
+        Check(taiwan.CachedContext("TW-061-01") == estimate, "clearing the code returns to the estimate, never the CWA text");
+        await taiwan.RefreshIfDue("TW-061-01");
+        Check(feed.Calls == calls + 1, "a recent estimate needs no new fetch");
+        taiwan.CwaApiKey = "CWA-TEST-CODE";
+        Check(taiwan.CachedContext("TW-061-01") == forecast && !File.ReadAllText(twFile).Contains("CWA-TEST-CODE"), "the code brings the forecast back and is never cached");
+        using (var twRestart = new CompanionWeather(web, twFile, () => twNow))
+        {
+            Check(twRestart.CachedContext("TW-061-01") == estimate, "a restart without the code serves the saved estimate");
+            twRestart.CwaApiKey = "CWA-TEST-CODE";
+            await twRestart.RefreshIfDue("TW-061-01");
+            Check(twRestart.CachedContext("TW-061-01") == forecast && feed.Calls == calls + 1, "a restart with the code reuses the saved CWA forecast");
+        }
+        string legacyFile = Path.Combine(directory, Guid.NewGuid() + ".json");
+        File.WriteAllText(legacyFile, JsonSerializer.Serialize(new[] { new { Code = "TW-061-01", FetchedAt = twNow, ObservedAt = twNow, Context = forecast } }));
+        using (var legacy = new CompanionWeather(web, legacyFile, () => twNow))
+        {
+            Check(legacy.CachedContext("TW-061-01") == "", "a forecast saved by the earlier Taiwan edition is never served as an estimate");
+            legacy.CwaApiKey = "CWA-TEST-CODE";
+            Check(legacy.CachedContext("TW-061-01") == forecast, "a forecast saved by the earlier Taiwan edition stays a CWA forecast");
+        }
+        feed.RefusedCode = "CWA-WRONG-CODE";
+        taiwan.CwaApiKey = "CWA-WRONG-CODE";
+        await taiwan.RefreshIfDue("TW-061-01");
+        Check(feed.Calls == calls + 2 && feed.LastAuthorization == "CWA-WRONG-CODE" && taiwan.CachedContext("TW-061-01") == forecast,
+            "replacing the code fetches again at once and keeps the last forecast meanwhile");
+        try { await taiwan.Context("TW-061-02", default); throw new Exception("refused code accepted"); }
+        catch (IOException e) { Check(e.Message == "中央氣象署授權碼無效，請到設定裡確認" && feed.Calls == calls + 3, "a refused code is reported in the Taiwan edition's words"); }
+        await taiwan.RefreshIfDue("TW-061-02");
+        Check(feed.Calls == calls + 3, "a refused code keeps the hourly spacing");
+        taiwan.CwaApiKey = "CWA-TEST-CODE";
+        await taiwan.RefreshIfDue("TW-061-02");
+        Check(feed.Calls == calls + 4 && taiwan.CachedContext("TW-061-02").StartsWith("地點：臺灣 · 臺北市 · 大同區（中央氣象署鄉鎮天氣預報）。10月7日06:00到"),
+            "a corrected code is tried at once");
+        feed.Invalid = true;
+        try { await taiwan.Context("TW-061-04", default); throw new Exception("unreadable CWA answer accepted"); }
+        catch (IOException e) { Check(e.Message == "暫時無法取得中央氣象署天氣資料", "an unreadable CWA answer is reported as unavailable"); }
+        feed.Invalid = false;
+        await taiwan.RefreshIfDue("TW-061-03");
+        calls = feed.Calls;
+        taiwan.CwaApiKey = "";
+        await taiwan.RefreshIfDue("TW-061-03");
+        Check(feed.Calls == calls + 1 && feed.LastUrl.Contains("api.open-meteo.com") && taiwan.CachedContext("TW-061-03").Contains("（鄉鎮市區中心附近的天氣估算）"),
+            "CWA retry spacing never delays the estimate");
+        taiwan.CwaApiKey = "CWA-TEST-CODE";
+        feed.Offline = true;
+        twNow = twNow.AddHours(1);
+        await taiwan.RefreshIfDue("TW-061-02");
+        calls = feed.Calls;
+        twNow = twNow.AddMinutes(1);
+        await taiwan.RefreshIfDue("TW-061-02");
+        Check(feed.Calls == calls && taiwan.CachedContext("TW-061-02").Contains("中央氣象署"), "an unanswered CWA refresh keeps the forecast and waits");
+        twNow = twNow.AddMinutes(1);
+        await taiwan.RefreshIfDue("TW-061-02");
+        Check(feed.Calls == calls + 1, "an unanswered CWA refresh is retried after two minutes, not an hour");
+        feed.Offline = false;
         if (live)
         {
             string actualFile = Path.Combine(directory, "live-weather.json");
@@ -140,6 +275,9 @@ internal static class WeatherCacheVerification
             var actualLondon = await actual.Context("GB-2643743", default);
             Check(actualLondon.Contains("℃") && actualLondon.Contains("London"), "live Open-Meteo world fetch is parsed");
             Console.WriteLine("LIVE " + actualLondon);
+            var actualTaiwan = await actual.Context("TW-061-01", default);
+            Check(actualTaiwan.Contains("℃") && actualTaiwan.Contains("中正區") && actualTaiwan.Contains("臺灣時間"), "live Open-Meteo Taiwan estimate is parsed");
+            Console.WriteLine("LIVE " + actualTaiwan);
         }
         Console.WriteLine($"RESULT {checks} weather cache checks passed ({CompanionBrain.InputMode})");
         return 0;

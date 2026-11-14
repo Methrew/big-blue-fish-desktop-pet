@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -70,7 +72,7 @@ internal static class Program
                 using var actual = new CompanionBrain(Process.Start, TimeSpan.FromSeconds(60), offlineClient, args[2])
                     { StopOnBattery = false, WeatherRegionCode = "350622" };
                 var text = await actual.GenerateWeather();
-                Check(text.Length > 0 && text.Contains("云霄"), "real model broadcasts selected district from persisted weather with offline HTTP transport");
+                Check(text.Length > 0 && text.Contains("雲霄"), "real model broadcasts selected district from persisted weather with offline HTTP transport");
                 Check(OfflineWeather.Calls == 0, "recent persisted weather reaches real model without HTTP fetch");
                 actual.Stop();
                 Check(actual.RunnerPid == null, "real weather verification unloads its own runner");
@@ -163,7 +165,7 @@ internal static class Program
 
             File.WriteAllText(modePath, "out-of-memory");
             await brain.WarmUp();
-            Check(brain.RunnerPid == null && brain.Status.Contains("内存或显存不足"), "warmup preserves startup memory failure reason and disposes failed runner");
+            Check(brain.RunnerPid == null && brain.Status.Contains("記憶體或顯示記憶體不足"), "warmup preserves startup memory failure reason and disposes failed runner");
             File.WriteAllText(modePath, "loading");
             await brain.WarmUp();
             Check(brain.RunnerPid == null && !brain.Busy && Exited(children[^1]), "warmup failure continues to clean up correctly");
@@ -175,7 +177,7 @@ internal static class Program
             Check(launches.Where(a => a[Array.IndexOf(a, "-ngl") + 1] != "0").All(a => a[Array.IndexOf(a, "-ngl") + 1] == "auto" && a[Array.IndexOf(a, "--fit") + 1] == "on"), "GPU startup lets llama.cpp fit layers to available device memory");
             Check(launches.All(a => !a.Contains("--log-disable") && a[Array.IndexOf(a, "--log-verbosity") + 1] == "4"), "runtime library INFO device placement is available without DEBUG token logging");
             Check(launches.Where(a => a[Array.IndexOf(a, "-ngl") + 1] != "0").All(a => !a.Contains("--device") && !a.Contains("--main-gpu") && !a.Contains("--tensor-split") && !a.Contains("--split-mode")), "GPU auto allocation has no pinned device or fixed split");
-            Check(brain.ExecutionDevice == "未运行", "stopped runner clears device status");
+            Check(brain.ExecutionDevice == "未執行", "stopped runner clears device status");
             brain.UseGpu = false; File.WriteAllText(modePath, "ready"); await brain.WarmUp();
             var cpu = launches[^1];
             Check(brain.ExecutionDevice == "CPU", "CPU model allocation reports CPU");
@@ -183,46 +185,135 @@ internal static class Program
             brain.Stop(); Check(children.All(Exited), "CPU verification leaves no injected process alive");
             brain.UseGpu = true; File.WriteAllText(modePath, "gpu-fail"); await brain.WarmUp();
             Console.WriteLine("Fallback fixture state: pid=" + brain.RunnerPid + ", status=" + brain.Status + ", launch=" + string.Join(" ", launches[^1]));
-            Check(brain.RunnerPid != null && brain.Status.Contains("CPU兼容模式") && launches[^1][Array.IndexOf(launches[^1], "--device") + 1] == "none", "GPU initialization failure retries once on CPU and reports actual compatibility mode");
+            Check(brain.RunnerPid != null && brain.Status.Contains("CPU相容模式") && launches[^1][Array.IndexOf(launches[^1], "--device") + 1] == "none", "GPU initialization failure retries once on CPU and reports actual compatibility mode");
             int fallback = brain.RunnerPid!.Value;
             Check(brain.ExecutionDevice == "CPU", "GPU failure clears previous device allocation and reports actual CPU fallback");
-            Check((await brain.Generate(false, false)).Length > 0 && brain.RunnerPid == fallback && brain.Status.Contains("CPU兼容模式"), "healthy CPU compatibility runner is reused without repeated failing GPU launches");
+            Check((await brain.Generate(false, false)).Length > 0 && brain.RunnerPid == fallback && brain.Status.Contains("CPU相容模式"), "healthy CPU compatibility runner is reused without repeated failing GPU launches");
             brain.Stop(); Check(children.All(Exited), "GPU fallback verification leaves no child process alive");
             File.WriteAllText(modePath, "gpu-access-violation"); await brain.WarmUp();
-            Check(brain.RunnerPid != null && brain.Status.Contains("CPU兼容模式"), "bare GPU access violation without stderr falls back to CPU");
+            Check(brain.RunnerPid != null && brain.Status.Contains("CPU相容模式"), "bare GPU access violation without stderr falls back to CPU");
             brain.Stop(); Check(children.All(Exited), "bare crash fallback leaves no processes");
             Check(CompanionBrain.GpuMicroBatch("Vulkan0: Arc (18409 MiB, 17000 MiB free)") == 2048, "high-memory GPU preserves verified microbatch");
             Check(CompanionBrain.GpuMicroBatch("Vulkan0: AMD (8886 MiB, 8441 MiB free)\nVulkan1: RTX3050 (3979 MiB, 3382 MiB free)") == 128, "smallest reported device budget protects mixed laptop GPUs");
             Check(CompanionBrain.GpuMicroBatch("Vulkan0: GPU (8192 MiB, 6000 MiB free)") == 512, "medium free-memory budget uses intermediate compute buffer");
 
-            var content = "前台应用：Code\n窗口正文：蓝色大肥鱼项目，正在修改 CompanionBrain.cs";
+            var content = "前臺應用：Code\n視窗正文：藍色大肥魚專案，正在修改 CompanionBrain.cs";
             var request = CompanionBrain.SpeechRequest(content);
-            Check(request.Contains(content) && request.Contains("屏幕资料结束"), "SpeechRequest preserves current screen content as delimited data");
-            var ocr = CompanionBrain.OcrSpeechRequest("我：明天中午一起吃火锅，十二点见。");
-            Check(ocr.Contains("明天中午一起吃火锅") && !ocr.Contains("你是"), "OCR user message preserves chat topic without persona instructions");
+            Check(request.Contains(content) && request.Contains("螢幕資料結束"), "SpeechRequest preserves current screen content as delimited data");
+            var ocr = CompanionBrain.OcrSpeechRequest("我：明天中午一起吃火鍋，十二點見。");
+            Check(ocr.Contains("明天中午一起吃火鍋") && !ocr.Contains("你是"), "OCR user message preserves chat topic without persona instructions");
             var messages = CompanionBrain.BuildMessages(CompanionBrain.OcrPersona, ocr);
             Check(((string)messages[0].content).StartsWith(CompanionBrain.FixedSpeechInstructions(CompanionBrain.OcrPersona), StringComparison.Ordinal),
                 "fixed production instructions precede variable reaction and screen data");
             Check(messages.Length == 2 && messages[0].role == "system" && messages[1].role == "user", "production messages preserve standard system/user roles");
-            Check(((string)messages[0].content).Contains("聊天正文") && ((string)messages[0].content).Contains("这一回可以") && (string)messages[1].content == ocr,
+            Check(((string)messages[0].content).Contains("聊天正文") && ((string)messages[0].content).Contains("這一回可以") && (string)messages[1].content == ocr,
                 "observer guidance and random voice are system instructions while user content is screen data");
             Check(CompanionBrain.BuildMessages(CompanionBrain.Persona, request, new CompanionWindowImage("data:image/jpeg;base64,AA==", 1, 1))[1].content is object[] { Length: 2 },
                 "vision content keeps image and screen text in the user role");
-            Check(CompanionBrain.Persona.Contains("当前活动") && CompanionBrain.Persona.Contains("桌面、新标签页、主页"), "Persona matches current content and entry-screen behavior");
+            Check(CompanionBrain.Persona.Contains("目前活動") && CompanionBrain.Persona.Contains("桌面、新標籤頁、主頁"), "Persona matches current content and entry-screen behavior");
+            Check(CompanionBrain.Persona.Contains("台灣繁體中文") && CompanionBrain.WeatherPersona.Contains("台灣繁體中文") && CompanionBrain.NewsPersona.Contains("台灣繁體中文"),
+                "speech, weather and news prompts ask for Taiwan Traditional Chinese");
             using (var briefBrain = new CompanionBrain(Process.Start, TimeSpan.FromSeconds(60), newsRoll: () => 1))
             {
                 var briefs = new HashSet<string>();
                 for (int i = 0; i < 60; i++) briefs.Add((await briefBrain.AgentSpeechBrief(false, false, CancellationToken.None)).Text);
                 var brief = briefs.First();
                 Check(brief.Contains(CompanionBrain.FixedSpeechInstructions(CompanionBrain.Persona))
-                    && brief.Contains("屏幕资料结束") && !brief.Contains(CompanionDialogue.OcrObserverGuidance), "Agent brief carries the local fixed persona and screen material");
-                Check(briefs.Count >= 2 && briefs.All(b => b.Contains("这一回可以")), "Agent brief rolls the same random reaction hint per event");
+                    && brief.Contains("螢幕資料結束") && !brief.Contains(CompanionDialogue.OcrObserverGuidance), "Agent brief carries the local fixed persona and screen material");
+                Check(briefs.Count >= 2 && briefs.All(b => b.Contains("這一回可以")), "Agent brief rolls the same random reaction hint per event");
+                Check(brief.Contains("台灣繁體中文") && brief.Contains("現在是"), "Agent brief asks the Agent for Taiwan Traditional Chinese and dates the turn");
                 Check((await briefBrain.AgentSpeechBrief(true, false, CancellationToken.None)).Text.Contains(CompanionBrain.WeatherPersona), "Agent weather brief uses the weather persona");
             }
+            await RemoteModelChecks(Start, launches, weatherClient);
             Console.WriteLine($"RESULT {checks} runner/prompt checks passed ({CompanionBrain.InputMode}); child responses are fault fixtures, not real model evaluation");
             return 0;
         }
         catch (Exception error) { Console.Error.WriteLine(error); return 1; }
+    }
+
+    // An OpenAI-compatible fixture stands in for a remote llama.cpp server: /v1/models names the model and
+    // reports image input, a wrong API key is rejected, and chat completions stream one reply. Nothing leaves
+    // this machine, and no local runner may start while the remote source is selected.
+    private static async Task RemoteModelChecks(Func<ProcessStartInfo, Process?> start, List<string[]> launches, HttpClient weatherClient)
+    {
+        var probe = new System.Net.Sockets.TcpListener(IPAddress.Loopback, 0);
+        probe.Start();
+        int port = ((IPEndPoint)probe.LocalEndpoint).Port;
+        probe.Stop();
+        var requests = new List<(string Path, string Body)>();
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+        var serving = Task.Run(async () =>
+        {
+            while (listener.IsListening)
+            {
+                HttpListenerContext context;
+                try { context = await listener.GetContextAsync(); }
+                catch (Exception error) when (error is HttpListenerException or ObjectDisposedException or InvalidOperationException) { return; }
+                try
+                {
+                    string body;
+                    using (var reader = new StreamReader(context.Request.InputStream, Encoding.UTF8)) body = await reader.ReadToEndAsync();
+                    string path = context.Request.Url!.AbsolutePath;
+                    lock (requests) requests.Add((path, body));
+                    string response, type = "application/json";
+                    if (context.Request.Headers["Authorization"] != "Bearer fixture-key")
+                    {
+                        context.Response.StatusCode = 401;
+                        response = "{\"error\":\"unauthorized fixture\"}";
+                    }
+                    else if (path == "/v1/models")
+                        response = "{\"data\":[{\"id\":\"remote-fixture\",\"architecture\":{\"input_modalities\":[\"text\",\"image\"]}}]}";
+                    else if (body.Contains("\"stream\":true", StringComparison.Ordinal))
+                    {
+                        type = "text/event-stream";
+                        response = "data: {\"choices\":[{\"delta\":{\"content\":\"主人，遠端的魚魚也在喔～\"}}]}\n\ndata: [DONE]\n\n";
+                    }
+                    else response = "{\"choices\":[{\"message\":{\"content\":\"好\"}}]}";
+                    var bytes = Encoding.UTF8.GetBytes(response);
+                    context.Response.ContentType = type;
+                    await context.Response.OutputStream.WriteAsync(bytes);
+                    context.Response.Close();
+                }
+                catch (Exception error) when (error is HttpListenerException or IOException or ObjectDisposedException) { }
+            }
+        });
+        int launchesBefore = launches.Count;
+        using var remote = new CompanionBrain(start, TimeSpan.FromSeconds(5), weatherClient) { StopOnBattery = true };
+        // A system proxy must not intercept the loopback fixture; production keeps the proxy for real servers.
+        var remoteClient = typeof(CompanionBrain).GetField("remote", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        ((HttpClient)remoteClient.GetValue(remote)!).Dispose();
+        remoteClient.SetValue(remote, new HttpClient(new HttpClientHandler { UseProxy = false }) { Timeout = TimeSpan.FromSeconds(30) });
+        try
+        {
+            CompanionNative.TestPowerOverride = false;
+            remote.UseRemoteModel($"http://127.0.0.1:{port}/v1/", "wrong-key", "");
+            Check(remote.UseRemote && remote.ModelAvailable && remote.Status == "等待說話時連線遠端模型", "remote model source needs no local model file and accepts a URL ending in /v1");
+            Check(await remote.TestRemote() == "遠端模型拒絕存取，請檢查 API Key", "remote connection test reports a rejected API key");
+            remote.UseRemoteModel($"http://127.0.0.1:{port}", "fixture-key", "");
+            Check(await remote.TestRemote() == "遠端模型就緒：remote-fixture（支援圖片）", "remote connection test reads the served model and its image input from /v1/models");
+            Check(remote.VisionAvailable && remote.ExecutionDevice == "遠端模型伺服器", "remote image support and execution place are reported");
+            Check(remote.CanRunOnCurrentPower, "remote model keeps running on battery while the local runner pauses");
+            var text = await remote.Generate(false, false);
+            Check(text == "主人，遠端的魚魚也在喔～" && remote.Status == "遠端模型就緒：remote-fixture" && remote.RunnerPid == null && launches.Count == launchesBefore,
+                "remote speech streams through the shared request path without starting a local runner");
+            string chat;
+            lock (requests) chat = requests.Last(r => r.Path == "/v1/chat/completions").Body;
+            using (var payload = System.Text.Json.JsonDocument.Parse(chat))
+                Check(payload.RootElement.GetProperty("model").GetString() == "remote-fixture"
+                    && payload.RootElement.GetProperty("messages")[0].GetProperty("content").GetString()!.Contains("台灣繁體中文"),
+                    "remote request names the served model and carries the Taiwan Traditional persona");
+            remote.UseRemoteModel(null, "", "");
+            Check(!remote.UseRemote && !remote.CanRunOnCurrentPower && (await remote.Generate(false, false)).Length == 0 && launches.Count == launchesBefore,
+                "returning to the local model restores the unplugged pause");
+        }
+        finally
+        {
+            CompanionNative.TestPowerOverride = null;
+            listener.Stop();
+        }
+        await serving;
     }
 
     private static async Task<int> FakeRunner(int port, string modePath, bool gpu)
@@ -253,7 +344,7 @@ internal static class Program
             string response = failed ? "{\"error\":\"loading failure fixture\"}" : health ? "{\"status\":\"ok\"}"
                 : template ? "{\"prompt\":\"fixture template without production prefix\"}"
                 : prefill ? "{\"content\":\"\"}"
-                : "data: {\"choices\":[{\"delta\":{\"content\":\"主人，小女仆来给你加油啦～\"}}]}\n\ndata: [DONE]\n\n";
+                : "data: {\"choices\":[{\"delta\":{\"content\":\"主人，小女僕來給你加油啦～\"}}]}\n\ndata: [DONE]\n\n";
             var bytes = Encoding.UTF8.GetBytes(response);
             context.Response.ContentType = health || failed || template || prefill ? "application/json" : "text/event-stream";
             await context.Response.OutputStream.WriteAsync(bytes);

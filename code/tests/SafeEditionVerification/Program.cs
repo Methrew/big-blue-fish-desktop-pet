@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.IO;
 using System.Reflection;
 using System.Windows;
@@ -20,7 +22,9 @@ static class Program
         try {
             string path=Path.GetFullPath(args[0]);Directory.CreateDirectory(path);
             File.Copy(Path.Combine(AppContext.BaseDirectory,"BigBlueFish.ico"),Path.Combine(path,"BigBlueFish.ico"),true);
-            File.WriteAllText(Path.Combine(path,"preferences.json"),"{\"ModelEnabled\":false,\"PublicInfo\":false,\"CheckUpdatesOnStartup\":false,\"McpEnabled\":true,\"PuppetMode\":true}");
+            // Brushed already today: between 23:00 and midnight AnimationBoundary would otherwise play the daily brushing instead of idle.
+            string today=DateTime.Now.ToString("yyyy-MM-dd",System.Globalization.CultureInfo.InvariantCulture);
+            File.WriteAllText(Path.Combine(path,"preferences.json"),"{\"ModelEnabled\":false,\"PublicInfo\":false,\"CheckUpdatesOnStartup\":false,\"McpEnabled\":true,\"McpChatEnabled\":true,\"AgentEnabled\":true,\"AgentDailySpeech\":true,\"PuppetMode\":true,\"LastBrushDate\":\""+today+"\"}");
             App.Args=["--test-mode"];var app=new System.Windows.Application {ShutdownMode=ShutdownMode.OnExplicitShutdown};Environment.CurrentDirectory=path;
             pet=new MainWindow();pet.Show();Pump(500);
             object Read(string name)=>pet.GetType().GetField(name,Access)!.GetValue(pet)!;
@@ -29,11 +33,12 @@ static class Program
             Check(!assembly.GetReferencedAssemblies().Any(a=>a.Name is "BigBlueFish.Control" or "BigBlueFish.Agent"),"safe executable has no Control or Agent assembly reference");
             Check(pet.GetType().GetMethod("ExecuteMcp",Access)==null,"safe executable contains no MCP executor");
             var prefs=Read("preferences");
-            Check(!(bool)prefs.GetType().GetProperty("McpEnabled")!.GetValue(prefs)! && !(bool)prefs.GetType().GetProperty("PuppetMode")!.GetValue(prefs)!,"old enabled flags cannot start MCP or puppet in Safe");
+            bool Flag(string name)=>(bool)prefs.GetType().GetProperty(name)!.GetValue(prefs)!;
+            Check(!Flag("McpEnabled") && !Flag("AgentEnabled") && !Flag("PuppetMode") && !Flag("McpChatEnabled") && !Flag("AgentDailySpeech"),"old enabled flags cannot start MCP, the Agent connection, chat or puppet in Safe");
             Check((string)Read("animationPhase")=="Startup","safe keeps ordinary welcome animation");
             Invoke("OpenCompanionSettings");Pump(150);var settings=(Window)Read("companionSettings");
-            Check(!Descendants<Button>(settings).Any(b=>b.Content?.ToString() is "Agent 与 MCP" or "连接 Agent"),"safe settings have no Agent page");
-            Descendants<Button>(settings).Single(b=>b.Content?.ToString()=="日志控制台").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Pump(350);
+            Check(!Descendants<Button>(settings).Any(b=>b.Content?.ToString() is "Agent 與 MCP" or "連線 Agent"),"safe settings have no Agent connection or MCP page");
+            Descendants<Button>(settings).Single(b=>b.Content?.ToString()=="記錄主控台").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Pump(350);
             Check(Descendants<TextBox>(settings).Any(t=>t.Name=="LogConsoleText"&&t.IsReadOnly&&t.Text.Contains("SettingsOpened")),"safe edition has a working shareable log console without loading Agent");
             settings.Close();Invoke("AnimationBoundary");
             Check((string)Read("animationPhase")=="Idle","safe keeps ordinary idle logic");

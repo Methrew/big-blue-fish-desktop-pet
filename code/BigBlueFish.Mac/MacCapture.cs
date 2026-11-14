@@ -173,12 +173,15 @@ internal sealed record CompanionOcrSnapshot(string Context, string Language, int
     double CaptureMilliseconds, double RecognizeMilliseconds, CompanionOcrWord[] Words, long WindowHandle = 0, bool IsDesktop = false);
 internal static class CompanionOcr
 {
-    internal static async Task<CompanionOcrSnapshot> ReadAsync(IntPtr handle, CancellationToken token)
+    // fullScreen as on Windows: false keeps a remote model to the foreground window.
+    internal static async Task<CompanionOcrSnapshot> ReadAsync(IntPtr handle, CancellationToken token, bool fullScreen = true)
     {
         var clock = Stopwatch.StartNew();
-        var captured = await CompanionCaptureFallback.ReadAsync<CompanionWindowImage>(
-            async () => await LinuxCapture.CaptureAsync(handle, 2560, false, token),
-            async () => await LinuxCapture.CaptureAsync(handle, 2560, true, token), token);
+        var captured = fullScreen
+            ? await CompanionCaptureFallback.ReadAsync<CompanionWindowImage>(
+                async () => await LinuxCapture.CaptureAsync(handle, 2560, false, token),
+                async () => await LinuxCapture.CaptureAsync(handle, 2560, true, token), token)
+            : new CompanionCaptureResult<CompanionWindowImage>(await LinuxCapture.CaptureAsync(handle, 2560, false, token), false);
         var image = captured.Image ?? throw new IOException("未能取得可用读屏画面");
         double captureTime = clock.Elapsed.TotalMilliseconds;
         var bytes = Convert.FromBase64String(image.DataUrl[(image.DataUrl.IndexOf(',') + 1)..]);

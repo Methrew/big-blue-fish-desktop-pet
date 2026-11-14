@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
@@ -45,7 +47,7 @@ internal sealed partial class LinuxPetWindow
     static TextBlock Paragraph(string text) => new() { Text = text, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 12), Foreground = Brushes.SlateGray };
     static Window Dialog(string title, Avalonia.Controls.Control content, double width = 630, double height = 460) => new() {
         Title = title, Width = width, Height = height, MinWidth = 480, MinHeight = 360,
-        FontFamily = new FontFamily("Noto Sans CJK SC"), FontSize = 14,
+        FontFamily = new FontFamily("Noto Sans CJK TC"), FontSize = 14,
         WindowStartupLocation = WindowStartupLocation.CenterScreen, Background = new SolidColorBrush(Color.FromRgb(247, 248, 251)),
         Content = new Border { Padding = new Thickness(28), Child = content } };
     async Task<bool> Confirm(string title, string message, string accept = "确定", CancellationToken token = default, string reject = "取消")
@@ -118,6 +120,7 @@ internal sealed partial class LinuxPetWindow
             var levels = Enumerable.Range(0, 3).Select(_ => new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch }).ToArray();
             foreach (var level in levels) regions.Children.Add(level);
             var options = new CompanionRegion[levels.Length][];
+            // Countries start with 臺灣 (縣市 → 鄉鎮市區); Linux collects no CWA authorization code, so Taiwan always gets the Open-Meteo estimate.
             var selected = CompanionRegions.District(Preferences.WeatherRegionCode); var current = CompanionRegions.Country(selected); bool changing = true;
             void Fill(int from, string parentCode, CompanionRegion[] keep) {
                 for (int i = from; i < levels.Length; i++) {
@@ -130,9 +133,9 @@ internal sealed partial class LinuxPetWindow
             }
             country.SelectedIndex = Array.IndexOf(CompanionRegions.Countries, current); Fill(0, current.Root, CompanionRegions.Chain(selected)); changing = false;
             void RegionChanged() { var leaf = levels[current.LeafLevel]; if (leaf.SelectedIndex >= 0 && leaf.SelectedIndex < options[current.LeafLevel].Length) { Preferences.WeatherRegionCode = options[current.LeafLevel][leaf.SelectedIndex].Code; ApplySettings(); } }
-            country.SelectionChanged += (_,_) => { if (changing || country.SelectedIndex < 0 || CompanionRegions.Countries[country.SelectedIndex] == current) return; changing = true; current = CompanionRegions.Countries[country.SelectedIndex]; Fill(0, current.Root, current == CompanionRegions.China ? CompanionRegions.Chain(CompanionRegions.District(CompanionRegions.DefaultCode)) : []); changing = false; RegionChanged(); };
+            country.SelectionChanged += (_,_) => { if (changing || country.SelectedIndex < 0 || CompanionRegions.Countries[country.SelectedIndex] == current) return; changing = true; current = CompanionRegions.Countries[country.SelectedIndex]; Fill(0, current.Root, CompanionRegions.DefaultChain(current)); changing = false; RegionChanged(); };
             for (int level = 0; level < levels.Length; level++) { var at = level; levels[at].SelectionChanged += (_,_) => { if (changing || levels[at].SelectedIndex < 0) return; changing = true; if (at < current.LeafLevel) Fill(at + 1, options[at][levels[at].SelectedIndex].Code, []); changing = false; RegionChanged(); }; }
-            body.Children.Add(Paragraph("天气来自 Open-Meteo（Weather data by Open-Meteo.com）；美国地点使用华氏度和英里/小时。海外城市数据来自 GeoNames（CC BY 4.0）。"));
+            body.Children.Add(Paragraph("天氣來自 Open-Meteo（Weather data by Open-Meteo.com），依所選地點中心附近估算；臺灣地點以鄉鎮市區中心估算（Linux 版沒有中央氣象署授權碼欄位），美國地點使用華氏度和英里/小時。海外城市資料來自 GeoNames（CC BY 4.0）。臺灣鄉鎮市區中心座標由內政部國土測繪中心「鄉(鎮、市、區)界線(TWD97經緯度)」計算；此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license"));
         }
         void Animation() {
             Title("动作与作息"); Slider("动作触发间隔（秒）", Preferences.AnimationIntervalSeconds, 30, 300, value => { Preferences.AnimationIntervalSeconds = (int)value; nextEvent = DateTime.UtcNow.AddSeconds(value); });

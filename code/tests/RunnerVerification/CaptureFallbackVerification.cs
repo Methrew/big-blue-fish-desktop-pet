@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using BigBlueFish.Windows;
 using System.IO;
 
@@ -50,6 +51,11 @@ internal static class CaptureFallbackVerification
             Console.WriteLine($"OCR dimension fixture input={oversizedWidth}x160 output={scaled.Width}x{scaled.Height} limit={Windows.Media.Ocr.OcrEngine.MaxImageDimension} words={scaled.WordCount}");
             Check(scaled.Width <= Windows.Media.Ocr.OcrEngine.MaxImageDimension && scaled.Height > 0 && scaled.WordCount > 0,
                 "oversized direct OCR input is scaled to the engine limit and still recognizes actual text");
+            // A remote model reads no full-screen OCR text: without the foreground window there is no screen text at all.
+            bool readScreen = false;
+            try { await CompanionOcr.ReadAsync(new IntPtr(-123), CancellationToken.None, fullScreen: false); readScreen = true; }
+            catch (Exception error) when (error is not OperationCanceledException) { }
+            Check(!readScreen, "without the full-screen fallback (remote model) an invalid HWND reads no screen at all");
         }
 #endif
         Console.WriteLine($"RESULT {checks} capture fallback checks passed"); return 0;

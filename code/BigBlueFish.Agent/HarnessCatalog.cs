@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 
 namespace BigBlueFish.Agent;
@@ -12,7 +13,6 @@ public static class HarnessCatalog
 {
     // Adapter versions are intentionally pinned. A CLI being present does not prove its ACP implementation works.
     public static IReadOnlyList<HarnessDefinition> All { get; } = [
-        new("claude", "Claude Code", ["claude"], [], "https://code.claude.com/docs/en/overview", ".claude/skills", "@agentclientprotocol/claude-agent-acp@0.99.0", "claude-agent-acp"),
         new("codex", "Codex CLI", ["codex"], [], "https://developers.openai.com/codex/cli", ".agents/skills", "@agentclientprotocol/codex-acp@2.5.0", "codex-acp"),
         new("gemini", "Gemini CLI", ["gemini"], ["--acp", "--allowed-tools", "mcp_big-blue-fish_*"], "https://geminicli.com", ".gemini/skills"),
         new("dsh", "DeepSeek Harness", ["dsh"], ["--profile", "acp"], "https://github.com/deepseek-ai/deepseek-harness"),
@@ -36,7 +36,7 @@ public static class HarnessCatalog
     ];
 
     public static HarnessDefinition Get(string id) => All.FirstOrDefault(x => x.Id == id)
-        ?? throw new ArgumentException("请选择支持的 Harness。");
+        ?? throw new ArgumentException("請選擇支援的 Harness。");
 
     public static string? FindExecutable(string command, string? path = null)
     {
@@ -94,7 +94,7 @@ public static class AgentProcess
                 // Only fixed adapter arguments and local paths enter this shell. User messages always use stdin JSON.
                 static string Quote(string value)
                 {
-                    if (value.IndexOfAny(['"', '\r', '\n', '%', '!']) >= 0) throw new IOException("CLI 启动参数含有不支持的 shell 字符。");
+                    if (value.IndexOfAny(['"', '\r', '\n', '%', '!']) >= 0) throw new IOException("CLI 啟動參數含有不支援的 shell 字元。");
                     return "\"" + value + "\"";
                 }
                 start.FileName = Environment.GetEnvironmentVariable("ComSpec") ?? "cmd.exe";

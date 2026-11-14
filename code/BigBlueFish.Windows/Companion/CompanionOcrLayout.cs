@@ -1,3 +1,4 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,7 +20,7 @@ internal static class CompanionOcrLayout
     internal static string Format(IReadOnlyList<CompanionOcrWord> words, int width, int height)
     {
         if (words.Count == 0)
-            return "屏幕文字：当前画面没有识别到文字。";
+            return "螢幕文字：目前畫面沒有辨識到文字。";
         var rows = new List<List<CompanionOcrWord>>();
         foreach (var word in words.Where(x => !string.IsNullOrWhiteSpace(x.Text) && x.Height > 0)
             .OrderBy(x => x.CenterY).ThenBy(x => x.X))
@@ -54,9 +55,9 @@ internal static class CompanionOcrLayout
                 : s.Right < width * .27 ? 1 : s.X > width * .80 ? 3 : 2;
             regions[region].Add(s);
         }
-        string[] names = { "画面上部", "画面左侧", "画面主体", "画面右侧", "画面底部" };
+        string[] names = { "畫面上部", "畫面左側", "畫面主體", "畫面右側", "畫面底部" };
         int[] budgets = { 700, 650, 3000, 500, 650 };
-        var output = new StringBuilder("当前前台窗口的屏幕文字（按区域分别从上到下排列）：\n");
+        var output = new StringBuilder("目前前臺視窗的螢幕文字（按區域分別從上到下排列）：\n");
         for (int i = 0; i < regions.Length; i++)
         {
             var readable = regions[i].Where(s => s.Text.Any(char.IsLetterOrDigit)).ToArray();
@@ -103,6 +104,6 @@ internal static class CompanionOcrLayout
         int suffix = text.IndexOf('\n', text.Length - end);
         if (prefix < 0) prefix = start;
         if (suffix < 0) suffix = text.Length - end;
-        return text[..prefix] + "\n…（中间较长内容省略）…\n" + text[suffix..].TrimStart();
+        return text[..prefix] + "\n…（中間較長內容省略）…\n" + text[suffix..].TrimStart();
     }
 }

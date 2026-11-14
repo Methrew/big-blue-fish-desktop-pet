@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -46,7 +47,7 @@ internal sealed class CompanionInferenceDevices
                 return "GPU：" + string.Join("、", modelDevices.OrderBy(id => id, StringComparer.Ordinal)
                     .Select(id => names.TryGetValue(id, out string? name) ? name + "（" + id + "）" : id));
             if (cpuWeights) return "CPU";
-            return ready ? "运行设备未确认" : "正在确认运行设备";
+            return ready ? "執行裝置未確認" : "正在確認執行裝置";
         }
     }
 }

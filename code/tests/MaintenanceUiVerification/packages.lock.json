@@ -5,10 +5,24 @@
       "BigBlueFish": {
         "type": "Project",
         "dependencies": {
-          "BigBlueFish.Control": "[1.0.1, )"
+          "BigBlueFish.Agent": "[1.1.2, )",
+          "BigBlueFish.Control": "[1.1.2, )",
+          "BigBlueFish.Diagnostics": "[1.1.2, )"
+        }
+      },
+      "bigbluefish.agent": {
+        "type": "Project",
+        "dependencies": {
+          "BigBlueFish.Diagnostics": "[1.1.2, )"
         }
       },
       "bigbluefish.control": {
+        "type": "Project",
+        "dependencies": {
+          "BigBlueFish.Diagnostics": "[1.1.2, )"
+        }
+      },
+      "bigbluefish.diagnostics": {
         "type": "Project"
       }
     },

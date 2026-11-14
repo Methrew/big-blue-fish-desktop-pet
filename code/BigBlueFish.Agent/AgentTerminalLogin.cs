@@ -1,8 +1,9 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 
 namespace BigBlueFish.Agent;
 
-internal sealed class AgentAuthenticationCancelledException() : IOException("Agent 认证已取消；点击重新连接可重试。");
+internal sealed class AgentAuthenticationCancelledException() : IOException("Agent 驗證已取消；按「重新連線」可以再試一次。");
 
 internal static class AgentTerminalLogin
 {
@@ -21,7 +22,7 @@ internal static class AgentTerminalLogin
 
     public static async Task Run(ProcessStartInfo configured, AgentAuthenticationMethod method, CancellationToken token)
     {
-        if (!CanLaunch(configured)) throw new IOException("当前 Agent 入口无法打开交互登录终端，请按安装与登录说明完成登录后重连。");
+        if (!CanLaunch(configured)) throw new IOException("目前的 Agent 入口無法開啟互動式登入終端機，請依「安裝與登入說明」完成登入後重新連線。");
         if (OperatingSystem.IsMacOS()) { await RunInTerminalApp(configured, method, token); return; }
         var start = new ProcessStartInfo { FileName = configured.FileName, WorkingDirectory = configured.WorkingDirectory,
             UseShellExecute = false, CreateNoWindow = false };
@@ -34,11 +35,11 @@ internal static class AgentTerminalLogin
             start.ArgumentList.Add(configured.FileName);
         }
         foreach (var arg in configured.ArgumentList.Concat(method.Arguments)) start.ArgumentList.Add(arg);
-        using var process = Process.Start(start) ?? throw new IOException("无法打开 Agent 登录终端。");
+        using var process = Process.Start(start) ?? throw new IOException("無法開啟 Agent 的登入終端機。");
         using var ownership = new ProcessOwnership(process);
         try { await process.WaitForExitAsync(token); }
         catch { try { if (!process.HasExited) process.Kill(true); } catch (Exception) { } throw; }
-        if (process.ExitCode != 0) throw new IOException("Agent 登录终端未成功完成，退出代码：" + process.ExitCode + "。请重新连接后重试。");
+        if (process.ExitCode != 0) throw new IOException("Agent 的登入終端機沒有順利完成，結束代碼：" + process.ExitCode + "。請重新連線後再試。");
     }
 
     // Terminal.app gives no child process to wait on: run a .command script and wait for the exit code it writes.
@@ -62,11 +63,11 @@ internal static class AgentTerminalLogin
         {
             File.WriteAllText(script, string.Join('\n', lines) + "\n");
             File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
-            using (var open = Process.Start(new ProcessStartInfo("/usr/bin/open") { ArgumentList = { "-a", "Terminal", script } }) ?? throw new IOException("无法打开 Agent 登录终端。"))
+            using (var open = Process.Start(new ProcessStartInfo("/usr/bin/open") { ArgumentList = { "-a", "Terminal", script } }) ?? throw new IOException("無法開啟 Agent 的登入終端機。"))
                 await open.WaitForExitAsync(token);
             while (!File.Exists(status) || new FileInfo(status).Length == 0) await Task.Delay(500, token);
             int code = int.TryParse(File.ReadAllText(status).Trim(), out var value) ? value : 1;
-            if (code != 0) throw new IOException("Agent 登录终端未成功完成，退出代码：" + code + "。请重新连接后重试。");
+            if (code != 0) throw new IOException("Agent 的登入終端機沒有順利完成，結束代碼：" + code + "。請重新連線後再試。");
         }
         finally { try { Directory.Delete(directory, true); } catch (IOException) { } }
     }

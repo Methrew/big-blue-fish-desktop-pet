@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using System.IO.Pipes;
 using System.Text;
@@ -33,18 +34,18 @@ async Task Until(Func<bool> predicate, string label, int seconds = 15)
 string root = Path.GetFullPath(args.FirstOrDefault(a => !a.StartsWith("--")) ?? Path.Combine(".work", "agent-verification-" + Guid.NewGuid().ToString("N")));
 Directory.CreateDirectory(root);
 WorkspaceVerification.Run(Path.Combine(root, "workspace-rules"), Check);
-Check(HarnessCatalog.All.Count == 21 && HarnessCatalog.All.Select(x => x.Id).Distinct().Count() == 21, "21 distinct selected harnesses");
+Check(HarnessCatalog.All.Count == 20 && HarnessCatalog.All.Select(x => x.Id).Distinct().Count() == 20, "20 distinct selected harnesses");
 Check(HarnessCatalog.Get("kimi").Arguments.SequenceEqual(["acp"]), "Kimi native ACP launch");
-Check(HarnessCatalog.Get("codex").AdapterPackage != null && HarnessCatalog.Get("claude").AdapterPackage != null && HarnessCatalog.Get("pi").AdapterPackage != null, "three explicit ACP adapters");
+Check(HarnessCatalog.Get("codex").AdapterPackage != null && HarnessCatalog.Get("pi").AdapterPackage != null && HarnessCatalog.All.Count(x => x.AdapterPackage != null) == 2, "two explicit ACP adapters");
 Check(HarnessCatalog.FindExecutable("fish-no-such-cli", root) == null, "missing CLI is not invented");
 var legacyAuth = AgentAuthenticationMethod.Parse(JsonSerializer.SerializeToElement(new {authMethods = new[] {new {id="login",name="Kimi login",_meta=new Dictionary<string,object>{["terminal-auth"]=new {command="untrusted-command",args=new[]{"login"},env=new Dictionary<string,string>(),type="terminal"}}}}}), true);
 Check(legacyAuth.Length == 1 && legacyAuth[0].Type == "terminal" && legacyAuth[0].ReplaceArguments && legacyAuth[0].Arguments.SequenceEqual(["login"]), "Kimi legacy terminal-auth normalized without adopting server command");
 Check(AgentAuthenticationMethod.Parse(JsonSerializer.SerializeToElement(new {authMethods = new[] {new {id="login",type="terminal"}}}), false).Length == 0, "terminal authentication omitted where interactive terminal cannot be provided");
 Check(new AcpException(JsonSerializer.SerializeToElement(new {code=-32603,message="Session expired",data=new {errorKind="authentication_failed"}})).AuthenticationRequired
     && !new AcpException(JsonSerializer.SerializeToElement(new {code=-32603,message="Session expired",data=new {errorKind="authentication_failed"}})).SessionMissing, "structured expired authentication never mistaken for a missing conversation");
-var skills = new AgentSkillStore(Path.Combine(root, "skill-test"), HarnessCatalog.Get("claude")); skills.Install();
+var skills = new AgentSkillStore(Path.Combine(root, "skill-test"), HarnessCatalog.Get("gemini")); skills.Install();
 Check(File.Exists(skills.SkillPath) && File.ReadAllText(skills.SkillPath).Contains("name: big-blue-fish"), "actual workspace skill installed");
-Check(skills.DirectoryPath.Contains(".claude"), "Claude skill uses project discovery directory");
+Check(skills.DirectoryPath.Contains(".gemini"), "Gemini skill uses project discovery directory");
 AtomicText.Write(skills.PersonaPath, "user persona"); skills.Install();
 Check(File.ReadAllText(skills.PersonaPath) == "user persona", "user persona preserved on repeated install");
 var jobsRoot = Path.Combine(root, "jobs"); var jobs = new AgentWakeups(jobsRoot);
@@ -163,7 +164,7 @@ try
         var prompt = visual.RootElement.GetProperty("prompt");
         Check(prompt.GetArrayLength() == 2 && prompt[1].GetProperty("type").GetString() == "image"
             && prompt[1].GetProperty("data").GetString() == samplePng && prompt[1].GetProperty("mimeType").GetString() == "image/png", "ACP receives the actual image content block without OCR substitution");
-        Check(prompt[0].GetProperty("text").GetString()!.Contains("本轮要求可以调整"), "normal host instructions explain per-turn tone changes separately from observed material");
+        Check(prompt[0].GetProperty("text").GetString()!.Contains("本輪要求可以調整"), "normal host instructions explain per-turn tone changes separately from observed material");
     }
     File.WriteAllText(Path.Combine(host.Workspaces.Current, "fixture-no-images"), ""); host.Reconnect();
     await Until(() => host.Connected && !host.SupportsImages && !host.Busy, "reconnect observes missing image capability");
@@ -204,7 +205,7 @@ try
     host.SpeechBrief = (_, _, _) => preparation.Task;
     Check(host.ManualSpeech(false), "slow material preparation accepted");
     await Until(() => host.Busy && host.AwaitingSpeech, "preparing a screenshot activates loading status");
-    host.Cancel(); await Until(() => !host.Busy && host.Status == "请求已取消", "material preparation is cancellable before prompt dispatch");
+    host.Cancel(); await Until(() => !host.Busy && host.Status == "要求已取消", "material preparation is cancellable before prompt dispatch");
     preparation.SetResult(new("abandoned material", new("image/png", samplePng)));
     await Task.Delay(100);
     Check(File.ReadAllText(Path.Combine(host.Workspaces.Current, "fixture-last-prompt.json")) == lastVisual, "cancelled screenshot preparation never leaks into the next turn");
@@ -237,7 +238,7 @@ try
     File.Delete(Path.Combine(home, "fixture-missing-session"));
     string replacement = host.SessionId; string savedText = File.ReadAllText(host.Workspaces.SessionPath("opencode"));
     File.WriteAllText(Path.Combine(home, "fixture-auth-error"), ""); host.Reconnect();
-    await Until(() => host.Status.StartsWith("需要登录"), "restore authentication error shown distinctly");
+    await Until(() => host.Status.StartsWith("需要登入"), "restore authentication error shown distinctly");
     Check(File.ReadAllText(host.Workspaces.SessionPath("opencode")) == savedText, "restore auth failure preserves conversation record");
     File.Delete(Path.Combine(home, "fixture-auth-error")); host.Reconnect();
     await Until(() => host.Connected && host.SessionId == replacement, "login retry restores original conversation after auth failure");
@@ -271,7 +272,7 @@ try
     string cancelledWorkspace = Path.Combine(root, "auth-cancel-workspace"); Directory.CreateDirectory(cancelledWorkspace);
     File.WriteAllText(Path.Combine(cancelledWorkspace, "fixture-auth-methods"), ""); File.WriteAllText(Path.Combine(cancelledWorkspace, "fixture-auth-cancel"), "");
     await host.OpenWorkspace(cancelledWorkspace);
-    await Until(() => host.Status.StartsWith("需要登录") && !host.Busy, "cancelled authentication releases worker without claiming a connection");
+    await Until(() => host.Status.StartsWith("需要登入") && !host.Busy, "cancelled authentication releases worker without claiming a connection");
     Check(!host.Connected && !File.Exists(host.Workspaces.SessionPath("opencode")), "cancelled login creates no false session binding");
     host.Configure("opencode", new(false, false, false));
     await Until(() => !host.Connected && server.Connections == 0, "disable closes owned ACP/MCP sessions");

@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,7 +9,7 @@ internal readonly record struct CompanionCaptureResult<T>(T? Image, bool FullScr
 
 internal static class CompanionCaptureFallback
 {
-    internal const string ScreenIdentity = "本轮画面来自全部显示器的全屏截图，可能同时包含前台应用、后台窗口和桌面。";
+    internal const string ScreenIdentity = "本輪畫面是所有螢幕的全螢幕截圖，可能同時包含前景程式、背景視窗和桌面。";
 
     internal static async Task<CompanionCaptureResult<T>> ReadAsync<T>(Func<Task<T?>> foreground,
         Func<Task<T?>> screen, CancellationToken token) where T : class

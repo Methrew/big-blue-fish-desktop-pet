@@ -1,6 +1,9 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -24,9 +27,9 @@ public partial class MainWindow
     private static string WelcomeText(DateTime now)
     {
         string period = now.Hour switch { >= 5 and < 11 => "早上", >= 11 and < 14 => "中午", >= 14 and < 18 => "下午", _ => "晚上" };
-        return $"主人{period}好，鱼鱼给主人请安啦~";
+        return $"主人{period}好，魚魚給主人請安啦~";
     }
-    private const string FarewellText = "主人再见~鱼鱼喜欢主人哦";
+    private const string FarewellText = "主人再見~魚魚喜歡主人喔";
     private void ShowGreetingNotice(string text)
     {
         ShowCompanionNotice(text);
@@ -72,13 +75,18 @@ public partial class MainWindow
                 return;
             }
             companionReady = false;
-            ShowCompanionNotice("动画未能播放，请检查动画组件是否完整。");
+            ShowCompanionNotice("動畫未能播放，請檢查動畫元件是否完整。");
         };
         videoPlayer.FramePresented += seconds =>
         {
             if (videoPlayer.Frames >= 60 && seconds - videoPlayer.StartSeconds >= 1) consecutiveAnimationFailures = 0;
             MoveWithAnimation(seconds);
         };
+        // Click and drag clips (and walk_to's segments) keep their opening frames decoded for an instant first frame.
+        foreach (var rule in animationPolicy.Rules.Where(r => r.Pool == "Click"))
+            videoPlayer.Preload(Path.Combine(AnimationDirectory, rule.File));
+        videoPlayer.Preload(Path.Combine(AnimationDirectory, animationPolicy.Find("被鼠标拖拽悬空反馈").File), 1.5);
+        PreloadWalk();
         companionReady = true;
         if (PuppetActive) PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle");
         else { PlayAnimation(animationPolicy.Find("女仆屈膝礼仪"), "Startup"); ShowGreetingNotice(WelcomeText(DateTime.Now)); }
@@ -110,6 +118,7 @@ public partial class MainWindow
         DiagnosticLog.Write(DiagnosticEvent.AnimationCompleted, kind: animationPhase, action: currentAction);
         if (companionClosed) return;
         if (exitAnimation) { exitReady = true; base.Close(); return; }
+        if (ContinueWalk()) return; // walk_to picks its next clip itself; queued play_action clips wait for the arrival.
         if (!dragging && !hiddenByUser && !fullscreenHidden && PlayQueuedMcpAction()) return;
         if (PuppetActive) { PlayAnimation(animationPolicy.Find("待机呼吸休闲"), "PuppetIdle"); return; }
         if (animationPhase == "Drag") return; // Hold the final suspended pose until mouse release.
@@ -177,9 +186,11 @@ public partial class MainWindow
         var fraction = Math.Clamp((seconds - lead) / (10 - lead - tail), 0, 1);
         Left = movementStart + (movementEnd - movementStart) * fraction;
     }
-    private void CancelMovement() { movementRule = null; anchor = new(Left, Top); }
+    // Callers with a reason of their own stop a walk first; anything else taking over the fish also ends it.
+    private void CancelMovement() { if (Walking) CancelWalk("cancelled"); movementRule = null; anchor = new(Left, Top); }
     private void ClickAnimation()
     {
+        CancelWalk("click"); // Even in puppet mode a click stops a walk where it is.
         if (PuppetActive || !companionReady || exitAnimation) return;
         CancelMovement();
         PlayAnimation(animationPolicy.Choose("Click", AnimationContext(), companionRandom), "Click");
@@ -197,6 +208,7 @@ public partial class MainWindow
     private void CompanionClosing(object? sender, CancelEventArgs e)
     {
         if (companionClosed) return;
+        CancelWalk("exit");
         if (PuppetActive || exitReady || !companionReady) { modelInstaller?.RequestClose(); updateWindow?.RequestClose(); return; }
         e.Cancel = true;
         if (exitAnimation) return;

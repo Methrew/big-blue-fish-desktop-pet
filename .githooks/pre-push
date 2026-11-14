@@ -1,2 +1,5 @@
 #!/bin/sh
-exec python tools/Check-Attribution.py --pre-push
+# Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
+# macOS ships python3 without python; Windows installs usually provide python.
+python=$(command -v python || command -v python3) || { echo 'Python 3 is required for the attribution check.' >&2; exit 1; }
+exec "$python" tools/Check-Attribution.py --pre-push

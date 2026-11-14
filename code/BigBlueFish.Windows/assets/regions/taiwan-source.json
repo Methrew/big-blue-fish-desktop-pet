@@ -1,0 +1,14 @@
+{
+  "dataset": "鄉(鎮、市、區)界線(TWD97經緯度)",
+  "provider": "內政部國土測繪中心",
+  "catalog": "https://data.gov.tw/dataset/7441",
+  "release": "1140318",
+  "license": "政府資料開放授權條款－第1版 (Open Government Data License, version 1.0)",
+  "licenseUrl": "https://data.gov.tw/license",
+  "townships": 368,
+  "inputSha256": {
+    "TOWN_MOI_1140318.shp": "b15d8d32c81783a223326d6beb1e92ebf0d1d9784c08963e16c3e2ff42c1a43b",
+    "TOWN_MOI_1140318.dbf": "f73fb4c96987ad365fb799883c23a9087243957dc5ab7b48fe9c5bc5970a092a"
+  },
+  "coordinateNote": "Township centres of the largest land part; county centres average their townships. Used for Open-Meteo only when no CWA authorization code is set; not a street-level forecast."
+}

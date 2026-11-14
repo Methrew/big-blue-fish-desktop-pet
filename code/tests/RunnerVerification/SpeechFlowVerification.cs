@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -105,20 +107,22 @@ internal static class SpeechFlowVerification
             var brain = (CompanionBrain)Field(window, "brain")!;
             Invoke(window, "OpenCompanionSettings"); Pump(150);
             var settingsWindow = (Window)Field(window, "companionSettings")!;
-            Children<System.Windows.Controls.Button>(settingsWindow).Single(b => (string?)b.Content == "日志控制台")
+            // The console tab is the only settings label naming a console (控制台 / 主控台, Simplified or Taiwan wording).
+            Children<System.Windows.Controls.Button>(settingsWindow).Single(b => b.Content is string label
+                    && (label.Contains("控制台") || label.Contains("主控台") || label.Contains("控制檯")))
                 .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump(350);
             var logBox = Children<System.Windows.Controls.TextBox>(settingsWindow).Single(t => t.Name == "LogConsoleText");
             Check(logBox.IsReadOnly && logBox.Text.Contains("SettingsOpened"), "real settings log page shows previous events as read-only text");
             DiagnosticLog.Write(DiagnosticEvent.McpTool, kind: "say", state: "success"); Pump(350);
             Check(logBox.Text.Contains("kind=say; state=success"), "real log console refreshes new metadata without reopening settings");
-            Check(Children<System.Windows.Controls.Button>(settingsWindow).Any(b => (string?)b.Content == "保存为 TXT…"), "TXT export control exists in settings");
+            Check(Children<System.Windows.Controls.Button>(settingsWindow).Any(b => b.Content is string label && label.Contains("TXT")), "TXT export control exists in settings");
             var consoleImage = new System.Windows.Media.Imaging.RenderTargetBitmap((int)settingsWindow.ActualWidth, (int)settingsWindow.ActualHeight, 96, 96, PixelFormats.Pbgra32);
             consoleImage.Render((Visual)settingsWindow.Content);
             var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder(); encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(consoleImage));
             using (var imageFile = File.Create("log-console.png")) encoder.Save(imageFile);
             var sliders = Children<Slider>(settingsWindow).ToArray();
             var scaleSlider = sliders.Single(s => s.Minimum == .5 && s.Maximum == 2.0
-                && System.Windows.Automation.AutomationProperties.GetName(s) != "文字气泡大小");
+                && System.Windows.Automation.AutomationProperties.GetName(s) != "文字氣泡大小");
             Check(scaleSlider.TickFrequency == .05, "50%-200% settings slider uses 5% steps");
             foreach (var scale in new[] { .5, 2.0, .85 })
             {
@@ -130,10 +134,10 @@ internal static class SpeechFlowVerification
                 Check(window.Left + body.Left >= work.Left - 1 && window.Top + body.Top >= work.Top - 1,
                     "visible character stays inside desktop at scale " + scale);
             }
-            Children<System.Windows.Controls.Button>(settingsWindow).Single(b => (string?)b.Content == "说话与天气")
+            Children<System.Windows.Controls.Button>(settingsWindow).Single(b => (string?)b.Content == "說話與天氣")
                 .RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Button.ClickEvent)); Pump(100);
-            var frequency = Children<ComboBox>(settingsWindow).Single(c => c.Items.Count == 6 && c.Items[0].ToString()!.StartsWith("说话间隔"));
-            Check(frequency.Items.Cast<string>().SequenceEqual(new[] { "说话间隔：2–3 分钟", "说话间隔：3–5 分钟", "说话间隔：5–8 分钟", "说话间隔：10–16 分钟", "说话间隔：15–23 分钟", "说话间隔：20–30 分钟" }), "all six exact interval labels appear");
+            var frequency = Children<ComboBox>(settingsWindow).Single(c => c.Items.Count == 6 && c.Items[0].ToString()!.StartsWith("說話間隔"));
+            Check(frequency.Items.Cast<string>().SequenceEqual(new[] { "說話間隔：2–3 分鐘", "說話間隔：3–5 分鐘", "說話間隔：5–8 分鐘", "說話間隔：10–16 分鐘", "說話間隔：15–23 分鐘", "說話間隔：20–30 分鐘" }), "all six exact interval labels appear");
             frequency.SelectedIndex = 0; Pump();
             var remaining = ((DateTime)Field(window, "nextSpeech")! - DateTime.UtcNow).TotalMinutes;
             Check(remaining >= 1.99 && remaining <= 3, "changing range reschedules with the same selected bounds");
@@ -156,24 +160,26 @@ internal static class SpeechFlowVerification
             }, "real test finishes through production streaming handler", 45);
             task.GetAwaiter().GetResult(); warmup.GetAwaiter().GetResult();
             var text = ((TextBlock)Field(window, "bubbleText")!).Text;
-            Check(text.Length > 0 && brain.Status == "本地模型就绪", "real model reply reaches the visible bubble");
+            Check(text.Length > 0 && brain.Status == "本機模型就緒", "real model reply reaches the visible bubble");
             Console.WriteLine($"REAL BUBBLE first={first:0.000}s total={watch.Elapsed.TotalSeconds:0.000}s {text}");
             // A window disappearing between resolution and capture is a real capture failure.
             Set(window, "speechForegroundOverride", new IntPtr(-123));
             var failed = (Task)Invoke(window, "SpeechCountdownZeroAsync")!;
             Wait(() => failed.IsCompleted, "shared countdown pipeline generates real speech despite capture failure", 35);
             failed.GetAwaiter().GetResult();
+            // Foreground, then full screen, then time and the rest of the material: speech still happens.
             Check(DiagnosticLog.Snapshot().Any(x => x.Code == "ScreenReadFallback"), "fault injection reaches actual OCR fallback");
             var fallback = ((TextBlock)Field(window, "bubbleText")!).Text;
-            Check(fallback.Length > 0 && brain.Status == "本地模型就绪", "capture failure still generates and displays actual local-model speech");
-            Check(!fallback.Contains("未能") && !fallback.Contains("获取当前") && !fallback.Contains("读屏"), "fallback bubble does not report read-screen failure");
+            Check(fallback.Length > 0 && brain.Status == "本機模型就緒", "capture failure still generates and displays actual local-model speech");
+            Check(!fallback.Contains("未能") && !fallback.Contains("获取当前") && !fallback.Contains("取得可用") && !fallback.Contains("读屏") && !fallback.Contains("讀屏"),
+                "fallback bubble does not report read-screen failure");
             Console.WriteLine("REAL FALLBACK " + fallback);
             Check(!(bool)Field(window, "speechRequestPending")! && ((FrameworkElement)Field(window, "loadingIndicator")!).Visibility != Visibility.Visible,
                 "failure releases request gate and loading animation");
             var recovery = (Task)Invoke(window, "SpeakCompanionTest")!;
             Wait(() => recovery.IsCompleted, "test retries successfully after capture failure", 35);
             recovery.GetAwaiter().GetResult();
-            Check(((TextBlock)Field(window, "bubbleText")!).Text.Length > 0 && brain.Status == "本地模型就绪", "subsequent real speech recovers without app restart");
+            Check(((TextBlock)Field(window, "bubbleText")!).Text.Length > 0 && brain.Status == "本機模型就緒", "subsequent real speech recovers without app restart");
             Console.WriteLine("REAL RECOVERY " + ((TextBlock)Field(window, "bubbleText")!).Text);
 #if !COMPANION_SAFE
             prefs.AgentEnabled = true; prefs.AgentDailySpeech = true;

@@ -8,7 +8,6 @@
 
 | 名称 | 命令 | ACP 启动方式 |
 | --- | --- | --- |
-| Claude Code | claude | claude-agent-acp 适配器 |
 | Codex CLI | codex | codex-acp 适配器，使用找到的 Codex 路径 |
 | Gemini CLI | gemini | --acp --allowed-tools mcp_big-blue-fish_* |
 | DeepSeek Harness | dsh | --profile acp |
@@ -30,7 +29,7 @@
 | OpenClaw | openclaw | acp，连接其已配置的 Gateway |
 | MiniMax Code | mcode | acp |
 
-Claude、Codex 与 Pi 的 ACP 适配器优先从 PATH 查找；没有时安装到鱼鱼数据目录的 `agent/adapters/<id>`，使用 `HarnessCatalog` 中固定的 npm 版本。安装需要 Node.js 与 npm，下载使用官方 npm registry，缓存位于 `agent/adapter-cache`。Antigravity 使用带配套运行程序的已安装 ACP 组件，或下载 Google 官方发布包并核对 SHA256，同时准备 `agy_acp_server` 与 `localharness_external`，沿用官方启动参数。已下载组件参与检测，尚未准备时可直接连接并下载。原有 CLI 不被升级或卸载。
+Codex 与 Pi 的 ACP 适配器优先从 PATH 查找；没有时安装到鱼鱼数据目录的 `agent/adapters/<id>`，使用 `HarnessCatalog` 中固定的 npm 版本。安装需要 Node.js 与 npm，下载使用官方 npm registry，缓存位于 `agent/adapter-cache`。Antigravity 使用带配套运行程序的已安装 ACP 组件，或下载 Google 官方发布包并核对 SHA256，同时准备 `agy_acp_server` 与 `localharness_external`，沿用官方启动参数。已下载组件参与检测，尚未准备时可直接连接并下载。原有 CLI 不被升级或卸载。
 
 Agent 要求认证时，鱼鱼展示它公布的登录方式。协议认证通过 ACP `authenticate` 完成；终端认证会打开交互式登录终端，成功后重新连接并继续原对话请求。兼容 Kimi 等产品的旧 `_meta.terminal-auth` 格式，使用检测到的本机程序及其公布的登录参数。已有登录的复用由官方组件处理。认证可等待5分钟，也可以取消。Antigravity 的普通交互入口已经登录时，首次 ACP 连接仍可能需要选择 Google 账号等认证方式。
 

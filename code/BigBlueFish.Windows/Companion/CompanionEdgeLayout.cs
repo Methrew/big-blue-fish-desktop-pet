@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.ComponentModel;
 using System.Drawing;
@@ -102,7 +104,7 @@ public static class CompanionEdgeLayout
                 bubble.HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch;
                 popup = new Window
                 {
-                    Title = "蓝色大肥鱼 · 对话",
+                    Title = "藍色大肥魚 · 對話",
                     WindowStyle = WindowStyle.None,
                     AllowsTransparency = true,
                     Background = System.Windows.Media.Brushes.Transparent,
@@ -240,7 +242,7 @@ public static class CompanionEdgeLayout
             return new Rect(w.Left + localTopLeft.X, w.Top + localTopLeft.Y, localBottomRight.X - localTopLeft.X, localBottomRight.Y - localTopLeft.Y);
         }
 
-        Rectangle primaryArea = (Screen.PrimaryScreen ?? throw new InvalidOperationException("无法找到主显示器")).WorkingArea;
+        Rectangle primaryArea = (Screen.PrimaryScreen ?? throw new InvalidOperationException("無法找到主顯示器")).WorkingArea;
         return new Rect((double)primaryArea.Left / dpi.DpiScaleX, (double)primaryArea.Top / dpi.DpiScaleY, (double)primaryArea.Width / dpi.DpiScaleX, (double)primaryArea.Height / dpi.DpiScaleY);
     }
 

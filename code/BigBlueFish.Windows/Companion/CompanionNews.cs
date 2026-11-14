@@ -1,3 +1,4 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,7 +15,7 @@ internal static class CompanionNews
 
     internal sealed record Item(string Title, string Summary, DateTimeOffset Published)
     {
-        internal string Context => $"来源：IT之家\n发布时间：{Published.ToLocalTime():yyyy-MM-dd HH:mm}\n标题：{Title}\n新闻摘要：{Summary}";
+        internal string Context => $"來源：IT之家\n釋出時間：{Published.ToLocalTime():yyyy-MM-dd HH:mm}\n標題：{Title}\n新聞摘要：{Summary}";
     }
 
     internal static Item[] ReadFeed(string xml, DateTimeOffset now)

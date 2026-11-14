@@ -1,8 +1,360 @@
 # 蓝色大肥鱼桌宠 / Big Blue Fish Desktop Pet
 
+> [!NOTE]
+> **這是台灣版修改分支（`taiwan-edition`）與原作者 1.1.2 版合併後的版本，不是原作者的官方版本。**
+>
+> 本分支由 acer1204 於 2026 年 10 月 26 日起，以原作者 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 main 分支 commit `5eead98`（1.0.1 版標籤 `v1.0.1` 之後，只多了一個補上 LICENSE 著作權欄位的修正）為基礎修改。下方「台灣版修改說明」列出主要變更與所有修改過的檔案；說明結束處的分隔線以下是原作者的說明（簡體中文），描述的是原版的行為。
+>
+> 2026 年 11 月 9 日，Methrew 在 [Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet) 的 `feature/taiwan-sync-v1.1.2` 分支，把這個台灣版（commit `f5f17a6`）與原作者的 1.1.2 版（標籤 `v1.1.2`，commit `6281a90`）合併：以台灣版的功能為主，同時納入原作者 1.0.5～1.1.2 的修正與新功能。合併後的行為變化與合併時修改的檔案，見下方「與原作者 1.1.2 版合併」；分隔線以下的原作者說明已更新為 1.1.2 版。
+
+## 與原作者 1.1.2 版合併
+
+依 [Apache License 2.0](LICENSE) 第 4 條第 (b) 款，本節說明 Methrew 於 2026 年 11 月 9 日合併台灣版與原作者 1.1.2 版時所做的變更。合併時修改過的程式碼、專案檔與腳本（共 86 個），都在開頭的修改聲明下方多加一行合併聲明；文件與資料檔列在本節最後的清單中。原作者與 acer1204 的著作權聲明及授權條款維持不變，合併的修改同樣以 Apache-2.0 授權釋出。本分支並非由原作者或 acer1204 維護，合併內容也未經他們審閱或背書。
+
+### 合併原則
+
+- 台灣版的功能全部保留；兩邊做法直接衝突時，以台灣版的行為為主。
+- 原作者 1.0.5～1.1.2 的修正與新功能全部納入，包括：透過 ACP 連線本機 CLI Agent（Harness）、共用工作區與技能、把日常關心交給 Agent、1280×720／60 fps 動畫與新的透明動畫播放管線（GStreamer、硬體解碼與 GPU 合成）、全球天氣地點、記錄主控台（原作者稱「日志控制台」）、不同縮放比例的多螢幕修正、讀取畫面的備援，以及把資料移到安裝目錄的 `data` 子目錄。原作者在 1.1.0 已用 ACP 取代 MCP sampling，所以沒有另外保留 sampling。
+- 原作者支援的 21 款 CLI Agent 中，本分支移除其中一款，保留 20 款。
+- 原作者用來防止提交紀錄出現 AI 署名的檢查（`tools/Check-Attribution.py`、`.githooks/`、`.github/workflows/attribution.yml`）保留，並改寫成不在檔案中直接寫出所檢查的名稱。
+
+### 合併後的行為變化
+
+- **天氣地點**：先選國家，再選該國的行政區。「臺灣」排在第一個（縣市 → 鄉鎮市區，22 個縣市、368 個鄉鎮市區），新安裝的預設地點為臺北市中正區；後面是原作者的中國、美國與全球國家清單。Windows 版在設定中填入中央氣象署授權碼時，臺灣地點使用氣象署的鄉鎮天氣預報；沒有授權碼時（以及沒有授權碼欄位的 Linux 版），改用 Open-Meteo 估計鄉鎮市區中心附近的天氣（臺灣時間、攝氏與公里/小時）。鄉鎮市區中心依內政部國土測繪中心的鄉（鎮、市、區）界線計算。原作者放在中國清單中的「台湾省」不再出現在選單裡；先前存下的這類代碼會自動換成同一個臺灣鄉鎮市區。授權碼要在停止輸入 1 秒後才會生效，不會用打到一半的授權碼查詢。MCP 的 `WeatherRegionCode` 也接受臺灣代碼（例如 `TW-061-01`）。
+- **動畫**：改用原作者 1.1.1 的 GStreamer 播放管線，Windows 版不再附帶 FFmpeg。台灣版的 1 毫秒計時器解析度保留；預先解碼改用 GStreamer，範圍是 6 個點選與拖曳動作，以及開啟 MCP 介面或 Agent 連線時 `walk_to` 用到的 4 段走路片段，每段預先解碼開頭最多 6 幀（640×360，總上限 64 MB，10 段約 55 MB）。
+- **雙擊輸入框**：開啟「連線 Agent」（ACP）時，輸入的文字會交給該 Agent；開啟「MCP 介面」與「雙擊與魚魚對話」時，也會以 `user_message` 交給 Hermes 橋接等 MCP 客戶端。兩者都開啟時，兩邊都會收到，也可能都會回答；關閉「雙擊與魚魚對話」時，MCP 介面的客戶端不會收到打給內建 Agent 的輸入。附加檔案的功能保留，交給 ACP Agent 時，附件以本機路徑附在訊息後面。
+- **MCP 工具**：工具清單是兩邊的聯集，包括台灣版的 `get_context`、`find_on_screen`、`walk_to` 與原作者的工具。`get_operation_guide`、`get_wakeups`、`schedule_wakeup`、`cancel_wakeup` 只供內建的 Agent 連線使用，MCP 介面的外部客戶端呼叫時會收到錯誤。提線木偶模式由兩邊共用：已開啟提線木偶模式時再開啟 Agent 連線，會再確認一次；關閉 Agent 連線時，會清除該 Harness 的預約喚醒。
+- **遠端模型與讀取畫面**：原作者 1.1.2 的讀取畫面備援（前景視窗讀不到時改讀全螢幕，再失敗就只用時間等其他資料）保留給本機模型。使用遠端模型時只讀前景視窗，不會把全螢幕的 OCR 文字送到遠端伺服器。
+- **主動提醒**：內建 Agent 正在準備回應時，主動提醒也會先等等，不會剛出現就被 Agent 的話蓋掉。
+- **Agent 人設與技能**：原作者新增的 Agent 人設卡（`persona.md`）、技能說明（`SKILL.md`）與每輪指示改為台灣繁體與台灣語氣；已經存在的使用者人設檔不會被覆寫。Agent 連線、工作區、記錄主控台等原作者新增的 Windows 介面也改為台灣繁體。
+- **Hermes 簡報**：天氣來自 Open-Meteo 估計時，簡報會標明是估計值；華氏溫度的天氣也能讀取。
+- **Linux 版**：跟著原作者 1.1.x，MCP 只透過 Agent 連線的私有管道提供，沒有開放給其他 MCP 客戶端的介面；地點選單也列出臺灣（使用 Open-Meteo 估計）。
+- 修正台灣版地區資料中，官方名稱「南庄鄉」被 OpenCC 轉成「南莊鄉」、導致氣象署查不到的問題。
+
+### 尚未完成或尚未驗證
+
+- 地點選單中的國名與美國州名雖然顯示為繁體字，但仍是資料檔的大陸譯名（例如「意大利」「澳大利亞」）。原作者新增元件的部分內部錯誤訊息、Linux 版的設定與選單，以及安裝與解除安裝程式自己的文字，仍為簡體中文。
+- `docs/` 規格文件、`CHANGELOG.md` 與本 README 分隔線以下的說明仍是原作者 1.1.2 的原文。
+- 「檢查更新」的來源仍指向原作者的儲存庫，更新會換回原版；在改為指向本分支之前，本分支不提供編譯好的安裝檔。
+- 這次合併只在 macOS 上完成編譯與可跨平台的測試：38 個建置目標全部成功，繁簡轉換（8591 筆語料）、主動提醒（139 項）、MCP 通訊協定（111 項）、Agent（113 項）與天氣快取（62 項）等測試通過。Windows 介面、原生動畫合成、GStreamer 播放與 Linux 桌面的實際執行還沒有驗證。
+- 兩個上游原本就有的問題：以鎖定模式還原時，Windows Vision 版與 Safe＋Vision 版會因鎖定檔過期而失敗（NU1004）。
+
+### 合併時新增或修改的檔案
+
+以下檔案的內容與台灣版（`f5f17a6`）、原作者 1.1.2 版（`6281a90`）都不同，是合併時新增或修改的檔案；其餘檔案直接採用其中一方的版本。本分支以一筆提交納入合併結果，沒有帶入原作者在 `5eead98` 之後的個別提交（可到原作者的儲存庫查看）；要檢視完整差異，先用 `git fetch https://github.com/Bai-Cute/big-blue-fish-desktop-pet tag v1.1.2` 取得原作者的 1.1.2 版，再用 `git diff 6281a90 feature/taiwan-sync-v1.1.2` 與 `git diff f5f17a6 feature/taiwan-sync-v1.1.2` 檢視。
+
+<details>
+<summary>展開檔案清單</summary>
+
+**新增（2）**
+
+- `code/BigBlueFish.Windows/assets/regions/taiwan-source.json`
+- `code/tools/fill-taiwan-township-coordinates.py`
+
+**修改（96）**
+
+- `.gitattributes`
+- `.githooks/commit-msg`
+- `.githooks/pre-push`
+- `.github/CONTRIBUTING.md`
+- `.github/workflows/attribution.yml`
+- `README.md`
+- `code/BigBlueFish.Agent/AcpConnection.cs`
+- `code/BigBlueFish.Agent/AgentAdapterStore.cs`
+- `code/BigBlueFish.Agent/AgentAuthentication.cs`
+- `code/BigBlueFish.Agent/AgentCoordinator.cs`
+- `code/BigBlueFish.Agent/AgentSessionConfiguration.cs`
+- `code/BigBlueFish.Agent/AgentSpeechBrief.cs`
+- `code/BigBlueFish.Agent/AgentTerminalLogin.cs`
+- `code/BigBlueFish.Agent/AgentWakeups.cs`
+- `code/BigBlueFish.Agent/AgentWorkspaceStore.cs`
+- `code/BigBlueFish.Agent/HarnessCatalog.cs`
+- `code/BigBlueFish.Agent/Skills/SKILL.md`
+- `code/BigBlueFish.Agent/Skills/persona.md`
+- `code/BigBlueFish.Control/ControlServer.cs`
+- `code/BigBlueFish.Control/ControlTools.cs`
+- `code/BigBlueFish.Diagnostics/DiagnosticLog.cs`
+- `code/BigBlueFish.HermesBridge/Briefings.cs`
+- `code/BigBlueFish.Linux/BigBlueFish.Linux.csproj`
+- `code/BigBlueFish.Linux/LinuxCapture.cs`
+- `code/BigBlueFish.Linux/LinuxLogConsole.cs`
+- `code/BigBlueFish.Linux/LinuxMcp.cs`
+- `code/BigBlueFish.Linux/LinuxPetWindow.cs`
+- `code/BigBlueFish.Linux/LinuxSettings.cs`
+- `code/BigBlueFish.Linux/LinuxTestCommands.cs`
+- `code/BigBlueFish.Mcp/Program.cs`
+- `code/BigBlueFish.Windows/App.xaml.cs`
+- `code/BigBlueFish.Windows/BigBlueFish.Windows.csproj`
+- `code/BigBlueFish.Windows/Companion/CompanionAgentSettings.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionAgentWorkspaceSettings.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionAnimations.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionBrain.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionCaptureFallback.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionComposition.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionInferenceDevices.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionLogConsole.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionMaintenance.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionMcp.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionMcpAttachments.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionMenus.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionOcr.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionPreferences.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionProactive.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionRegions.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionReminders.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionSettings.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionTrayIcon.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionWalk.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionWeather.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionWindow.cs`
+- `code/BigBlueFish.Windows/assets/regions/taiwan-regions.json`
+- `code/THIRD-PARTY.md`
+- `code/test.ps1`
+- `code/tests/AgentVerification/LiveProbe.cs`
+- `code/tests/AgentVerification/Program.cs`
+- `code/tests/AgentVerification/SpeechAlignmentProbe.cs`
+- `code/tests/AgentVerification/WorkspaceVerification.cs`
+- `code/tests/AnimationUiVerification/MixedDpiVerification.cs`
+- `code/tests/AnimationUiVerification/Program.cs`
+- `code/tests/HermesScenarioVerification/scenarios.py`
+- `code/tests/InstallerVerification/DownloadInterruptionVerification.cs`
+- `code/tests/InstallerVerification/MarkdownVerification.cs`
+- `code/tests/LinuxVerification/verify.py`
+- `code/tests/McpProtocolVerification/Program.cs`
+- `code/tests/McpProtocolVerification/sdk-client.py`
+- `code/tests/McpUiVerification/Program.cs`
+- `code/tests/MediaVerification/Program.cs`
+- `code/tests/ReminderVerification/Program.cs`
+- `code/tests/RunnerVerification/CaptureFallbackVerification.cs`
+- `code/tests/RunnerVerification/InferenceDeviceVerification.cs`
+- `code/tests/RunnerVerification/LatencyVerification.cs`
+- `code/tests/RunnerVerification/MaintenanceVerification.cs`
+- `code/tests/RunnerVerification/NewsVerification.cs`
+- `code/tests/RunnerVerification/Program.cs`
+- `code/tests/RunnerVerification/SpeechFlowVerification.cs`
+- `code/tests/RunnerVerification/TrayVerification.cs`
+- `code/tests/RunnerVerification/WeatherCacheVerification.cs`
+- `code/tests/SafeEditionVerification/Program.cs`
+- `code/tools/fill-taiwan-coordinates.py`
+- `code/tools/import-taiwan-regions.py`
+- `code/tools/import-world-regions.py`
+- `deployment/ApplicationData.cs`
+- `deployment/UpdateWindow.cs`
+- `docs/ACP.md`
+- `docs/AGENT_FUNCTIONAL_SPEC.md`
+- `docs/MCP.md`
+- `docs/specs/1.1.0.md`
+- `docs/specs/1.1.1.md`
+- `tools/Check-Attribution.py`
+- `tools/Manage-AgentTestEnvironment.ps1`
+
+</details>
+
+## 台灣版修改說明
+
+以下是 acer1204 對台灣版的原始說明（相對於原作者 1.0.1 版）；與原作者 1.1.2 版合併後有變化的部分，以上方「與原作者 1.1.2 版合併」為準。
+
+
+依 [Apache License 2.0](LICENSE) 第 4 條第 (b) 款，本節列出這個分支新增、刪除或修改的檔案，以及修改者與修改日期。修改過的程式碼、專案檔、腳本與設定檔（.cs、.xaml、.csproj、.ps1、.py、.gitattributes，共 63 個）開頭都加註了修改聲明；`README.md` 與建置安裝檔時會一併打包的 [`code/THIRD-PARTY.md`](code/THIRD-PARTY.md) 則在開頭段落註明這是修改版。原作者的著作權聲明（Copyright 2026 Bai-Cute）與授權條款維持不變，本分支的修改同樣以 Apache-2.0 授權釋出。本分支並非由原作者維護，修改內容也未經原作者審閱或背書；使用時遇到問題，請到本分支的儲存庫 [acer1204/big-blue-fish-desktop-pet](https://github.com/acer1204/big-blue-fish-desktop-pet/issues) 回報，不要回報給原作者。
+
+### 主要變更
+
+- **動畫更順暢**：桌寵顯示期間把系統計時器解析度調到 1 毫秒（隱藏時釋放），讓每一幀都在預定時間顯示，避免幀間隔在約 31 與 47 毫秒之間跳動。點選與拖曳用到的 6 個動作會在啟動後預先解碼開頭 6 幀（約多佔用 33 MB 記憶體）；在修改者 acer1204 的電腦上，放開滑鼠或開始拖曳後約 10 毫秒就會出現第一幀（原本約 60–90 毫秒），實際時間依電腦而異。其他動作切換時仍需等待約 50–90 毫秒。
+- **可使用遠端模型**：設定頁「模型與供電」新增「模型來源」，可以改用遠端的 llama.cpp 伺服器（OpenAI 相容介面），填入網址、API Key 與模型名稱，也提供「儲存並測試連線」按鈕。使用遠端模型時，會傳送到該伺服器的內容包括：視窗文字（OCR 辨識結果）或視窗截圖、前景視窗的程式名稱、標題、視窗類別與介面元件名稱、目前時間，以及開啟天氣和新聞時的天氣地點與預報、新聞內容。原本的「啟用本機大模型」開關改名為「啟用模型說話」：它是讓魚魚用模型說話的總開關，使用遠端模型時也要開著，而且不會在本機載入模型；「拔掉電源時暫停模型並釋放記憶體」與「使用顯示卡加速」只對本機模型有效，使用電池時遠端模型會繼續執行。
+- **直接看截圖**：遠端伺服器在 `/v1/models` 回報該模型支援圖片輸入，並且勾選了「模型支援圖片時，直接傳送視窗截圖」時，才會改傳視窗截圖（長邊最多 1568 像素），不再傳 OCR 文字；截圖失敗或伺服器沒有回報支援圖片時，預設的 OCR 版會自動改回 OCR（以 Vision 模式自行編譯的版本沒有 OCR，只會傳視窗名稱等文字資訊）。
+- **繁體中文與台灣用語**：Windows 版介面、與主程式共用的模型安裝和更新視窗、MCP 工具說明與同意視窗，以及魚魚的說話語氣，都改為台灣繁體中文與台灣用語。氣泡字型由不含繁體字的「乐米小奶泡体」改為 [jf open 粉圓 2.1](https://github.com/justfont/open-huninn-font)（SIL OFL 1.1）；設定視窗、右鍵選單、系統匣選單與共用視窗改用微軟正黑體。106 個動作名稱同時用作動畫檔名與 MCP 動作名稱，因此仍維持原本的簡體中文。
+- **台灣天氣**：Windows 版的天氣地點改為「縣市 → 鄉鎮市區」兩層選單（22 個縣市、368 個鄉鎮市區），新安裝的預設地點為臺北市中正區。天氣資料改用[中央氣象署開放資料](https://opendata.cwa.gov.tw/)的鄉鎮天氣預報，需要自行申請並在設定中填入授權碼；填入之前，台灣地點（包括預設的臺北市中正區）不會有天氣資料，也不會改用 Open-Meteo。原本的 Open-Meteo 天氣仍保留給非台灣地點（先前儲存或透過 MCP 設定的）與 Linux 版使用。Linux 版沒有授權碼欄位，所以不會出現本分支新增的氣象署縣市清單，MCP 也不能把 Linux 版設成台灣鄉鎮；原有地區資料中的「台湾省」仍會出現，但和原版一樣沒有座標，選了也不會有天氣資料。
+- **金鑰保護**：遠端 API Key 與氣象署授權碼以目前的 Windows 帳戶加密（DPAPI）後儲存，而且不會出現在 MCP 的 `get_settings` 結果中。這可以防止設定檔被複製到其他帳戶或電腦後讀出金鑰，但同一個 Windows 帳戶下執行的其他程式仍然可以解密。
+- **測試同步**：`code/tests/` 中比對介面文字的測試程式也隨之改為繁體中文。
+- **氣泡不出現簡體字**：Windows 版魚魚的氣泡文字（自己的模型、天氣、MCP 的 `say`／`say_next`、Hermes 橋接）在顯示前都會經過新增的 `CompanionTraditional`，用 [OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 的字典把簡體字轉成台灣繁體。整段都是簡體時，結果和 OpenCC 的 `s2twp` 相同（包括軟件→軟體這類台灣用語），另外修正了 OpenCC 會轉錯的「一起干杯」（幹杯）與「的士兵、的士林」（計程車）；繁體句子裡夾雜的簡體字只改那幾個字，原本就是繁體或英文的內容維持不變。模型邊產生邊顯示時，需要轉換的句子會等最後一段文字完整再顯示，避免轉到一半的字一閃而過。已知的取捨：為了修正常見的「以后、然后」，罕見用法「選后」也會變成「選後」。MCP 工具回傳給 Agent 的仍是原文。新增的 `code/tests/TraditionalTextVerification` 以 8591 筆語料驗證轉換結果。
+- **Hermes 對話橋接**：新增 `code/BigBlueFish.HermesBridge`（C#）與 `code/run-hermes-bridge.ps1`。雙擊魚魚在輸入框打的字，會交給本機的 [Hermes Agent](https://github.com/NousResearch/hermes-agent) API 回答，回答再顯示在魚魚的氣泡裡。等待時魚魚會播放思考動作，氣泡也會即時顯示 Hermes 正在做什麼（例如「正在上網搜尋：…」「正在電腦上執行指令…」）和已經過的時間；MCP 外掛工具的進度會依伺服器與工具名稱自動產生，例如「正在用 Divebird 查詢下載」，之後新增的 MCP 伺服器也適用；同一個動作連續重複時會顯示次數（例如「第 12 次」），看得出 Hermes 是在重試而不是當掉。工作進行中輸入 `/stop` 會請 Hermes 立刻停止（連同它開出來的背景程序）；這時送出其他訊息，魚魚會先回覆一句，等目前的工作結束再處理。外部 Agent 的氣泡還在顯示時，魚魚不會自己開口把它蓋掉。Hermes 預設不會把 MCP 外掛工具全部直接列給模型，所以提示詞會要求它需要工具時先用 `tool_search` 查找、找到合適的外掛工具就優先使用，下載檔案或影片時優先使用 Divebird 下載管理員，下載前先核對標題或網址；同一個指令或工具失敗兩次就換方法，失敗三次就停下來詢問。同一段對話會延續上下文，連重新啟動橋接程式後也接得上；在輸入框打 `/new` 會開始新的對話，但 Hermes 寫進長期記憶的內容（例如被要求「記住」的事）不會因此清掉。
+- **魚魚自己的主動提醒**：Windows 版設定頁「說話與天氣」新增「主動提醒」：久坐（連續使用 30、45、60、90 或 120 分鐘後，預設 60 分鐘，也可以關閉）、用餐（三餐時間沿用「陪伴與外觀」的設定）、深夜（晚上 10 點到凌晨 2 點擇一，預設凌晨 0 點）、低電量（沒插電且電量剩 20%、10% 時）與下雨（需開啟天氣，6 小時內降雨機率 60% 以上）。提醒由魚魚本體依規則判斷，不需要模型或 Agent；使用者不在電腦前、前景是全螢幕程式、正在拖曳魚魚或 Agent 正在說話時，提醒會先等等。這些開關也能用 MCP 的 `update_settings` 調整。另外，原版在午餐時間播「吃晚餐」、晚餐時間播「吃午餐」，本分支改成各自在自己的用餐時間播放。
+- **新的 MCP 工具（Windows 版）**：`get_context` 讀取使用者此刻的狀況，包括時間、多久沒操作電腦、這次連續使用多久、電源與電量、前景程式（使用者關閉前景視窗偵測時不提供）、魚魚快取的天氣、畫面上開著的檔案總管資料夾，以及魚魚最近一次的主動提醒；它是唯讀的，不截圖也不連網。`find_on_screen` 依名稱找出畫面上看得到的桌面圖示（附對應的檔案）、視窗，以及視窗裡的按鈕、分頁、清單項目等介面元素，回傳位置與大小。`walk_to` 讓魚魚跑到畫面上的目標旁邊停下，不遮住目標，也可以一次依序跑過多個目標；使用者拖曳或點選魚魚時，她會停在當下的位置。使用者離開電腦 5 分鐘以上再回來時，MCP 會發出 `user_returned` 事件。Linux 版呼叫這三個工具時會回覆尚不支援，也沒有主動提醒。
+- **雙擊輸入框可以附加檔案**：用輸入框的附加按鈕、拖曳或 Ctrl+V 貼上，一次最多 10 個圖片、影片或檔案；貼上的圖片存在 `%LOCALAPPDATA%\BigBlueFish\attachments`。MCP 的 `user_message` 事件只帶本機路徑與檔案資訊，不帶檔案內容。Hermes 橋接程式會把每個檔案的路徑告訴 Hermes，圖片（最多 10 張）另外直接附給模型，太大的先縮小成 JPEG。
+- **Hermes 橋接：每日簡報、回來時的摘要、行程提醒與排程回報**：設定頁「Agent 與 MCP」新增「每天第一次坐下時講今日簡報」與「離開很久回來時說期間發生的事」（離開 30、60、120 或 240 分鐘以上，預設 60 分鐘）。簡報的內容由橋接程式自己蒐集：天氣、今天還要執行的 Hermes 排程、還沒說的排程結果、Hermes 在其他地方（例如 Telegram）的對話、離開期間錯過的用餐時間，以及今天剩下的 Google 日曆行程；Hermes 只負責把它們說成一段話，來不及或改去呼叫工具時，魚魚會改說橋接程式整理好的文字。離開期間大多開著全螢幕程式（看影片、玩遊戲）且沒有鎖定畫面時，不算離開。「說話與天氣」頁的「行程開始前提醒」（5、10、15 或 30 分鐘前，預設 10 分鐘）也由橋接程式在使用者在電腦前時說，整天的行程和已回覆不參加的邀請不提醒。Hermes 排程工作（cron）執行完的結果，橋接程式會讀出來讓魚魚說；使用者閒置 2 分鐘以上時先等，回來後由簡報先講。這些功能都只在執行橋接程式時才有。
+- **Google 日曆**：橋接程式透過 Hermes 的 `google-calendar` 技能讀取行程，授權沿用 Hermes 的 `google-workspace` 技能，只要日曆權限，橋接程式自己不保存 Google 的憑證。`google-calendar` 技能不在本儲存庫，需要另外替 Hermes 安裝並完成授權；沒有設定時，行程相關的功能會略過。
+- **橋接程式的安全閥與執行方式**：同一輪的工具呼叫失敗 6 次，或同一個呼叫重複 8 次，橋接程式就會請 Hermes 停下來，避免繞圈子。橋接程式改以 `dotnet BigBlueFish.HermesBridge.dll` 執行，不再產生 `.exe`，因為先前編譯出的 exe 曾被 Microsoft Defender 誤判為木馬並隔離。
+
+### 使用 Hermes 對話橋接
+
+1. 桌寵設定的「Agent 與 MCP」開啟「開啟 MCP 介面」與「雙擊與魚魚對話」。不需要開啟「提線木偶模式」；開了的話魚魚會停止自己說話和切換動作，橋接程式關閉後也要手動關掉才會恢復。
+2. Hermes 的 `.env` 設定一組 16 字元以上的 `API_SERVER_KEY`，重新啟動 Hermes gateway（`hermes gateway restart -y`），讓 API 介面在 `http://127.0.0.1:8642` 啟動。
+3. 執行 `./code/run-hermes-bridge.ps1`（會先編譯再啟動）。橋接程式會自動尋找 `BigBlueFish.Mcp.exe`，並從 Hermes 的 `.env` 讀取金鑰，不會把金鑰寫到其他地方或顯示出來。
+4. 雙擊魚魚輸入訊息，按「送出」或 Ctrl+Enter。輸入 `/new` 開始新的對話，輸入 `/stop`（或 `/停止`）停止目前的工作。
+
+在 Hermes 新增 MCP 伺服器後，Hermes gateway 會自動載入，不必重新啟動橋接程式；如果 Hermes 在先前的對話裡說過找不到某個工具，可以在輸入框打 `/new` 開始新的對話，或在訊息裡直接點名要用的工具。
+
+注意：Hermes 回答時可以使用它所有的工具，包括在這台電腦執行終端機指令與修改檔案；能在魚魚輸入框打字的人，就能請 Hermes 做這些事。橋接程式啟動時若發現 Hermes 開著這類工具組，會先顯示提醒。訊息也會送到 Hermes 設定的模型服務。請只在自己的電腦上使用，並視需要在 Hermes 的設定中限制 API 平台可用的工具。
+
+### 新增或移除的第三方內容
+
+- 新增 jf open 粉圓 2.1 字型（未修改）：著作權屬 justfont Co., LTD.，以 SIL Open Font License 1.1 授權；字型內含 Varela Round（SIL OFL 1.1）的拉丁字母，漢字部分衍生自 Kosugi Maru（Apache-2.0）。字型授權全文在 `code/licenses/jf-open-huninn-OFL.txt`，Apache-2.0 全文在 `code/licenses/Apache-2.0.txt`。
+- 移除「乐米小奶泡体」字型及其授權說明，本分支不再散布該字型。
+- 新增 OpenCC 1.4.2 字典（Apache-2.0，著作權屬 Carbo Kuo（BYVoid）與 OpenCC 貢獻者），放在 `code/BigBlueFish.Windows/assets/opencc/` 並嵌入程式：`STCharacters`、`STPhrases`、`TSCharacters`、`TWPhrases`、`TWVariants`、`TWVariantsPhrases` 與官方 `ver.1.4.2` 的原檔完全相同；`STPhrases_GeneratedFromRegionalPhrases.txt` 是 OpenCC 建置時產生的檔案，取自官方 Python 套件並加上註明來源的檔頭。授權全文在 `code/licenses/OpenCC-Apache-2.0.txt`，來源與 SHA-256 雜湊值記錄在同資料夾的 `source.json`。
+- 台灣天氣資料只在執行時向中央氣象署查詢，不隨程式附帶天氣資料。顯名聲明：中央氣象署 2026 鄉鎮天氣預報（F-D0047）。此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license 。中央氣象署並未推薦或背書本程式。
+- 台灣縣市與鄉鎮市區清單由新增的 `code/tools/import-taiwan-regions.py` 產生：從原有的 AreaCity 地區資料（MIT）取出台灣部分，以 OpenCC 轉換為繁體中文；金門縣與連江縣的鄉鎮因為 AreaCity 歸在福建省之下，直接寫在腳本中。
+- 補上角色動畫與形象的使用限制：106 段透明 WebM 動畫取自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（commit `eb74267`，和原作者使用的版本相同）。dsh-pet 的程式碼採 MIT 授權，但它的 README「许可」一節另外規定：
+  - 動畫、提示詞與原始影片等素材「允許開源使用，禁止商用」（原文「允许开源使用，禁止商用」）。
+  - 角色形象採 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hant)（姓名標示、非商業性、相同方式分享），不可以任何形式商業化。這個形象是社群二創的 DeepSeek「大肥魚」（鯨魚娘），不是 DeepSeek 官方形象：原型「溟月」出自 B 站 [@上善无形](https://space.bilibili.com/4456176)，DeepSeek 版（女僕鯨魚娘）由 B 站 [@ZipZipPipe](https://space.bilibili.com/4168597) 設計。
+  - 衍生、改版或換皮的作品，要在 GitHub 儲存庫、產品網站等公開管道附上 dsh-pet 的網址 <https://github.com/PC2005-cloud/dsh-pet>。
+
+  原作者的 README 與 `code/BigBlueFish.Windows/assets/fish/LICENSE.txt` 只寫了 MIT，沒有提到這些限制，本分支在此補上。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象；依上述規定，包含這些動畫的程式與安裝檔不得用於商業用途。
+- 版本、SHA-256 雜湊值與授權的詳細資訊已更新於[第三方聲明](code/THIRD-PARTY.md)（英文）。
+
+### 尚未修改的部分
+
+- 安裝程式與解除安裝程式（`installer/`、`uninstaller/`）自己的文字，以及 Linux 版的設定、選單等介面仍為簡體中文；但它們共用的視窗框架、模型下載視窗、模型狀態與錯誤訊息，以及魚魚的回覆已改為繁體，所以畫面會繁簡混雜。Linux 版的氣泡字型也已改為 jf open 粉圓，對話框字型改為 Noto Sans CJK TC。Linux 版的氣泡沒有加上簡體轉繁體，也不會在外部 Agent 說話時暫停自己說話。Linux 版可以編譯，但沒有實際執行驗證。
+- 執行檔的產品名稱與檔案描述（工作管理員中顯示的名稱）、MCP 橋接程式 `BigBlueFish.Mcp` 的連線錯誤訊息，以及 `tools/` 底下建置與模型準備腳本的訊息仍為簡體中文（`Model-Helpers.ps1` 的模型來源名稱與錯誤訊息已改為繁體）。
+- 安裝後在 Windows「已安裝的應用程式」顯示的發行者與網址、Linux 套件的維護者與首頁，以及「檢查更新」的來源，目前仍指向原作者 Bai-Cute 及其儲存庫。在這些資訊改為指向本分支之前，本分支不提供編譯好的安裝檔，以免被誤認為原作者發行，或被「檢查更新」換回原版。
+- 本 README 分隔線以下的原作者說明、`docs/` 規格文件、`CHANGELOG.md`，以及建置安裝檔時附帶的 `release/README.md`（安裝說明）仍是原作者的內容，描述的是原版行為；其中「开源许可与第三方权利信息」一節仍列出原版的「乐米小奶泡体」字型，也只把角色動畫標為 MIT 授權；本分支實際附帶的字型、資料來源與素材的使用限制，請以上方「新增或移除的第三方內容」與 `code/THIRD-PARTY.md` 為準。
+- 科技新聞來源仍是 IT之家，提示詞會要求模型改寫成台灣繁體中文。
+
+### 修改過的檔案
+
+以下 121 個檔案由 acer1204 於 2026 年 10 月 26 日至 30 日新增、刪除或修改（相對於原作者儲存庫的 commit `5eead98`）。完整差異可以用 `git diff 5eead98 taiwan-edition` 檢視。
+
+<details>
+<summary>展開檔案清單</summary>
+
+**新增（52）**
+
+- `code/BigBlueFish.HermesBridge/BigBlueFish.HermesBridge.csproj`
+- `code/BigBlueFish.HermesBridge/Bridge.cs`
+- `code/BigBlueFish.HermesBridge/BridgeState.cs`
+- `code/BigBlueFish.HermesBridge/Briefings.cs`
+- `code/BigBlueFish.HermesBridge/Calendar.cs`
+- `code/BigBlueFish.HermesBridge/CronReports.cs`
+- `code/BigBlueFish.HermesBridge/HermesChat.cs`
+- `code/BigBlueFish.HermesBridge/HermesLog.cs`
+- `code/BigBlueFish.HermesBridge/ImageShrink.cs`
+- `code/BigBlueFish.HermesBridge/PetLink.cs`
+- `code/BigBlueFish.HermesBridge/Program.cs`
+- `code/BigBlueFish.HermesBridge/ToolStatus.cs`
+- `code/BigBlueFish.HermesBridge/packages.lock.json`
+- `code/BigBlueFish.Windows/Companion/CompanionMcpAttachments.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionProactive.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionReminders.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionScreenSearch.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionTraditional.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionWalk.cs`
+- `code/BigBlueFish.Windows/Res/Font/jf-openhuninn-2.1.ttf`
+- `code/BigBlueFish.Windows/assets/opencc/STCharacters.txt`
+- `code/BigBlueFish.Windows/assets/opencc/STPhrases.txt`
+- `code/BigBlueFish.Windows/assets/opencc/STPhrases_GeneratedFromRegionalPhrases.txt`
+- `code/BigBlueFish.Windows/assets/opencc/TSCharacters.txt`
+- `code/BigBlueFish.Windows/assets/opencc/TWPhrases.txt`
+- `code/BigBlueFish.Windows/assets/opencc/TWVariants.txt`
+- `code/BigBlueFish.Windows/assets/opencc/TWVariantsPhrases.txt`
+- `code/BigBlueFish.Windows/assets/opencc/source.json`
+- `code/BigBlueFish.Windows/assets/regions/taiwan-regions.json`
+- `code/licenses/OpenCC-Apache-2.0.txt`
+- `code/licenses/jf-open-huninn-OFL.txt`
+- `code/run-hermes-bridge.ps1`
+- `code/tests/HermesScenarioVerification/scenarios.py`
+- `code/tests/ReminderVerification/Program.cs`
+- `code/tests/ReminderVerification/ReminderVerification.csproj`
+- `code/tests/ReminderVerification/packages.lock.json`
+- `code/tests/TraditionalTextVerification/Program.cs`
+- `code/tests/TraditionalTextVerification/TraditionalTextVerification.csproj`
+- `code/tests/TraditionalTextVerification/corpora/mixed_cases.expected.txt`
+- `code/tests/TraditionalTextVerification/corpora/mixed_cases.txt`
+- `code/tests/TraditionalTextVerification/corpora/simplified_upstream.expected.txt`
+- `code/tests/TraditionalTextVerification/corpora/simplified_upstream.txt`
+- `code/tests/TraditionalTextVerification/corpora/traditional_app.expected.txt`
+- `code/tests/TraditionalTextVerification/corpora/traditional_app.txt`
+- `code/tests/TraditionalTextVerification/corpora/traditional_stress.expected.txt`
+- `code/tests/TraditionalTextVerification/corpora/traditional_stress.txt`
+- `code/tests/TraditionalTextVerification/corpora/tw_regions_mixed.expected.txt`
+- `code/tests/TraditionalTextVerification/corpora/tw_regions_mixed.txt`
+- `code/tests/TraditionalTextVerification/corpora/tw_regions_traditional.expected.txt`
+- `code/tests/TraditionalTextVerification/corpora/tw_regions_traditional.txt`
+- `code/tests/TraditionalTextVerification/packages.lock.json`
+- `code/tools/import-taiwan-regions.py`
+
+**刪除（2）**
+
+- `code/BigBlueFish.Windows/Res/Font/LemiXiaoNaiPaoTi.ttf`
+- `code/licenses/Lemi-Xiao-Nai-PaoTi.txt`
+
+**修改（67）**
+
+- `.gitattributes`
+- `README.md`
+- `code/BigBlueFish.Control/ControlServer.cs`
+- `code/BigBlueFish.Control/ControlTools.cs`
+- `code/BigBlueFish.Linux/BigBlueFish.Linux.csproj`
+- `code/BigBlueFish.Linux/LinuxMcp.cs`
+- `code/BigBlueFish.Linux/LinuxPetWindow.cs`
+- `code/BigBlueFish.Linux/LinuxSettings.cs`
+- `code/BigBlueFish.Windows/App.xaml.cs`
+- `code/BigBlueFish.Windows/BigBlueFish.Windows.csproj`
+- `code/BigBlueFish.Windows/Companion/CompanionAnimationPolicy.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionAnimations.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionBrain.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionDialogue.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionJob.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionMaintenance.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionMcp.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionMenuStyles.xaml`
+- `code/BigBlueFish.Windows/Companion/CompanionMenus.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionNative.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionNews.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionOcr.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionOcrLayout.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionPreferences.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionRegions.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionScreenCapture.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionSettings.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionSpeech.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionTrayIcon.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionTrayMenuRenderer.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionWeather.cs`
+- `code/BigBlueFish.Windows/Companion/CompanionWindow.cs`
+- `code/BigBlueFish.Windows/MainWindow.xaml`
+- `code/BigBlueFish.Windows/assets/fish/animations.json`
+- `code/THIRD-PARTY.md`
+- `code/test.ps1`
+- `code/tests/AnimationUiVerification/Program.cs`
+- `code/tests/AnimationVerification/Program.cs`
+- `code/tests/ForegroundVerification/Program.cs`
+- `code/tests/InstallerVerification/DeploymentVerification.cs`
+- `code/tests/InstallerVerification/DownloadInterruptionVerification.cs`
+- `code/tests/LinuxVerification/verify.py`
+- `code/tests/McpProtocolVerification/Program.cs`
+- `code/tests/McpUiVerification/Program.cs`
+- `code/tests/OcrLayoutVerification/Program.cs`
+- `code/tests/OcrVerification/Program.cs`
+- `code/tests/OcrVerification/packages.lock.json`
+- `code/tests/PowerNoticeVerification/Program.cs`
+- `code/tests/RunnerVerification/LatencyVerification.cs`
+- `code/tests/RunnerVerification/MaintenanceVerification.cs`
+- `code/tests/RunnerVerification/NewsVerification.cs`
+- `code/tests/RunnerVerification/PerformanceVerification.cs`
+- `code/tests/RunnerVerification/PersonaVerification.cs`
+- `code/tests/RunnerVerification/Program.cs`
+- `code/tests/RunnerVerification/SpeechFlowVerification.cs`
+- `code/tests/RunnerVerification/TrayVerification.cs`
+- `code/tests/SafeEditionVerification/Program.cs`
+- `deployment/ArtifactDownload.cs`
+- `deployment/ModelInstallWindow.cs`
+- `deployment/ModelStore.cs`
+- `deployment/ModernUI.cs`
+- `deployment/UpdateService.cs`
+- `deployment/UpdateWindow.cs`
+- `tools/Import-AnimationRules.py`
+- `tools/Model-Helpers.ps1`
+
+</details>
+
+---
+
 蓝色大肥鱼是一款住在电脑桌面上的 AI 桌宠软件，支持 Windows、Linux 与 macOS。她是一位蓝发的小鲸鱼娘，形象来自对 DeepSeek 的二创虚拟形象“蓝色大肥鱼”。软件内置 4B 本地大模型，借助 OCR 技术读懂主人正在桌面上做的事情，每隔一段时间就从文字气泡里送来一句可爱的话，陪伴和关心主人；她还会查看天气、浏览科技新闻，再用自己的方式讲给主人听。
 
-鱼鱼准备了一百多种可爱的动作表情，平时会在桌面上呼吸、哼歌、伸懒腰、吃零食、玩耍，到了饭点会认真吃饭，到了节日会换上应景的小活动，被点一下、被拎起来时也有专门设计的反应。每次启动，她都会提起裙摆向主人行礼请安；关闭时，也会用同样的礼仪和主人道别。标准版还能通过 ACP 一键连接 21 款主流 CLI Agent，陪主人进行稳定的长对话。
+鱼鱼准备了一百多种可爱的动作表情，平时会在桌面上呼吸、哼歌、伸懒腰、吃零食、玩耍，到了饭点会认真吃饭，到了节日会换上应景的小活动，被点一下、被拎起来时也有专门设计的反应。每次启动，她都会提起裙摆向主人行礼请安；关闭时，也会用同样的礼仪和主人道别。标准版还能通过 ACP 一键连接 20 款主流 CLI Agent，陪主人进行稳定的长对话。
 
 当前版本为 **1.1.3**，安装包请前往 [GitHub Releases](https://github.com/Bai-Cute/big-blue-fish-desktop-pet/releases/latest) 下载。
 
@@ -93,7 +445,7 @@ Hugging Face 来源为 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface
 
 从 1.1.0 起，标准版的蓝色大肥鱼通过 ACP（Agent Client Protocol）连接主人电脑上已经安装的 CLI Agent。连接只需在设置里点选一次：鱼鱼会在后台启动所选的 Agent，为自己开一个专用对话，并自动接好动作、截图、说话等工具。接上之后，主人可以和鱼鱼长时间地聊天，也可以借助 Agent 的能力，实现电脑操控、与云端大模型对话、自定义陪伴和动作逻辑等各种玩法。
 
-鱼鱼目前已经适配了 21 款 CLI Agent，其中有 Claude Code、Codex CLI、Gemini CLI、DeepSeek Harness、Kimi Code、Qwen Code、GitHub Copilot CLI、Cursor CLI、OpenCode 等。全部适配项和各自的启动方式见[连接本机 CLI Harness](docs/ACP.md)。
+鱼鱼目前已经适配了 20 款 CLI Agent，其中有 Codex CLI、Gemini CLI、DeepSeek Harness、Kimi Code、Qwen Code、GitHub Copilot CLI、Cursor CLI、OpenCode 等。全部适配项和各自的启动方式见[连接本机 CLI Harness](docs/ACP.md)。
 
 ### 连接方法
 
@@ -102,7 +454,7 @@ Hugging Face 来源为 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface
 3. 从下拉列表里选一个 Agent。电脑上检测到的 Agent 排在前面；刚装好新的 Agent 时，点一下“重新检测”。
 4. 等页面显示出连接状态、Agent 版本、模型和会话编号，就可以开始用了。
 
-Claude Code、Codex CLI 和 Pi 需要经过 ACP 适配器连接。电脑上还没有这些适配器时，鱼鱼会借助 Node.js 和 npm 自动装上固定版本；Antigravity CLI 的官方 ACP 组件也会在第一次连接时自动准备。Agent 要求登录时，鱼鱼会列出它提供的登录方式；选了终端登录，鱼鱼会打开一个登录终端，登录成功后自动重连，接着处理刚才的请求。
+Codex CLI 和 Pi 需要经过 ACP 适配器连接。电脑上还没有这些适配器时，鱼鱼会借助 Node.js 和 npm 自动装上固定版本；Antigravity CLI 的官方 ACP 组件也会在第一次连接时自动准备。Agent 要求登录时，鱼鱼会列出它提供的登录方式；选了终端登录，鱼鱼会打开一个登录终端，登录成功后自动重连，接着处理刚才的请求。
 
 ### 和鱼鱼长聊
 

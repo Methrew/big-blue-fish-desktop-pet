@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Text.Json;
 using Avalonia;
 using Avalonia.Media.Imaging;
@@ -12,7 +13,7 @@ internal sealed partial class LinuxPetWindow
         if (!App.Args.Contains("--test-mode")) return;
         if (DateTime.UtcNow >= nextTestStatus) {
             nextTestStatus = DateTime.UtcNow.AddSeconds(1);
-            File.WriteAllText("test-status.json", JsonSerializer.Serialize(new { version = typeof(LinuxPetWindow).Assembly.GetName().Version!.ToString(3), currentAction, phase, frames = player.Frames, animationSeconds=player.PositionSeconds, animationBackend=player.Backend, player.LastReadMs, player.LastUiMs, player.LastCopyMs, player.LastShapeMs, text = bubbleText.Text, bubbleVisible = bubbleWindow.IsVisible, Puppet, McpAvailable, visible = IsVisible, hidden, fullscreenHidden, modelPid = brain.RunnerPid, modelBusy = brain.Busy, modelStatus = brain.Status, generating, settingsOpen = settings != null, Position.X, Position.Y }));
+            File.WriteAllText("test-status.json", JsonSerializer.Serialize(new { version = typeof(LinuxPetWindow).Assembly.GetName().Version!.ToString(3), currentAction, phase, frames = player.Frames, animationSeconds=player.PositionSeconds, animationBackend=player.Backend, player.LastReadMs, player.LastUiMs, player.LastCopyMs, player.LastShapeMs, text = bubbleText.Text, bubbleVisible = bubbleWindow.IsVisible, Puppet, McpAvailable, agentPipe = TestAgentPipe, visible = IsVisible, hidden, fullscreenHidden, modelPid = brain.RunnerPid, modelBusy = brain.Busy, modelStatus = brain.Status, generating, settingsOpen = settings != null, Position.X, Position.Y }));
         }
         if (!File.Exists("test-command.txt")) return;
         string command = File.ReadAllText("test-command.txt").Trim(); File.Delete("test-command.txt");

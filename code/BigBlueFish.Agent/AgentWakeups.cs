@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Text.Json;
 
 namespace BigBlueFish.Agent;
@@ -18,14 +19,14 @@ public sealed class AgentWakeups
     }
     public AgentWakeup Schedule(string harness, string session, string purpose, int delaySeconds, int? repeatSeconds, string? id, DateTimeOffset now)
     {
-        if (string.IsNullOrWhiteSpace(purpose) || purpose.Length > 1000) throw new ArgumentException("purpose 必须为1–1000字符。");
-        if (delaySeconds is < 30 or > 604800 || repeatSeconds is < 30 or > 604800) throw new ArgumentException("预约间隔为30–604800秒。");
-        if (id?.Length > 100) throw new ArgumentException("预约编号过长。");
+        if (string.IsNullOrWhiteSpace(purpose) || purpose.Length > 1000) throw new ArgumentException("purpose 必須是 1–1000 個字元。");
+        if (delaySeconds is < 30 or > 604800 || repeatSeconds is < 30 or > 604800) throw new ArgumentException("預約間隔是 30–604800 秒。");
+        if (id?.Length > 100) throw new ArgumentException("預約編號太長。");
         lock (gate)
         {
             id ??= Guid.NewGuid().ToString("N");
             int existing = jobs.FindIndex(x => x.Id == id && x.Harness == harness && x.Session == session);
-            if (existing < 0 && jobs.Count >= 32) throw new InvalidOperationException("最多保留32个预约。");
+            if (existing < 0 && jobs.Count >= 32) throw new InvalidOperationException("最多保留 32 個預約。");
             var job = new AgentWakeup(id, harness, session, purpose, now.AddSeconds(delaySeconds), repeatSeconds);
             if (existing >= 0) jobs[existing] = job; else jobs.Add(job);
             Save(); return job;

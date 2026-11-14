@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -6,13 +8,19 @@ namespace BigBlueFish.Control;
 
 public static class ControlTools
 {
-    public const string PrivacyWarning = "开启连接后，所选 Agent 可以读取和修改大肥鱼的设置，获取当前前台窗口或整个屏幕的截图，并接收你通过鱼鱼输入的内容与交互事件。Agent 可能将这些信息发送给它配置的模型服务。请留意隐私安全，仅连接你信任的 Agent。";
-    public const string DailySpeechLabel = "把日常关心的吐字交给 Agent";
-    public const string BehaviorControlLabel = "把日常关心的触发和日常的动作切换逻辑交给 Agent";
-    public const string BehaviorControlTitle = "让 Agent 安排日常关心与动作";
-    public const string DailySpeechDescription = "日常关心触发后，由 Agent 编写鱼鱼要说的话。";
-    public const string BehaviorControlDescription = "由 Agent 决定何时关心主人、如何切换动作；没有安排时，鱼鱼保持待机。上一个开关决定由 Agent 还是本地模型编写日常吐字。";
-    public const string PuppetWarning = "开启后，鱼鱼会暂停自己的日常关心计时和动作切换，保持待机，等待 Agent 安排。如果 Agent 关闭或断开，需关闭此开关，才能恢复鱼鱼自己的日常关心与动作安排。";
+    // Consent for the built-in Agent connection (ACP, which reaches the fish through a private pipe of its own) ...
+    public const string PrivacyWarning = "開啟連線後，所選的 Agent 可以讀取和修改大肥魚的設定、取得目前前景視窗或整個螢幕的截圖、讀取你的使用狀態（閒置時間、前景程式名稱與視窗標題、電源與電量），並接收你透過魚魚輸入的內容、附加檔案的路徑與互動事件。Agent 可能把這些資訊傳送給它設定的模型服務。請留意隱私安全，僅連線你信任的 Agent。";
+    // ... and for the MCP interface, which any local MCP client such as the Hermes bridge reaches through BigBlueFish.Mcp.
+    public const string McpPrivacyWarning = "開啟 MCP 介面後，連線的 Agent 可以讀取和修改大肥魚的設定、取得目前前景視窗或整個螢幕的截圖、讀取你的使用狀態（閒置時間、前景程式名稱與視窗標題、電源與電量），並接收你點選、拖曳大肥魚的事件。讀取到的螢幕內容會被 MCP 連線者取得，並可能由對方傳送給其使用的雲端服務。請留意隱私安全，僅連線你信任的 Agent。";
+    public const string DailySpeechLabel = "把日常關心的吐字交給 Agent";
+    public const string BehaviorControlLabel = "把日常關心的觸發和日常的動作切換邏輯交給 Agent";
+    public const string BehaviorControlTitle = "讓 Agent 安排日常關心與動作";
+    public const string DailySpeechDescription = "日常關心觸發後，由 Agent 編寫魚魚要說的話。";
+    public const string BehaviorControlDescription = "由 Agent 決定何時關心主人、如何切換動作；沒有安排時，魚魚保持待機。上一個開關決定由 Agent 還是魚魚自己的模型編寫日常吐字。";
+    public const string PuppetWarning = "開啟後，魚魚會暫停自己的日常關心計時和動作切換，保持待機，等待 Agent 安排。如果 Agent 關閉或斷開，需關閉此開關，才能恢復魚魚自己的日常關心與動作安排。";
+    // The same PuppetMode switch as the MCP interface names it.
+    public const string McpPuppetTitle = "開啟提線木偶模式";
+    public const string McpPuppetWarning = "開啟提線木偶模式後，大肥魚會停止自身的吐字和動作切換，完全由外部 Agent 接管。如果外部 Agent 程式關閉或斷開，大肥魚不會自動恢復原有功能；需關閉提線木偶模式才能恢復。";
     // macOS $TMPDIR is long and its domain sockets allow only 104 characters, so the socket gets a short absolute path there.
     public static string PipeName => (OperatingSystem.IsMacOS() ? "/tmp/bbf-" : "BigBlueFish.Control.") + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)))).Substring(0, 20);
@@ -23,65 +31,128 @@ public static class ControlTools
         new { type = "image", mimeType = dataUrl[5..dataUrl.IndexOf(';')], data = dataUrl[(dataUrl.IndexOf(',') + 1)..] } } };
     public static readonly string[] SettingNames = ["ModelEnabled", "GpuEnabled", "PublicInfo", "ForegroundEnabled", "StopModelOnBattery",
         "HideOnFullscreen", "CheckUpdatesOnStartup", "ChatLogShowAll", "WeatherRegionCode", "Scale", "BubbleScale", "SpeechMinMinutes",
-        "BubbleDurationIndex", "AnimationIntervalSeconds", "BreakfastHour", "LunchHour", "DinnerHour", "Left", "Top", "LastBrushDate", "StartupEnabled", "PuppetMode", "AgentDailySpeech", "AgentRespondToClick", "AgentRespondToDrag"];
+        "BubbleDurationIndex", "AnimationIntervalSeconds", "BreakfastHour", "LunchHour", "DinnerHour", "Left", "Top", "LastBrushDate", "StartupEnabled", "PuppetMode", "McpChatEnabled",
+        "AgentDailySpeech", "AgentRespondToClick", "AgentRespondToDrag",
+        "SitReminderMinutes", "MealReminder", "LateReminder", "LateReminderHour", "BatteryReminder", "RainReminder", "DailyBriefing", "WelcomeBackMinutes", "EventReminderMinutes"];
     private const string SettingsInput = """
-        {"settings":{"type":"object","additionalProperties":false,"description":"按需提供字段；省略的字段保留。字段名区分大小写。AgentEnabled 只读。成功后读取实际值；位置可能因工作区限制调整。","properties":{
-          "ModelEnabled":{"type":"boolean","description":"启用内置模型；不限制外部 say。"},
-          "GpuEnabled":{"type":"boolean","description":"本地推理使用 GPU；切换会停止当前模型任务。"},
-          "PublicInfo":{"type":"boolean","description":"内置天气和科技新闻。"},
-          "ForegroundEnabled":{"type":"boolean","description":"内置模型是否读屏；不是 MCP 截图的权限开关。"},
-          "StopModelOnBattery":{"type":"boolean","description":"离电时暂停并卸载内置模型；不限制外部文字。"},
-          "HideOnFullscreen":{"type":"boolean","description":"外部全屏时隐藏桌宠；不限制 MCP 截图。"},
-          "CheckUpdatesOnStartup":{"type":"boolean","description":"启动时检查更新。"},
-          "ChatLogShowAll":{"type":"boolean","description":"Windows 对话输入框的聊天记录显示鱼鱼说过的所有话；关闭时按主人消息及其相邻鱼鱼话语筛选。"},
-          "WeatherRegionCode":{"type":"string","pattern":"^([0-9]{6}|[A-Z]{2}-[0-9]+)$","description":"内置地区表中存在的叶级地点代码：中国为6位区县代码如340104，美国为US-加5位县FIPS如US-06037，其他国家为国家代码-GeoNames城市ID如JP-1850147；不是城市名、省级、州级或一级行政区代码。"},
-          "Scale":{"type":"number","minimum":0.5,"maximum":2,"description":"角色大小倍率；1为100%。"},
-          "BubbleScale":{"type":"number","minimum":0.5,"maximum":2,"description":"独立气泡大小倍率；不改变角色大小。"},
-          "SpeechMinMinutes":{"type":"integer","enum":[2,3,5,10,15,20],"description":"说话区间档位：2对应2–3分钟，3对应3–5，5对应5–8，10对应10–16，15对应15–23，20对应20–30；不是任意分钟数。"},
-          "BubbleDurationIndex":{"type":"integer","minimum":0,"maximum":7,"description":"索引0–7依次为5、10、15、30、60、120、180秒，以及直到下一句。"},
-          "AnimationIntervalSeconds":{"type":"integer","minimum":30,"maximum":300,"description":"普通随机动作事件间隔，单位秒，默认40；等当前片段结束再切换。不是帧率、播放速度或说话间隔。关心触发与动作接管暂停该调度。"},
-          "BreakfastHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地时间的早餐小时。"},
-          "LunchHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地时间的午餐小时。"},
-          "DinnerHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地时间的晚餐小时。"},
-          "Left":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"窗口左坐标：Windows逻辑单位，Linux屏幕像素；Linux截取整数。null不重置位置。"},
-          "Top":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"窗口上坐标，与Left相同的平台语义；最终坐标受屏幕工作区约束。"},
-          "LastBrushDate":{"type":["string","null"],"pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}$","description":"有效本地日期yyyy-MM-dd或null，用于每日刷牙动作去重；通常无需修改。"},
-          "StartupEnabled":{"type":"boolean","description":"当前用户的系统开机启动设置。"},
-          "PuppetMode":{"type":"boolean","description":"完全外部接管。每次从false改true须等待用户在桌面确认；窗口等待期间桌宠仍可拖动。断开不会自动退出该模式。"},
-          "AgentDailySpeech":{"type":"boolean","description":"日常吐字交给Agent；普通模式由鱼鱼计时，关心触发与动作接管由Agent预约唤醒。"},
-          "AgentRespondToClick":{"type":"boolean","description":"点击事件是否主动发起Agent轮次，默认false；事件仍可从交互资源读取。"},
-          "AgentRespondToDrag":{"type":"boolean","description":"拖动结束是否主动发起Agent轮次，默认false。"}
+        {"settings":{"type":"object","additionalProperties":false,"description":"按需提供欄位；省略的欄位保留。欄位名區分大小寫。McpEnabled、AgentEnabled、AgentHarnessId 與遠端模型設定只讀。成功後讀取實際值；位置可能因工作區限制調整。","properties":{
+          "ModelEnabled":{"type":"boolean","description":"設定頁的「啟用模型說話」：允許桌寵用內建或遠端模型自主說話與播報天氣；不限制外部 say。"},
+          "GpuEnabled":{"type":"boolean","description":"本機推理使用 GPU；切換會停止目前模型任務。"},
+          "PublicInfo":{"type":"boolean","description":"內建天氣和科技新聞。"},
+          "ForegroundEnabled":{"type":"boolean","description":"內建模型是否讀取螢幕；不是 MCP 截圖的權限開關。"},
+          "StopModelOnBattery":{"type":"boolean","description":"拔掉電源時暫停內建模型並釋放記憶體；不限制外部文字。"},
+          "HideOnFullscreen":{"type":"boolean","description":"外部全螢幕時隱藏桌寵；不限制 MCP 截圖。"},
+          "CheckUpdatesOnStartup":{"type":"boolean","description":"啟動時檢查更新。"},
+          "ChatLogShowAll":{"type":"boolean","description":"Windows版對話輸入框的聊天記錄是否顯示魚魚說過的所有話；false時只列出主人的訊息及前後相鄰的魚魚話語。"},
+          "WeatherRegionCode":{"type":"string","pattern":"^([0-9]{6}|[0-9]{9}|TW-[0-9]{3}-[0-9]{2}|[A-Z]{2}-[0-9]+)$","description":"內建地區表中存在的最下層地點代碼：中國為6位區縣代碼，如340104（包含原有清單的臺灣省各區，如710101；部分直轄縣級行政區為9位代碼，如419001000）；另外的「臺灣」選項為鄉鎮市區代碼，如臺北市中正區 TW-061-01；美國為US-加5位郡FIPS代碼，如US-06037；其他國家為國家代碼-GeoNames城市ID，如JP-1850147。不是地名，也不是縣市、省、州或一級行政區代碼。「臺灣」選項的地點在Windows版填了中央氣象署授權碼時使用氣象署的鄉鎮預報；沒有授權碼時（以及Linux與macOS版）改用Open-Meteo在鄉鎮中心點的估計。"},
+          "Scale":{"type":"number","minimum":0.5,"maximum":2,"description":"角色大小倍率；1為100%。"},
+          "BubbleScale":{"type":"number","minimum":0.5,"maximum":2,"description":"獨立氣泡大小倍率；不改變角色大小。"},
+          "SpeechMinMinutes":{"type":"integer","enum":[2,3,5,10,15,20],"description":"說話區間檔位：2對應2–3分鐘，3對應3–5，5對應5–8，10對應10–16，15對應15–23，20對應20–30；不是任意分鐘數。"},
+          "BubbleDurationIndex":{"type":"integer","minimum":0,"maximum":7,"description":"索引0–7依次為5、10、15、30、60、120、180秒，以及直到下一句。"},
+          "AnimationIntervalSeconds":{"type":"integer","minimum":30,"maximum":300,"description":"普通隨機動作事件間隔，單位秒，預設40；等目前片段結束再切換。不是幀率、播放速度或說話間隔。提線木偶模式暫停該排程。"},
+          "BreakfastHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的早餐小時。"},
+          "LunchHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的午餐小時。"},
+          "DinnerHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的晚餐小時。"},
+          "Left":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗左座標：Windows邏輯單位，Linux螢幕畫素；Linux擷取整數。null不重置位置。"},
+          "Top":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗上座標，與Left相同的平臺語義；最終座標受螢幕工作區約束。"},
+          "LastBrushDate":{"type":["string","null"],"pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}$","description":"有效本地日期yyyy-MM-dd或null，用於每日刷牙動作去重；通常無需修改。"},
+          "StartupEnabled":{"type":"boolean","description":"目前使用者的系統開機啟動設定。"},
+          "PuppetMode":{"type":"boolean","description":"提線木偶模式，內建Agent連線時即「把日常關心的觸發和日常的動作切換邏輯交給Agent」：完全外部接管，由Agent安排日常關心與動作。每次從false改true須等待使用者在桌面確認；視窗等待期間桌寵仍可拖曳。中斷連線不會自動退出該模式。"},
+          "McpChatEnabled":{"type":"boolean","description":"允許雙擊開啟輸入框；還必須有完成初始化的真實MCP連線。文字與附件路徑（圖片、影片或檔案，經迴紋針、Ctrl+V或拖曳加入）通過user_message交給客戶端；為false時MCP介面的客戶端收不到user_message。內建Agent連線開啟時輸入框一律可用（輸入交給內建Agent），不受此欄位影響。"},
+          "AgentDailySpeech":{"type":"boolean","description":"日常吐字交給內建Agent；普通模式由魚魚計時，提線木偶模式由Agent預約喚醒。"},
+          "AgentRespondToClick":{"type":"boolean","description":"點選事件是否主動發起內建Agent輪次，預設false；事件仍可從互動資源讀取。"},
+          "AgentRespondToDrag":{"type":"boolean","description":"拖曳結束是否主動發起內建Agent輪次，預設false。"},
+          "SitReminderMinutes":{"type":"integer","enum":[0,30,45,60,90,120],"description":"Windows版魚魚自己的久坐提醒：連續使用電腦（中間沒有離開5分鐘以上）幾分鐘後提醒起來活動，之後仍沒休息，每再連續使用同樣的分鐘數（至少30分鐘）再提醒一次；0為關閉。"},
+          "MealReminder":{"type":"boolean","description":"Windows版的用餐提醒：BreakfastHour、LunchHour、DinnerHour整點起90分鐘內，使用者在電腦前時各提醒一次。"},
+          "LateReminder":{"type":"boolean","description":"Windows版的深夜提醒開關：true時從LateReminderHour到早上5點，使用者還在用電腦就提醒休息，每小時一次；要關掉深夜提醒時設成false。"},
+          "LateReminderHour":{"type":"integer","enum":[22,23,0,1,2],"description":"深夜提醒從哪個整點開始：22、23、0（凌晨0點，不是關閉）、1、2；開關是LateReminder。"},
+          "BatteryReminder":{"type":"boolean","description":"Windows版的低電量提醒：沒插電且電量剩20%、10%時各提醒一次，插上電源後重新計算。"},
+          "RainReminder":{"type":"boolean","description":"Windows版的下雨提醒：PublicInfo開啟且有天氣資料時，6小時內降雨機率60%以上就提醒帶傘，6小時內不重複；只在6–22點。"},
+          "DailyBriefing":{"type":"boolean","description":"每天第一次坐下時由Hermes橋接程式講今日簡報（天氣、今天的Google日曆行程（已設定Google日曆時）、今天還要跑的Hermes排程、昨晚以來的消息）；魚魚自己不講，沒有橋接程式時沒有作用。"},
+          "WelcomeBackMinutes":{"type":"integer","enum":[0,30,60,120,240],"description":"離開電腦至少這麼多分鐘後回來時，由Hermes橋接程式說這段時間發生的事（排程回報、其他對話、錯過的用餐時間）；0為關閉，沒有橋接程式時沒有作用。"},
+          "EventReminderMinutes":{"type":"integer","enum":[0,5,10,15,30],"description":"Google日曆（勾選顯示的所有日曆）有開始時間的行程開始前幾分鐘，使用者在電腦前時由Hermes橋接程式提醒；整天的行程和已回覆不參加的邀請不提醒；0為關閉。需要先替Hermes設定好Google日曆，沒有橋接程式時沒有作用。"}
         }}}
         """;
     public static object[] Definitions => [
-        Tool("get_settings", "读取settings与state。AgentEnabled只读，其余可写字段和范围见update_settings的schema。state是运行快照，不可写；modelAvailable仅表示模型文件可用，不等于推理服务已加载就绪。content[0].text为JSON字符串。", "{}"),
-        Tool("update_settings", "按字段修改设置并尝试保存；省略字段保留，空对象也会走应用设置流程。先验证整个补丁，字段或用户确认失败时不应用。不会打开或激活设置窗口。Windows按相关字段停止模型或重排计时；Linux每次应用都会停止模型并重排计时。修改前先读状态；超时、取消或IO错误后先读回，勿盲目重试。启用PuppetMode须等待真实用户确认；本工具不能修改AgentEnabled。", SettingsInput, ["settings"]),
-        Tool("list_actions", "列出106个动作的精确action名称、pool、基础weight与名义duration_seconds。复制action原文传给动作工具；分类和权重是自主调度元数据，Disabled动作也可外部指定。名义时长不是完成通知。", "{}"),
-        Tool("capture_foreground", "按大肥鱼现有前台窗口选择规则截图，返回内存中的 PNG 图像。会把屏幕内容交给 MCP 连接者。", """{"max_dimension":{"type":"integer","minimum":256,"maximum":16384,"default":2560}}"""),
-        Tool("capture_screen", "截取整个虚拟桌面，包含所有显示器，返回内存中的 PNG 图像。会把全屏内容交给 MCP 连接者。", """{"max_dimension":{"type":"integer","minimum":256,"maximum":16384,"default":4096}}"""),
-        Tool("play_action", "将指定动作加入最多100项的FIFO队列；重复动作不去重。当前片段结束、未隐藏且未拖动时取下一项。调用成功只表示入队，不表示正在播放或完成；正常点击仍可打断，独占控制请用关心触发与动作接管。action必须精确匹配list_actions。", """{"action":{"type":"string","minLength":1,"maxLength":200}}""", ["action"]),
-        Tool("interrupt_action", "立即切换到指定动作，清除尚未播放的全部外部动作并取消移动安排。不会自动显示被隐藏的角色。关心触发与动作接管下播完回到固定待机；普通模式恢复自主调度。成功仅表示已发起播放，不是播放完成。", """{"action":{"type":"string","minLength":1,"maxLength":200}}""", ["action"]),
-        Tool("say", "立即按约28个组合字符/秒显示传入text原文，替换当前气泡并取消当前本地生成；不调用模型，不改写、朗读或解析Markdown。不能全为空白，运行时最多4000个UTF-16单元。无需本地模型或插电；不自动恢复隐藏角色，不清除say_next待说原文。displayed=true表示进入显示流程，并非用户已看见或吐字完成。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
-        Tool("say_next", "保存到下一次正常日常吐字时机，新调用覆盖旧调用。关心触发与动作接管暂停该节奏；此时立即讲话使用say。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
-        Tool("request_local_speech", "立即调用鱼鱼真实本地模型读取当前情境并生成日常关心，沿用正常加载与逐字显示流程。适用于Agent决定时机、本地模型编写吐字；需要AgentDailySpeech=false且本地模型可用，隐藏、忙碌或供电暂停时返回错误。无需传入文字。", "{}"),
-        Tool("get_operation_guide", "读取大肥鱼操作技能全文与用户当前人设。", "{}"),
-        Tool("get_wakeups", "读取此Agent专用对话的关心预约。", "{}"),
-        Tool("schedule_wakeup", "预约delay_seconds秒后的日常关心。PuppetMode=true且Agent已连接时可用。AgentDailySpeech=true时到期向Agent发送wakeup及purpose，由Agent编写；false时到期由鱼鱼直接调用本地模型。支持repeat_seconds重复及已有id修改预约。当前轮次可以结束。", """{"purpose":{"type":"string","minLength":1,"maxLength":1000},"delay_seconds":{"type":"integer","minimum":30,"maximum":604800},"repeat_seconds":{"type":["integer","null"],"minimum":30,"maximum":604800},"id":{"type":"string","maxLength":100}}""", ["purpose", "delay_seconds"]),
-        Tool("cancel_wakeup", "取消当前Agent对话的一项预约。", """{"id":{"type":"string","minLength":1,"maxLength":100}}""", ["id"])
+        Tool("get_settings", "讀取settings與state。McpEnabled、AgentEnabled、AgentHarnessId與遠端模型設定（ModelSource、RemoteUrl、RemoteModel、ScreenImages）只讀，API Key與中央氣象署授權碼不會出現；其餘可寫欄位和範圍見update_settings的schema。state是執行快照，不可寫；modelAvailable僅表示模型檔案可用，不等於推理服務已載入就緒。connections是已連線的MCP客戶端總數（Windows版的mcpClients是其中經MCP介面連線的外部客戶端）；agentConnected、agentStatus、agentSession與nextWake是內建Agent連線的狀態。Windows版的bubbleVisible表示氣泡顯示中，externalBubble表示目前氣泡來自say或say_next，speechPending表示魚魚正在準備自己的說話或天氣，fullscreen表示前景是全螢幕程式，idleSeconds是鍵盤滑鼠多久沒動、activeMinutes是這次連續使用幾分鐘（不在電腦前為null）、lastBreakMinutes是上一次休息多久。content[0].text為JSON字串。", "{}"),
+        Tool("get_context", "讀取使用者此刻的狀況（唯讀，不截圖、不連網，Windows版）：summary（已換算好的一段中文說明：日期、星期、時間、多久前還在操作電腦、這次連續使用多久、有沒有插電，回答使用者時以它為準）、localTime（本地時間含時區）、weekday、idleSeconds（鍵盤滑鼠多久沒動）、activeMinutes（這次連續使用電腦幾分鐘，中間離開5分鐘以上才算休息；不在電腦前時為null）、lastBreakMinutes（上一次休息多久，不知道時為null）、fullscreen（前景是否為全螢幕程式）、power（onAC是否插電、batteryPercent電量，沒有電池時為null）、foreground（前景程式process與視窗title；使用者關閉ForegroundEnabled時為null）、weather（魚魚快取的天氣預報原文，沒有時為null）、openFolders（畫面上開著的檔案總管視窗：folder是它開著的資料夾完整路徑、window是視窗標題，最上層的那個排第一且front=true；使用者說「這個資料夾」時就是它）與lastReminder（魚魚自己最近一次的主動提醒kind、text、at）。要主動關心、決定現在適不適合打擾、回答現在幾點或要不要帶傘之前先讀；提醒的開關在get_settings的SitReminderMinutes、MealReminder、LateReminder（與LateReminderHour）、BatteryReminder、RainReminder。content[0].text為JSON字串。", "{}"),
+        Tool("update_settings", "按欄位修改設定並嘗試儲存；省略欄位保留，空物件也會走應用設定流程。先驗證整個補丁，欄位或使用者確認失敗時不應用。不會開啟或啟用設定視窗。Windows按相關欄位停止模型或重排計時；Linux每次應用都會停止模型並重排計時。修改前先讀狀態；逾時、取消或IO錯誤後先讀回，勿盲目重試。啟用PuppetMode須等待真實使用者確認；本工具不能修改McpEnabled、AgentEnabled、AgentHarnessId與遠端模型設定。", SettingsInput, ["settings"]),
+        Tool("list_actions", "列出106個動作的精確action名稱、pool、基礎weight與名義duration_seconds。複製action原文傳給動作工具；分類和權重是自主排程後設資料，Disabled動作也可外部指定。名義時長不是完成通知。", "{}"),
+        Tool("capture_foreground", "按大肥魚現有前景視窗選擇規則截圖，返回記憶體中的 PNG 影像。會把螢幕內容交給 MCP 連線者。" + CaptureMetadata, """{"max_dimension":{"type":"integer","minimum":256,"maximum":16384,"default":2560}}"""),
+        Tool("capture_screen", "擷取整個虛擬桌面，包含所有顯示器，返回記憶體中的 PNG 影像。會把全螢幕內容交給 MCP 連線者。" + CaptureMetadata, """{"max_dimension":{"type":"integer","minimum":256,"maximum":16384,"default":4096}}"""),
+        Tool("play_action", "將指定動作加入最多100項的FIFO佇列；重複動作不去重。目前片段結束、未隱藏且未拖曳時取下一項。呼叫成功只表示入隊，不表示正在播放或完成；正常點選仍可打斷，獨佔控制請用提線木偶模式。action填list_actions的名稱（名稱是簡體字，寫成繁體也認得）；名稱不對時錯誤訊息會列出最接近的名稱。", """{"action":{"type":"string","minLength":1,"maxLength":200}}""", ["action"]),
+        Tool("interrupt_action", "立即切換到指定動作，清除尚未播放的全部外部動作並取消移動安排。不會自動顯示被隱藏的角色。提線木偶模式下播完回到固定待機；普通模式恢復自主排程。成功僅表示已發起播放，不是播放完成。", """{"action":{"type":"string","minLength":1,"maxLength":200}}""", ["action"]),
+        Tool("walk_to", "Windows版（Linux版回覆尚不支援）：讓魚魚小步快跑到螢幕上的目標旁邊並停在那裡，不會自動跑回原位。目標用中心點x、y（可加width、height）或desktop_item指定，find_on_screen的結果可原樣填入；stops可一次依序跑過多個目標（見stops）。魚魚站在目標左右側（放不下時改到下方或上方），身體不遮住目標，抵達時面向它。水平為主播奔跑、垂直為主播漂浮踏步；速度約每秒1.5個身長，最長約8秒。開始移動時會收起雙擊輸入框；抵達後位置會儲存，之後的自主動作以新位置為準，再開的輸入框也避開目標；行走中的play_action等抵達後再播。行走中get_settings的state.animationPhase為WalkStart、WalkLoop或WalkStop，state.walk為進度（否則為null），state.lastWalk為最近一次的結果。使用者拖曳或點選、interrupt_action、新的walk_to、隱藏、退出、開啟設定或修改位置與大小都會讓魚魚停在當下位置，cancelled說明原因（drag、click、interrupt、replaced、hidden、exit、settings等）。不會自動顯示被隱藏的角色；目標不在任何顯示器上會回錯誤。回傳的from、to、Left、Top與get_settings的Left、Top同為邏輯單位，target與petBounds為實體畫素。有stops時每站抵達後氣泡顯示「第幾個（共幾個）：label」，停pause_seconds秒再跑下一站，任何一站被打斷就整趟停在當下位置；回傳stops、reached（抵達的站數）、arrived、cancelled、note（被使用者打斷時該怎麼做）與每站的legs，行走中get_settings的state.tour為進度。", """
+            {"x":{"type":"number","description":"目標中心X，座標系見space；find_on_screen回傳的x可原樣填入。"},
+             "y":{"type":"number","description":"目標中心Y。"},
+             "width":{"type":"number","minimum":0,"maximum":100000,"default":0,"description":"目標寬度（同space）；0表示只給一點，以約一個桌面圖示的大小避讓。"},
+             "height":{"type":"number","minimum":0,"maximum":100000,"default":0,"description":"目標高度（同space）。"},
+             "space":{"type":"string","enum":["screen","capture"],"default":"screen","description":"screen：Windows實體畫素的虛擬桌面座標，與find_on_screen的結果、UI Automation及computer_use元素bounds相同，不是截圖上的畫素。capture：本服務capture_screen或capture_foreground回傳影像上的畫素，依該次截圖的screen與scale換算；看到的是縮小後的圖時另填image_width、image_height。填了capture_id、image_width或image_height時省略space也視為capture，和space=screen一起填會回錯誤。"},
+             "capture_id":{"type":"integer","minimum":1,"description":"space=capture時使用的captureId；省略用最近一次，只保留最近8次。"},
+             "image_width":{"type":"number","minimum":1,"maximum":100000,"description":"space=capture時，x、y、width、height所在那張圖（你看到的那張）的寬度。客戶端把截圖縮小後會註明，例如Image downscaled from 3840x2160 to 960x540，這時填960（to後面的寬度），x、y照看到的圖填，不要照那句話自己乘回原尺寸，魚魚會換算；省略表示座標就是原截圖畫素。座標超出這張圖會回錯誤。"},
+             "image_height":{"type":"number","minimum":1,"maximum":100000,"description":"同image_width，那張圖的高度；只給其中一個時按比例換算。"},
+             "desktop_item":{"type":"string","minLength":1,"maxLength":260,"description":"改以一個桌面圖示的完整名稱定位（UI Automation讀取，不分大小寫：先完全相同，再單向比對副檔名（報告1找得到報告1.docx，報告1.pdf不會配到報告1.docx，版本號如3.12不算副檔名），再唯一一個包含它的名稱，三個字以上時再容許只差一個非數字的字且沒有其他同樣接近的名稱）；被視窗擋住的圖示也找得到。找一類東西（所有PDF、資料夾）請用find_on_screen。提供時忽略x、y、space。同一步有多個名稱符合時回錯誤並列出這些名稱；找不到時回錯誤，只列出真的相近的名稱。"},
+             "side":{"type":"string","enum":["auto","left","right","above","below"],"default":"auto","description":"魚魚站在目標的哪一側；auto選空間足夠且離目前位置較近的一側，指定側放不下時改用auto。"},
+             "arrive_action":{"type":"string","minLength":1,"maxLength":200,"description":"抵達後接著播放的動作，需精確匹配list_actions；省略時轉身面向使用者後回到待機。"},
+             "say":{"type":"string","minLength":1,"maxLength":4000,"description":"抵達時顯示的氣泡原文，規則同say。"},
+             "label":{"type":"string","minLength":1,"maxLength":80,"description":"抵達時氣泡裡顯示的簡短名稱；有stops時用於沒有自己label的每一站。"},
+             "wait":{"type":"boolean","default":true,"description":"true等到抵達（有stops時為整趟跑完）或被打斷才回傳（每站通常不超過約9秒加上pause_seconds）；false啟動後立即回傳started=true。"},
+             "stops":{"type":"array","minItems":1,"maxItems":20,"description":"依序要跑的目標，第一站先跑；提供時忽略最上層的x、y、width、height、desktop_item與say。space、capture_id、image_width、image_height與side套用到每一站，arrive_action只在最後一站播放。開始前會先檢查每一站，有一站不行就回錯誤，魚魚不動。","items":{"type":"object","additionalProperties":false,"properties":{
+               "x":{"type":"number","description":"這站目標中心X，座標系同space。"},"y":{"type":"number","description":"這站目標中心Y。"},
+               "width":{"type":"number","minimum":0,"maximum":100000,"description":"這站目標寬度。"},"height":{"type":"number","minimum":0,"maximum":100000,"description":"這站目標高度。"},
+               "desktop_item":{"type":"string","minLength":1,"maxLength":260,"description":"改以桌面圖示名稱指定這站，規則同最上層的desktop_item。"},
+               "label":{"type":"string","minLength":1,"maxLength":80,"description":"抵達這站時氣泡裡顯示的簡短名稱。"}}}},
+             "pause_seconds":{"type":"number","minimum":0,"maximum":10,"default":2,"description":"有stops時，每站抵達後停留幾秒再跑下一站。"}}
+            """),
+        Tool("find_on_screen", "Windows版（Linux版回覆尚不支援）：在目前的畫面上依名稱找出看得到的東西：桌面圖示（附它對應的檔名，副檔名被隱藏也比對得到）、視窗標題，以及每個看得到的視窗裡的按鈕、分頁、清單項目、連結、文字等介面元素（UI Automation）。只回傳現在看得到的：被其他視窗擋住、捲到畫面外的不算，魚魚自己的視窗也不算。matches依閱讀順序（由上而下、由左而右）排列，每筆的x、y是中心點、width與height是大小，都是Windows實體畫素，可原樣填進walk_to（或它的stops，space=screen）；kind為desktop_icon、window或element；檔案總管視窗和它裡面的元素附openFolder（那個視窗開著的資料夾完整路徑），確定是哪個檔案的桌面圖示附path（完整路徑），要對這些檔案動手時直接用這些路徑。total是全部符合的數量，returned是這次列出的數量。coveredDesktopIcons表示另有幾個符合的桌面圖示被視窗擋住；unfinished列出來不及讀完的視窗；沒有符合時similar列出名稱相近的；note是下一步該怎麼做的提醒（符合太多個、或都被視窗擋住時）。只有圖案、沒有名稱的東西找不到，請改用capture_screen。content[0].text為JSON字串。", """
+            {"query":{"type":"string","minLength":1,"maxLength":200,"description":"名稱裡要包含的文字，不分大小寫；用|分隔多種說法，例如\"docx|doc|Word 文件\"或\"資源回收筒|回收\"。英文字母要從字的開頭到字的結尾整段對上（tar不會配到Star，doc不會配到Docker或docx），數字要從數字的開頭對上，中文任何位置都算。桌面圖示的檔名（含副檔名）與檔案總管的檔案類型也會比對。"},
+             "where":{"type":"string","enum":["all","desktop","windows"],"default":"all","description":"all：桌面圖示與所有看得到的視窗；desktop：只找桌面圖示；windows：只找視窗標題與視窗裡的元素。"},
+             "limit":{"type":"integer","minimum":1,"maximum":50,"default":20,"description":"最多列出幾筆。"}}
+            """, ["query"]),
+        Tool("say", "立即按約28個組合字元/秒顯示傳入text原文（Windows台灣版會先把其中的簡體字轉成繁體），替換目前氣泡並取消目前本機生成；不呼叫模型，不改寫內容、朗讀或解析Markdown。不能全為空白，執行時最多4000個UTF-16單元。無需本機模型或插電；不自動恢復隱藏角色，不清除say_next待說原文。displayed=true表示進入顯示流程，並非使用者已看見或吐字完成。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
+        Tool("say_next", "僅儲存一條待說原文，新呼叫覆蓋舊呼叫。下次滿足正常說話倒計時、可見、未拖曳、未開設定/安裝視窗、鍵鼠空閒8–600秒等條件時顯示；不要求本機模型可用。pending=true只表示已儲存，不保證何時顯示。提線木偶模式暫停該節奏，此時要立即說話請用say；吐字測試不消費它；MCP介面與內建Agent連線都關閉或退出時清除，單純斷開仍保留。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
+        Tool("request_local_speech", "立即呼叫魚魚自己的模型（本機模型或設定的遠端模型）讀取目前情境並產生日常關心，沿用正常的載入與逐字顯示流程。適用於Agent決定時機、魚魚自己的模型編寫吐字；需要AgentDailySpeech=false且模型可用，隱藏、忙碌或供電暫停時回傳錯誤。無需傳入文字。", "{}"),
+        Tool("get_operation_guide", "讀取大肥魚操作技能全文與使用者目前的人設；只供內建Agent連線使用，經MCP介面呼叫會回錯誤。", "{}"),
+        Tool("get_wakeups", "讀取此Agent專用對話的關心預約；只供內建Agent連線使用，經MCP介面呼叫會回錯誤。", "{}"),
+        Tool("schedule_wakeup", "預約delay_seconds秒後的日常關心。PuppetMode=true且內建Agent已連線時可用；只供內建Agent連線使用，經MCP介面呼叫會回錯誤。AgentDailySpeech=true時到期向Agent傳送wakeup及purpose，由Agent編寫；false時到期由魚魚直接呼叫自己的模型。支援repeat_seconds重複，以及用既有id修改預約。目前輪次可以結束。", """{"purpose":{"type":"string","minLength":1,"maxLength":1000},"delay_seconds":{"type":"integer","minimum":30,"maximum":604800},"repeat_seconds":{"type":["integer","null"],"minimum":30,"maximum":604800},"id":{"type":"string","maxLength":100}}""", ["purpose", "delay_seconds"]),
+        Tool("cancel_wakeup", "取消目前Agent對話的一項預約；只供內建Agent連線使用，經MCP介面呼叫會回錯誤。", """{"id":{"type":"string","minLength":1,"maxLength":100}}""", ["id"])
     ];
+    private const string CaptureMetadata = "content[0].text的metadata另含captureId、screen（影像在虛擬桌面上的來源矩形，Windows實體畫素）、scale（影像畫素÷實體畫素）、coordinateSpace與pet（魚身的實體畫素矩形）；螢幕X＝screen.x＋影像X÷scale，Y同理。影像上的位置可直接交給walk_to（space=capture，附captureId）。";
     private static object Tool(string name, string description, string properties, string[]? required = null) => new {
         name, description, inputSchema = new { type = "object", properties = JsonSerializer.Deserialize<JsonElement>(properties),
             required = required ?? [], additionalProperties = false } };
     public static string RequiredText(JsonElement args, string name, int maximum = 4000)
     {
         if (!args.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()) || value.GetString()!.Length > maximum)
-            throw new ArgumentException($"{name} 必须是 1–{maximum} 字符的文字。");
+            throw new ArgumentException($"{name} 必須是 1–{maximum} 字元的文字。");
         return value.GetString()!;
     }
     public static int ImageLimit(JsonElement args, int fallback)
     {
         if (!args.TryGetProperty("max_dimension", out var value)) return fallback;
-        if (!value.TryGetInt32(out var size) || size < 256 || size > 16384) throw new ArgumentException("max_dimension 范围为256–16384。");
+        if (!value.TryGetInt32(out var size) || size < 256 || size > 16384) throw new ArgumentException("max_dimension 範圍為256–16384。");
         return size;
+    }
+    // ControlServer checks only the tool name, so optional arguments are checked against their schema here. null counts as omitted.
+    public static double? OptionalNumber(JsonElement args, string name, double minimum, double maximum)
+    {
+        if (!args.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return null;
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetDouble(out var number) || !double.IsFinite(number) || number < minimum || number > maximum)
+            throw new ArgumentException($"{name} 必須是 {minimum}–{maximum} 的數字。");
+        return number;
+    }
+    public static string? OptionalText(JsonElement args, string name, int maximum = 4000) =>
+        args.TryGetProperty(name, out var value) && value.ValueKind != JsonValueKind.Null ? RequiredText(args, name, maximum) : null;
+    public static bool OptionalBool(JsonElement args, string name, bool fallback)
+    {
+        if (!args.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return fallback;
+        return value.ValueKind switch { JsonValueKind.True => true, JsonValueKind.False => false, _ => throw new ArgumentException($"{name} 必須是 true 或 false。") };
+    }
+    // The first choice is the default.
+    public static string OptionalChoice(JsonElement args, string name, params string[] choices)
+    {
+        if (!args.TryGetProperty(name, out var value) || value.ValueKind == JsonValueKind.Null) return choices[0];
+        if (value.ValueKind != JsonValueKind.String || !choices.Contains(value.GetString())) throw new ArgumentException($"{name} 只能是 {string.Join("、", choices)}。");
+        return value.GetString()!;
     }
 }

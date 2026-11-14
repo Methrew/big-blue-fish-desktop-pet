@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
@@ -5,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Windows;
 using System.Windows.Threading;
+using BigBlueFish.Diagnostics;
 using BigBlueFish.Windows;
 
 internal static class TrayVerification
@@ -17,6 +20,8 @@ internal static class TrayVerification
     [DllImport("advapi32.dll")] static extern bool RevertToSelf();
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
     [DllImport("user32.dll")] static extern IntPtr SendMessage(IntPtr window, uint message, IntPtr w, IntPtr l);
+    // Since 1.1.1 the tray reports a failed registration and its recovery to the diagnostic log, not to a file.
+    static bool TrayLogged(string state) => DiagnosticLog.Snapshot().Any(e => e.Code == nameof(DiagnosticEvent.TrayState) && e.Details.Split("; ").Contains("state=" + state));
     internal static Task<int> Run(string root)
     {
         var completion = new TaskCompletionSource<int>();
@@ -40,15 +45,15 @@ internal static class TrayVerification
                 if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
                     throw new Exception("Test still has administrator membership");
                 var app = new System.Windows.Application();
-                bool fail = true;
+                bool fail = true; DiagnosticLog.Clear();
                 tray = new CompanionTrayIcon((operation, _) => operation == 2 || !fail)
                 { Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), 32, 32), Text = "BigBlueFish registration fault test" };
                 tray.Visible = true;
-                if (tray.Registered || !File.Exists("companion-errors.log")) throw new Exception("Failed Shell registration was silently accepted");
+                if (tray.Registered || !TrayLogged("failed")) throw new Exception("Failed Shell registration was silently accepted");
                 fail = false; tray.EnsureRegistered();
-                if (!tray.Registered || !File.ReadAllText("companion-errors.log").Contains("已恢复")) throw new Exception("Registration retry did not recover");
+                if (!tray.Registered || !TrayLogged("ready")) throw new Exception("Registration retry did not recover");
                 tray.Dispose();
-                tray = new CompanionTrayIcon { Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), 32, 32), Text = "蓝色大肥鱼普通权限托盘验证" };
+                tray = new CompanionTrayIcon { Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), 32, 32), Text = "藍色大肥魚普通許可權系統匣驗證" };
                 tray.Visible = true;
                 var clock = Stopwatch.StartNew();
                 while (!tray.IsPresent() && clock.Elapsed.TotalSeconds < 8)
@@ -62,7 +67,7 @@ internal static class TrayVerification
                 bool restored = false, menuOpened = false;
                 tray.DoubleClick += (_, _) => restored = true;
                 tray.ContextMenuStrip = new CompanionTrayMenu();
-                tray.ContextMenuStrip.Items.Add("显示桌宠");
+                tray.ContextMenuStrip.Items.Add("顯示桌寵");
                 tray.ContextMenuStrip.Opened += (_, _) => menuOpened = true;
                 SendMessage(tray.Handle, 0x8001, new IntPtr(1), new IntPtr(0x202));
                 if (!restored) throw new Exception("Native left click did not reach restore callback");

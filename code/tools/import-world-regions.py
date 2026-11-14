@@ -1,10 +1,12 @@
+# Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 """Import GeoNames cities15000 into country -> first-level division -> city rows.
 
 Usage: python tools/import-world-regions.py <dir>
 <dir> holds GeoNames cities15000.txt (unzipped), admin1CodesASCII.txt, countryInfo.txt
 (https://download.geonames.org/export/dump/, CC BY 4.0) and CLDR zh territories.json
 (https://cdn.jsdelivr.net/npm/cldr-localenames-full@47.0.0/main/zh/territories.json, Unicode License v3).
-China and the US have their own finer datasets; TW/HK/MO are already under China and PR under the US.
+Taiwan (taiwan-regions.json), China and the US have their own finer datasets; HK/MO are under China
+and PR under the US.
 Codes: country "JP", division "JP.40", city "JP-1850147" (GeoNames id).
 """
 import hashlib

@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json;
@@ -63,7 +65,7 @@ internal sealed partial class LinuxPetWindow : Window
         PositionChanged += (_, _) => MoveBubble();
         player.PixelsPresented += (pixels,width,height,mirror) => CompanionNative.SetInputShape(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero,pixels,width,height,Width*DesktopScaling/width,mirror);
         player.Failed += error => { DiagnosticLog.Write(DiagnosticEvent.AnimationFailed, state: "failed"); if (phase == "Exit") CloseImmediately(); };
-        bubbleText.FontFamily = new FontFamily("avares://" + typeof(App).Assembly.GetName().Name + "/Assets#LemiXiaoNaiPaoTi");
+        bubbleText.FontFamily = new FontFamily("avares://" + typeof(App).Assembly.GetName().Name + "/Assets#jf-openhuninn-2.1");
         bubbleText.Foreground = Hair;
         var close = new Button { Content = "×", Padding = new Thickness(3), HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
         close.Click += (_, _) => { typing = false; bubbleWindow!.Hide(); };

@@ -1,3 +1,5 @@
+// Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
 using System.Diagnostics;
 using System.Windows;
@@ -33,24 +35,24 @@ public partial class MainWindow
     private async Task CheckForUpdates(bool interactive)
     {
         if (checkingUpdates || companionClosed || exitAnimation) return;
-        checkingUpdates = true; updateStatus = "正在检查更新…";
+        checkingUpdates = true; updateStatus = "正在檢查更新…";
         try
         {
             var version = typeof(MainWindow).Assembly.GetName().Version!.ToString(3);
             availableUpdate = await UpdateService.Check(version);
             if (companionClosed || exitAnimation) return;
-            updateStatus = availableUpdate == null ? "当前已是最新版本" : "发现新版本 " + availableUpdate.Version;
+            updateStatus = availableUpdate == null ? "目前已是最新版本" : "發現新版本 " + availableUpdate.Version;
             if (availableUpdate != null)
             {
                 if (interactive) OpenUpdateWindow();
-                else notifyIcon.ShowBalloonTip(8000, "蓝色大肥鱼有新版本啦", "点击下载并更新到 " + availableUpdate.Version, System.Windows.Forms.ToolTipIcon.Info);
+                else notifyIcon.ShowBalloonTip(8000, "藍色大肥魚有新版本啦", "點選下載並更新到 " + availableUpdate.Version, System.Windows.Forms.ToolTipIcon.Info);
             }
-            else if (interactive) ModernUI.Choice(companionSettings, "检查更新", updateStatus, "确定");
+            else if (interactive) ModernUI.Choice(companionSettings, "檢查更新", updateStatus, "確定");
         }
         catch (Exception error)
         {
-            updateStatus = "暂时无法检查更新，可以稍后重试";
-            if (interactive) ModernUI.Error(companionSettings, "检查更新未完成", error);
+            updateStatus = "暫時無法檢查更新，可以稍後重試";
+            if (interactive) ModernUI.Error(companionSettings, "檢查更新未完成", error);
         }
         finally { checkingUpdates = false; }
     }

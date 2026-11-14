@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System.Text.Json;
 using BigBlueFish.Agent;
 using BigBlueFish.Control;
@@ -38,7 +39,7 @@ static class SpeechAlignmentProbe
             async Task Wait(Func<bool> done,int seconds)
             {
                 var limit=DateTime.UtcNow.AddSeconds(seconds);
-                while(!done()&&DateTime.UtcNow<limit){if(host.Status.Contains("失败")||host.Status.StartsWith("需要登录"))throw new IOException(host.Status+": "+host.Detail);await Task.Delay(100);}
+                while(!done()&&DateTime.UtcNow<limit){if(host.Status.Contains("失敗")||host.Status.StartsWith("需要登入"))throw new IOException(host.Status+": "+host.Detail);await Task.Delay(100);}
                 if(!done())throw new TimeoutException(host.Status+": "+host.Detail);
             }
             await Wait(()=>host.Connected&&!host.Busy,90);

@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
-"""Run against an actual published Linux app under an isolated X11 desktop."""
+# Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
+# Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
+"""Run against an actual published Linux app under an isolated X11 desktop.
+
+On Linux the MCP tools are only served on the Agent connection's own pipe (McpEnabled is an alias of AgentEnabled),
+so the test switches the Agent connection on and attaches the stdio bridge with --pipe. The Agent itself is a stub
+that never connects: no CLI installed on the test machine is started."""
 import base64, json, os, pathlib, queue, subprocess, sys, threading, time, xml.etree.ElementTree as ET
 
 payload = pathlib.Path(sys.argv[1]).resolve()
 data = pathlib.Path(sys.argv[2]).resolve()
 data.mkdir(parents=True, exist_ok=True)
-env = dict(os.environ, BIGBLUEFISH_DATA=str(data), XDG_SESSION_TYPE="x11")
+stub = data / 'agent-stub'
+stub.mkdir(exist_ok=True)
+(stub / 'opencode').write_text('#!/bin/sh\nexit 1\n')
+(stub / 'opencode').chmod(0o755)
+env = dict(os.environ, BIGBLUEFISH_DATA=str(data), XDG_SESSION_TYPE="x11", PATH=str(stub) + os.pathsep + os.environ.get('PATH', ''))
 count = 0
 def check(ok, label):
     global count
@@ -26,7 +36,7 @@ def command(value):
     temporary=data/'test-command.txt.tmp';temporary.write_text(value);temporary.replace(data/'test-command.txt')
 for name in ['test-status.json','test-error.txt','test-command.txt']:
     (data / name).unlink(missing_ok=True)
-(data / 'preferences.json').write_text(json.dumps(dict(ModelEnabled=False,PublicInfo=False,CheckUpdatesOnStartup=False,McpEnabled=True,PuppetMode=True)))
+(data / 'preferences.json').write_text(json.dumps(dict(ModelEnabled=False,PublicInfo=False,CheckUpdatesOnStartup=False,AgentEnabled=True,AgentHarnessId='opencode',PuppetMode=True)))
 log = (data / 'app.log').open('w')
 app = subprocess.Popen([str(payload / 'BigBlueFish.Linux'), '--test-mode'], env=env, stdout=log, stderr=log)
 bridge = fixture = None
@@ -45,7 +55,8 @@ try:
         print(f'Linux Safe actual integration: {count} checks passed.', flush=True)
         sys.exit(0)
     check(state()['Puppet'] and state()['currentAction']=='待机呼吸休闲', 'startup puppet uses fixed breathing idle')
-    bridge = subprocess.Popen([str(payload / 'BigBlueFish.Mcp')], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
+    pipe = wait(lambda: state().get('agentPipe'))
+    bridge = subprocess.Popen([str(payload / 'BigBlueFish.Mcp'), '--pipe', pipe], env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, bufsize=1)
     lines = queue.Queue(); events=[]; request_id=0
     def receive():
         for line in bridge.stdout: lines.put(json.loads(line))
@@ -67,7 +78,14 @@ try:
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n'); bridge.stdin.flush()
     version=ET.parse(pathlib.Path(__file__).resolve().parents[3]/'Version.props').findtext('.//Version')
     check(init['serverInfo']['version']==version,'real stdio bridge negotiates current version')
-    check(len(request('tools/list')['tools'])==9,'all MCP tools available')
+    check(len(request('tools/list')['tools'])==17,'all MCP tools available')
+    # The tool list is shared with Windows; walk_to, find_on_screen and get_context are Windows-only and must say so on Linux.
+    walk=request('tools/call',dict(name='walk_to',arguments=dict(x=1,y=1)))
+    check(walk.get('isError') and 'Linux' in walk['content'][0]['text'],'walk_to reports unsupported on Linux')
+    find=request('tools/call',dict(name='find_on_screen',arguments=dict(query='x')))
+    check(find.get('isError') and 'Linux' in find['content'][0]['text'],'find_on_screen reports unsupported on Linux')
+    context=request('tools/call',dict(name='get_context',arguments={}))
+    check(context.get('isError') and 'Linux' in context['content'][0]['text'],'get_context reports unsupported on Linux')
     check(len(content('list_actions'))==106,'same 106 production actions')
     text='主人，Linux 端收到的原文呀~ ABC 123'
     content('say',text=text); wait(lambda: state()['text']==text)
@@ -91,7 +109,7 @@ try:
     kinds=[e.get('params',{}).get('data',{}).get('kind') for e in events]
     check(all(k in kinds for k in ['click','drag_start','drag_end']),'real pointer click and drag pushed automatically')
     check(state()['currentAction']=='待机呼吸休闲','pointer gestures do not switch puppet animation')
-    content('update_settings',settings={'McpChatEnabled':True})
+    # McpChatEnabled is an alias of AgentEnabled on Linux: the input is offered whenever the Agent connection is on.
     location=state(); x,y=location['X']+250,location['Y']+130
     subprocess.run(['xdotool','mousemove',str(x),str(y),'click','--repeat','2','--delay','120','1'],check=True,env=env)
     wait(lambda:content('get_settings')['state']['inputOpen'],5)
@@ -104,7 +122,7 @@ try:
             if 300<=int(values.get('WIDTH',0))<=354 and 100<=int(values.get('HEIGHT',0))<=120:return window
         return None
     entry=wait(input_window,5)
-    check(bool(entry),'actual double-click opens input only after enabling connected MCP chat')
+    check(bool(entry),'actual double-click opens input while the Agent connection is on')
     command('render-input'); wait(lambda:(data/'input.png').exists())
     (data/'input-empty.png').write_bytes((data/'input.png').read_bytes())
     geometry=subprocess.check_output(['xdotool','getwindowgeometry','--shell',entry],env=env,text=True)
@@ -127,10 +145,10 @@ try:
     subprocess.run(['xdotool','type','--clearmodifiers','--delay','3',message],check=True,env=env)
     (data/'input.png').unlink(); command('render-input');wait(lambda:(data/'input.png').exists())
     subprocess.run(['xdotool','key','ctrl+Return'],check=True,env=env);time.sleep(.4)
-    content('get_settings')
+    current=content('get_settings')['state']
     submitted=[e['params']['data']['detail']['text'] for e in events if e.get('params',{}).get('data',{}).get('kind')=='user_message']
-    if message not in submitted:print('Submitted test messages:',repr(submitted),flush=True)
-    check(message in submitted,'actual keyboard input travels over MCP unchanged')
+    # Typed text goes to the connected Agent first and is published as user_message only once the Agent accepted it.
+    check(not current['agentConnected'] and current['inputOpen'] and message not in submitted,'without a connected Agent the draft stays in the input and nothing is published')
     subprocess.run(['xdotool','key','alt+F4'],check=True,env=env)
     # Foreground fixture is a separate SDL application, not a title injected into the fish.
     fixture=subprocess.Popen(['/usr/bin/ffplay','-loglevel','error','-window_title','BigBlueFish Development','-f','lavfi','-i',"color=c=white:s=800x500:r=1,drawtext=text='Developing BigBlueFish Project':fontcolor=black:fontsize=36:x=40:y=100"],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

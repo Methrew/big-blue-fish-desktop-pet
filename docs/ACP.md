@@ -30,7 +30,7 @@
 | OpenClaw | openclaw | acp，連線到它已設定的 Gateway |
 | MiniMax Code | mcode | acp |
 
-Claude、Codex 與 Pi 的 ACP 轉接器會先從 PATH 尋找；找不到時安裝到魚魚資料夾的 `agent/adapters/<id>`，使用 `HarnessCatalog` 中固定的 npm 版本。安裝需要 Node.js 與 npm，從官方 npm registry 下載，快取放在 `agent/adapter-cache`。Antigravity 使用已安裝、附有配套執行程式的 ACP 元件，或下載 Google 官方的發布套件（macOS 為 `darwin-aarch64`）並核對 SHA256，同時準備 `agy_acp_server` 與 `localharness_external`，沿用官方的啟動參數。已下載的元件會參與偵測，尚未準備時也可以直接連線並下載。原有的 CLI 不會被升級或解除安裝。
+Claude、Codex 與 Pi 的 ACP 轉接器會先從 PATH 尋找；找不到時安裝到魚魚資料夾的 `agent/adapters/<id>`，使用 `HarnessCatalog` 中固定的 npm 版本。安裝需要 Node.js 與 npm，從官方 npm registry 下載，快取放在 `agent/adapter-cache`。Antigravity 使用已安裝、附有搭配執行程式的 ACP 元件，或下載 Google 官方的發布套件（macOS 為 `darwin-aarch64`）並核對 SHA256，同時準備 `agy_acp_server` 與 `localharness_external`，沿用官方的啟動參數。已下載的元件會參與偵測，尚未準備時也可以直接連線並下載。原有的 CLI 不會被升級或解除安裝。
 
 Agent 要求驗證時，魚魚會列出它公布的登入方式。通訊協定內的驗證透過 ACP 的 `authenticate` 完成；終端機驗證會打開互動式的登入終端機，成功後重新連線並繼續原本的對話請求。也相容 Kimi 等產品舊式的 `_meta.terminal-auth` 格式，使用偵測到的本機程式和它公布的登入參數。沿用既有的登入由官方元件處理。驗證最多等 5 分鐘，也可以取消。Antigravity 的一般互動入口已經登入時，第一次 ACP 連線仍可能需要選擇 Google 帳號等驗證方式。
 

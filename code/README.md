@@ -104,7 +104,7 @@ Python 測試（Python 3.9 以上）：
 | `BigBlueFish.Windows/Companion/CompanionSpeech.cs` | Windows 所有模型回覆的逐字顯示、Unicode 字元邊界、取代和取消 |
 | `BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs` | 貼邊、獨立氣泡視窗和 DPI 換算 |
 | `BigBlueFish.Windows/Companion/CompanionNews.cs` | 新聞機率、RSS 標題和摘要整理 |
-| `BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs` | Windows 的透明影片解碼、幀計時與播放 |
+| `BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs` | Windows 的透明影片解碼、影格計時與播放 |
 | `BigBlueFish.Windows/assets/regions/` | 地區資料、來源版本、輸入 SHA256 與繁體顯示名稱表 |
 | `../deployment/` | 主程式、安裝程式和解除安裝程式共用的模型準備、下載、更新與現代介面 |
 | `BigBlueFish.Windows/Companion/CompanionMaintenance.cs` | Windows 設定中的安裝模型、檢查更新與更新提示 |

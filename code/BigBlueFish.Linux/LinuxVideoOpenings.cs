@@ -44,7 +44,7 @@ internal sealed partial class LinuxVideoPlayer
     Opening? DecodeOpening(string file, double start)
     {
         string source = Path.Combine(Path.GetDirectoryName(file)!, "compat", Path.GetFileName(file));
-        if (!File.Exists(source)) throw new FileNotFoundException("動畫素材缺失", Path.GetFileName(source));
+        if (!File.Exists(source)) throw new FileNotFoundException("找不到動畫素材", Path.GetFileName(source));
         const int frameBytes = OpeningWidth * OpeningHeight * 4;
         int limit = (int)Math.Min((PreloadBudget - Interlocked.Read(ref preloadedBytes)) / frameBytes, OpeningFrames);
         if (limit <= 0) return null;

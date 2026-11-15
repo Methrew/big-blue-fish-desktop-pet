@@ -38,16 +38,16 @@ internal static class CompanionMedia
         lock (gate)
         {
             if (initialized) return;
-            if (IntPtr.Size != 8) throw new PlatformNotSupportedException("动画组件需要64位进程。");
+            if (IntPtr.Size != 8) throw new PlatformNotSupportedException("動畫元件需要 64 位元的處理程序。");
             string[] keys = ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_PATH_1_0", "GST_REGISTRY_1_0", "GST_REGISTRY_FORK"];
             var prior = Array.ConvertAll(keys, Environment.GetEnvironmentVariable);
             try
             {
                 if (OperatingSystem.IsWindows())
                 {
-                    if (!SetDefaultDllDirectories(0x1000)) throw new IOException("无法准备动画组件加载路径。");
+                    if (!SetDefaultDllDirectories(0x1000)) throw new IOException("無法準備動畫元件的載入路徑。");
                     dllDirectory = AddDllDirectory(RuntimeDirectory);
-                    if (dllDirectory == IntPtr.Zero) throw new IOException("无法加载随包动画组件目录。");
+                    if (dllDirectory == IntPtr.Zero) throw new IOException("無法載入隨附的動畫元件資料夾。");
                 }
                 if (Bundled)
                 {
@@ -66,7 +66,7 @@ internal static class CompanionMedia
                     {
                         var handle = gst_plugin_load_file(Path.Combine(RuntimeDirectory, "plugins", OperatingSystem.IsWindows() ? "gst" + plugin + ".dll" : "libgst" + plugin + ".dylib"), out var error);
                         if (handle == IntPtr.Zero && plugin == "d3d12") { if (error != IntPtr.Zero) Error(error); continue; }
-                        if (handle == IntPtr.Zero) throw new IOException("动画组件加载失败：" + plugin + "：" + Error(error));
+                        if (handle == IntPtr.Zero) throw new IOException("動畫元件載入失敗：" + plugin + "：" + Error(error));
                         gst_object_unref(handle);
                     }
                 }
@@ -85,8 +85,8 @@ internal static class CompanionMedia
 
     internal static string Error(IntPtr error)
     {
-        if (error == IntPtr.Zero) return "未知动画错误";
-        try { return Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(error, 8)) ?? "未知动画错误"; }
+        if (error == IntPtr.Zero) return "未知的動畫錯誤";
+        try { return Marshal.PtrToStringUTF8(Marshal.ReadIntPtr(error, 8)) ?? "未知的動畫錯誤"; }
         finally { g_error_free(error); }
     }
 
@@ -150,15 +150,15 @@ internal sealed class CompanionMediaStream : IDisposable
         try
         {
             if (error != IntPtr.Zero) throw new IOException(CompanionMedia.Error(error));
-            if (pipeline == IntPtr.Zero) throw new IOException("动画管线未创建。");
+            if (pipeline == IntPtr.Zero) throw new IOException("動畫管線尚未建立。");
             sink = CompanionMedia.gst_bin_get_by_name(pipeline, "frames");
             bus = CompanionMedia.gst_element_get_bus(pipeline);
-            if (CompanionMedia.gst_element_set_state(pipeline, 3) == 0) throw new IOException("动画预加载失败。");
+            if (CompanionMedia.gst_element_set_state(pipeline, 3) == 0) throw new IOException("動畫預先載入失敗。");
             if (CompanionMedia.gst_element_get_state(pipeline, out _, out _, 8 * CompanionMedia.Second) == 0)
-                throw new IOException(ReadError() ?? "动画解码未能就绪。");
+                throw new IOException(ReadError() ?? "動畫解碼未能就緒。");
             if (start > 0 || end.HasValue || rate != 1)
                 if (CompanionMedia.gst_element_seek(sink, rate, 3, 3, 1, (long)(start * CompanionMedia.Second), end.HasValue ? 1 : 0, end.HasValue ? (long)(end.Value * CompanionMedia.Second) : 0) == 0)
-                    throw new IOException("动画片段定位失败。");
+                    throw new IOException("動畫片段定位失敗。");
         }
         catch { Dispose(); throw; }
     }
@@ -250,9 +250,9 @@ internal sealed class CompanionMediaFrame : IDisposable
         try
         {
             Seconds = CompanionMedia.Timestamp(buffer);
-            if (CompanionMedia.gst_buffer_map(buffer, out map, 1) == 0) throw new IOException("动画帧映射失败。");
+            if (CompanionMedia.gst_buffer_map(buffer, out map, 1) == 0) throw new IOException("動畫影格對應失敗。");
             Stride = checked((int)(map.Size / (nuint)height));
-            if (Stride < width * 4 || map.Size < (nuint)(Stride * height)) throw new IOException("动画帧尺寸不完整。");
+            if (Stride < width * 4 || map.Size < (nuint)(Stride * height)) throw new IOException("動畫影格尺寸不完整。");
         }
         catch { Dispose(); throw; }
     }

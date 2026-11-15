@@ -427,7 +427,7 @@ internal sealed class CompanionBrain : IDisposable
         var path = OperatingSystem.IsWindows() ? Path.Combine(runtimeDirectory, "llama-server.exe")
             : Path.Combine(runtimeDirectory, "llama-server");
         var model = BigBlueFish.Deployment.ModelStore.Resolve(Environment.CurrentDirectory);
-        if (!File.Exists(path)) throw new IOException("未找到本機推理程式：" + path);
+        if (!File.Exists(path)) throw new IOException("找不到本機推論程式：" + path);
         if (model == null) throw new IOException("尚未安裝可用模型，可以在設定中安裝模型。");
         var probe = new TcpListener(IPAddress.Loopback, 0);
         probe.Start();
@@ -497,7 +497,7 @@ internal sealed class CompanionBrain : IDisposable
         runner = process;
         if (!job.Attach(process))
         {
-            throw new IOException("無法建立模型退出保障");
+            throw new IOException("無法建立模型結束保護");
         }
 
         // Keep only a bounded startup error tail in memory; no prompt or screen content is logged.

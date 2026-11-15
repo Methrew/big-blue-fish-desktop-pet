@@ -21,13 +21,20 @@ public sealed class AgentWorkspaceStore
         this.root = Path.GetFullPath(root); statePath = Path.Combine(this.root, "workspace-state.json");
         string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         if (string.IsNullOrEmpty(documents)) documents = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents");
-        string fallback = Path.GetFullPath(defaultWorkspace ?? Path.Combine(documents, "蓝色大肥鱼工作区"));
+        string fallback = Path.GetFullPath(defaultWorkspace ?? DefaultWorkspace(documents));
         try
         {
             var saved = JsonSerializer.Deserialize<WorkspaceState>(File.ReadAllText(statePath));
             state = saved == null ? new(fallback, [fallback]) : new(Normalize(saved.Current), (saved.Recent ?? []).Where(p => !string.IsNullOrWhiteSpace(p) && Path.IsPathFullyQualified(p)).Select(Normalize).ToArray());
         }
         catch (Exception e) when (e is IOException or JsonException or ArgumentException) { state = new(fallback, [fallback]); }
+    }
+    // New installs get this edition's folder; the original edition's folder keeps being used where it already exists
+    // and this one does not. A workspace the user chose is in workspace-state.json and never comes through here.
+    public static string DefaultWorkspace(string documents)
+    {
+        string current = Path.Combine(documents, "藍色大肥魚工作區"), original = Path.Combine(documents, "蓝色大肥鱼工作区");
+        return !Directory.Exists(current) && Directory.Exists(original) ? original : current;
     }
     public static string Normalize(string path)
     {

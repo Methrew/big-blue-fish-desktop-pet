@@ -203,7 +203,7 @@ public partial class MainWindow
     {
         token.ThrowIfCancellationRequested();
         // Reached from the Agent's wakeups and from request_local_speech on either server.
-        if (!preferences.AnyAgentControl || AgentDailyActive) throw new InvalidOperationException("目前日常吐字由 Agent 編寫；要讓魚魚自己的模型吐字，需要關閉「把日常關心的吐字交給 Agent」。");
+        if (!preferences.AnyAgentControl || AgentDailyActive) throw new InvalidOperationException("目前日常要說的話由 Agent 編寫；要讓魚魚自己的模型說話，需要關閉「" + ControlTools.DailySpeechLabel + "」。");
         if (!preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower) throw new InvalidOperationException("魚魚自己的模型沒有啟用、還沒安裝，或依供電設定暫停了。");
         if (speechRequestPending || companionClosed || exitAnimation || modelInstaller != null || hiddenByUser || fullscreenHidden) throw new InvalidOperationException("魚魚目前正在忙或已隱藏，請稍後再讓魚魚自己的模型說話。");
         using var registration = token.Register(() => Dispatcher.BeginInvoke(() => InvalidateSpeechRequests()));
@@ -269,7 +269,7 @@ public partial class MainWindow
         {
             token.ThrowIfCancellationRequested();
             if (!McpChannelOpen(agentChannel) || companionClosed || exitAnimation)
-                throw new InvalidOperationException(agentChannel ? "Agent 連線已關閉或桌寵正在退出。" : "MCP 介面已關閉或桌寵正在退出。");
+                throw new InvalidOperationException(agentChannel ? "Agent 連線已關閉或桌寵正在關閉。" : "MCP 介面已關閉或桌寵正在關閉。");
             switch (name)
             {
                 case "get_settings":
@@ -442,7 +442,7 @@ public partial class MainWindow
         var extra = new StackPanel { Visibility = preferences.McpEnabled ? Visibility.Visible : Visibility.Collapsed, Margin = new(0, 8, 0, 0) };
         var puppet = new CheckBox { Content = "提線木偶模式", IsChecked = preferences.PuppetMode, Margin = new(0, 7, 0, 4) };
         extra.Children.Add(puppet);
-        extra.Children.Add(new TextBlock { Text = "關閉大肥魚自身的吐字和動作切換邏輯，完全由外部 Agent 接管", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
+        extra.Children.Add(new TextBlock { Text = "關閉大肥魚自己的說話和動作切換邏輯，完全由外部 Agent 接管", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
         var chat = new CheckBox { Content = "雙擊輸入交給 MCP 介面（Hermes 橋接程式）", IsChecked = preferences.McpChatEnabled, Margin = new(0, 16, 0, 4) };
         chat.Click += (_, _) => { preferences.McpChatEnabled = chat.IsChecked == true; if (!McpInputEnabled && !mcpInputPicking) mcpInput?.Close(); SaveCompanion(); };
         extra.Children.Add(chat);
@@ -459,11 +459,11 @@ public partial class MainWindow
         welcome.SelectionChanged += (_, _) => { if (welcome.SelectedIndex >= 0) { preferences.WelcomeBackMinutes = CompanionPreferences.WelcomeBackChoices[welcome.SelectedIndex]; SaveCompanion(); } };
         extra.Children.Add(welcome);
         extra.Children.Add(new TextBlock { Text = "由 Hermes 橋接程式說（沒有執行橋接程式時不會說）：天氣、今天的 Google 日曆行程（已設定 Google 日曆時）和排程，以及你不在時的排程回報與其他對話；Hermes 暫時沒回應時，改說橋接程式自己整理的簡短版本。", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
-        var config = new Button { Content = "複製 MCP 連線配置", Margin = new(0, 12, 0, 8) };
+        var config = new Button { Content = "複製 MCP 連線設定", Margin = new(0, 12, 0, 8) };
         config.Click += (_, _) => {
             var command = Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp.exe");
             Clipboard.SetText(JsonSerializer.Serialize(new { mcpServers = new Dictionary<string, object> { ["big-blue-fish"] = new { command, args = Array.Empty<string>() } } }, new JsonSerializerOptions { WriteIndented = true }));
-            config.Content = "連線配置已複製";
+            config.Content = "連線設定已複製";
         };
         extra.Children.Add(config);
         var status = new TextBlock { Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap };
@@ -528,7 +528,7 @@ public partial class MainWindow
     {
         if (!McpInputAvailable || exitAnimation || companionClosed) return false;
         if (mcpInput != null) { mcpInput.Show(); mcpInput.Activate(); return true; }
-        const string hint = "通過魚魚和已連線的Agent說話", ready = "Ctrl+Enter 傳送";
+        const string hint = "透過魚魚和已連線的Agent說話", ready = "Ctrl+Enter 傳送";
         var blue = new SolidColorBrush(global::BigBlueFish.Windows.CompanionBubble.HairBlue);
         var text = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxLength = 4000,
             Height = 56, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top,
@@ -685,7 +685,7 @@ public partial class MainWindow
             string? state = McpChatAvailable ? null
                 : link != null ? (link.Busy ? "Agent 正在處理…" : null)
                 : preferences.AgentEnabled ? agent?.Status ?? "Agent 尚未連線"
-                : "Agent 已斷開，重新連線後可傳送。";
+                : "Agent 已中斷連線，重新連線後可傳送。";
             bool blocked = link == null && !McpChatAvailable;
             if (state != null && (blocked || status.Text == shown || status.Text == ready)) { status.Text = state; shown = state; }
             else if (state == null && shown != null) { if (status.Text == shown) status.Text = ready; shown = null; }

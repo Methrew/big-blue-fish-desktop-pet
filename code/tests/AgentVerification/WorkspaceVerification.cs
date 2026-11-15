@@ -9,6 +9,13 @@ static class WorkspaceVerification
         string data = Path.Combine(root, "control"), first = Path.Combine(root, "files");
         var store = new AgentWorkspaceStore(data, first); store.EnsureCurrent(); store.Open(first);
         check(new AgentWorkspaceStore(data, Path.Combine(root, "ignored")).Current == first, "current workspace survives host reconstruction");
+        string documents = Path.Combine(root, "documents"), taiwan = Path.Combine(documents, "藍色大肥魚工作區"), original = Path.Combine(documents, "蓝色大肥鱼工作区");
+        Directory.CreateDirectory(documents);
+        check(AgentWorkspaceStore.DefaultWorkspace(documents) == taiwan, "a new install gets the Taiwan edition's workspace folder");
+        Directory.CreateDirectory(original);
+        check(AgentWorkspaceStore.DefaultWorkspace(documents) == original, "an existing workspace folder of the original edition keeps being used");
+        Directory.CreateDirectory(taiwan);
+        check(AgentWorkspaceStore.DefaultWorkspace(documents) == taiwan, "the Taiwan edition's folder is used once it exists");
         var claude = new AgentSkillStore(data, HarnessCatalog.Get("claude"), store.Current);
         var codex = new AgentSkillStore(data, HarnessCatalog.Get("codex"), store.Current); claude.Install(); codex.Install();
         check(claude.Workspace == codex.Workspace && claude.DirectoryPath != codex.DirectoryPath, "harnesses share user files with native skill discovery directories");
@@ -43,6 +50,8 @@ static class WorkspaceVerification
         config.Reset(); config.Read(JsonSerializer.SerializeToElement(new {models=new {currentModelId="native", availableModels=new[]{new{modelId="native",name="Native"}}},modes=new{currentModeId="ask",availableModes=new[]{new{id="ask",name="Ask"}}}}));
         check(config.Options.Length == 2 && config.Options[0].Method == "session/set_model", "legacy model and mode selectors use native compatibility methods");
         check(new AcpException(JsonSerializer.SerializeToElement(new {code=-32002,message="Resource not found"})).SessionMissing, "missing saved session defaults to fresh session");
+        check(new[] { "不支持图片输入", "不支援圖片輸入", "不支援影像內容", "image content is not supported" }.All(m => new AcpException(JsonSerializer.SerializeToElement(new {code=-32602,message=m})).ImageContentRejected)
+            && !new AcpException(JsonSerializer.SerializeToElement(new {code=-32602,message="Invalid params"})).ImageContentRejected, "a refused picture is recognised in English, Simplified and Traditional messages");
         check(!new AcpException(JsonSerializer.SerializeToElement(new {code=-32000,message="Session authentication expired"})).SessionMissing, "authentication error does not discard saved conversation");
     }
 }

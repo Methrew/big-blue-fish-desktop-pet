@@ -11,10 +11,10 @@ internal sealed partial class LinuxPetWindow
 {
     void BuildAgentSettings(StackPanel body)
     {
-        var enabled = new CheckBox { Content = "连接本机兼容的 CLI Harness", IsChecked = Preferences.AgentEnabled };
-        body.Children.Add(enabled); body.Children.Add(Paragraph("通过已安装的 Agent 与鱼鱼对话，并控制鱼鱼的行为。"));
+        var enabled = new CheckBox { Content = "連線本機相容的 CLI Harness", IsChecked = Preferences.AgentEnabled };
+        body.Children.Add(enabled); body.Children.Add(Paragraph("透過已安裝的 Agent 與魚魚對話，並控制魚魚的行為。"));
         var extra = new StackPanel { IsVisible = Preferences.AgentEnabled, Spacing = 8 }; body.Children.Add(extra);
-        extra.Children.Add(new TextBlock { Text = "选择 Harness" });
+        extra.Children.Add(new TextBlock { Text = "選擇 Harness" });
         var select = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         var adapters = new AgentAdapterStore(Path.Combine(Environment.CurrentDirectory, "agent"));
         bool refreshing = false;
@@ -22,19 +22,19 @@ internal sealed partial class LinuxPetWindow
         {
             refreshing = true;
             select.ItemsSource = HarnessCatalog.All.OrderByDescending(h => adapters.FindExecutable(h) != null)
-                .Select(h => new ComboBoxItem { Content = h.Name + (adapters.FindExecutable(h) == null ? h.Id == "antigravity" ? " · 连接时准备官方组件" : " · 未检测到" : " · 已检测到"), Tag = h.Id }).ToArray();
+                .Select(h => new ComboBoxItem { Content = h.Name + (adapters.FindExecutable(h) == null ? h.Id == "antigravity" ? " · 連線時準備官方元件" : " · 未偵測到" : " · 已偵測到"), Tag = h.Id }).ToArray();
             select.SelectedItem = select.Items.OfType<ComboBoxItem>().FirstOrDefault(x => (string?)x.Tag == Preferences.AgentHarnessId);
             refreshing = false;
         }
         Detect(); extra.Children.Add(select);
-        var buttons = new WrapPanel(); buttons.Children.Add(ActionButton("重新检测", Detect));
-        buttons.Children.Add(ActionButton("安装与登录说明", () => OpenUrl(HarnessCatalog.Get(Preferences.AgentHarnessId).Website)));
+        var buttons = new WrapPanel(); buttons.Children.Add(ActionButton("重新偵測", Detect));
+        buttons.Children.Add(ActionButton("安裝與登入說明", () => OpenUrl(HarnessCatalog.Get(Preferences.AgentHarnessId).Website)));
         extra.Children.Add(buttons);
         var state = Paragraph(""); extra.Children.Add(state);
         var actions = new WrapPanel();
-        actions.Children.Add(ActionButton("重新连接", () => agent?.Reconnect()));
-        actions.Children.Add(ActionButton("开始新对话", async () => { if (await Confirm("开始新对话", "将建立新的鱼鱼对话，后续使用新的上下文。")) agent?.NewConversation(); }));
-        actions.Children.Add(ActionButton("取消当前请求", () => agent?.Cancel())); extra.Children.Add(actions);
+        actions.Children.Add(ActionButton("重新連線", () => agent?.Reconnect()));
+        actions.Children.Add(ActionButton("開始新對話", async () => { if (await Confirm("開始新對話", "將建立新的魚魚對話，之後的訊息使用新的上下文。")) agent?.NewConversation(); }));
+        actions.Children.Add(ActionButton("取消目前的請求", () => agent?.Cancel())); extra.Children.Add(actions);
         var refreshWorkspace = BuildAgentWorkspaceSettings(extra);
         var refreshConfiguration = BuildAgentConfigurationSettings(extra);
         var daily = new CheckBox { Content = ControlTools.DailySpeechLabel, IsChecked = Preferences.AgentDailySpeech }; extra.Children.Add(daily);
@@ -42,35 +42,35 @@ internal sealed partial class LinuxPetWindow
         var puppet = new CheckBox { Content = ControlTools.BehaviorControlLabel, IsChecked = Preferences.PuppetMode }; extra.Children.Add(puppet);
         extra.Children.Add(Paragraph(ControlTools.BehaviorControlDescription));
         var wake = Paragraph(""); extra.Children.Add(wake);
-        extra.Children.Add(ActionButton("编辑人设", () => {
+        extra.Children.Add(ActionButton("編輯人設", () => {
             if (agent == null) return;
             var skills = agent.Skills; skills.Install();
             var editor = new TextBox { Text = File.ReadAllText(skills.PersonaPath), AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Height = 320 };
-            var content = new StackPanel { Spacing = 15 }; content.Children.Add(Paragraph("保存后在下一轮消息中应用，可修改或清空。")); content.Children.Add(editor);
-            var window = Dialog("鱼鱼人设", content, 700, 560);
-            content.Children.Add(ActionButton("保存", () => { AtomicText.Write(skills.PersonaPath, editor.Text ?? ""); window.Close(); })); window.Show(settings!);
+            var content = new StackPanel { Spacing = 15 }; content.Children.Add(Paragraph("儲存後，從 Agent 的下一輪訊息開始套用；可以修改或清空。")); content.Children.Add(editor);
+            var window = Dialog("魚魚人設", content, 700, 560);
+            content.Children.Add(ActionButton("儲存", () => { AtomicText.Write(skills.PersonaPath, editor.Text ?? ""); window.Close(); })); window.Show(settings!);
         }));
-        var details = Paragraph(""); extra.Children.Add(new Expander { Header = "连接详情", Content = details });
+        var details = Paragraph(""); extra.Children.Add(new Expander { Header = "連線詳情", Content = details });
         void Refresh()
         {
             refreshWorkspace(); refreshConfiguration();
             if (select.SelectedItem is ComboBoxItem { Tag: "antigravity" } selected)
-                selected.Content = "Antigravity CLI" + (adapters.FindExecutable(HarnessCatalog.Get("antigravity")) == null ? " · 连接时准备官方组件" : " · 已检测到");
-            state.Text = (agent?.Status ?? "尚未连接") + "\n" + (agent?.Detail ?? "选择后连接，双击鱼鱼即可对话。");
-            details.Text = $"程序：{agent?.ExecutablePath}\n版本：{agent?.Version}\n模型：{agent?.CurrentModel}\n对话编号：{agent?.SessionId}\n内部工具连接：{mcpServer?.Connections ?? 0}\n点击响应：{Preferences.AgentRespondToClick}；拖动响应：{Preferences.AgentRespondToDrag}（可由 Agent 调整）";
-            wake.Text = Preferences.PuppetMode && Preferences.AgentDailySpeech ? "下一次日常关心：" + (agent?.NextWake ?? "等待 Agent 安排")
-                : Preferences.PuppetMode ? "Agent 安排日常关心的时机，本地模型负责吐字。下一次关心：" + (agent?.NextWake ?? "等待 Agent 预约") : Preferences.AgentDailySpeech ? "鱼鱼决定何时关心主人，Agent 编写关心的话。" : "鱼鱼按自己的节奏关心主人，日常说话使用内置模型。";
-            if (Preferences.PuppetMode && agent?.Connected != true) wake.Text += "\nAgent 未连接，鱼鱼保持待机；关闭第二个开关可恢复鱼鱼自己的安排。";
+                selected.Content = "Antigravity CLI" + (adapters.FindExecutable(HarnessCatalog.Get("antigravity")) == null ? " · 連線時準備官方元件" : " · 已偵測到");
+            state.Text = (agent?.Status ?? "尚未連線") + "\n" + (agent?.Detail ?? "選擇後連線，雙擊魚魚即可對話。");
+            details.Text = $"程式：{agent?.ExecutablePath}\n版本：{agent?.Version}\n模型：{agent?.CurrentModel}\n對話編號：{agent?.SessionId}\n內部工具連線：{mcpServer?.Connections ?? 0}\n點選回應：{(Preferences.AgentRespondToClick ? "開" : "關")}；拖曳回應：{(Preferences.AgentRespondToDrag ? "開" : "關")}（可由 Agent 調整）";
+            wake.Text = Preferences.PuppetMode && Preferences.AgentDailySpeech ? "下一次日常關心：" + (agent?.NextWake ?? "等待 Agent 安排")
+                : Preferences.PuppetMode ? "Agent 安排日常關心的時機，由模型編寫要說的話。下一次關心：" + (agent?.NextWake ?? "等待 Agent 預約") : Preferences.AgentDailySpeech ? "魚魚決定何時關心主人，Agent 編寫關心的話。" : "魚魚按自己的節奏關心主人，日常說話使用魚魚自己的模型。";
+            if (Preferences.PuppetMode && agent?.Connected != true) wake.Text += "\nAgent 未連線，魚魚保持待機；關閉第二個開關可恢復魚魚自己的安排。";
         }
         select.SelectionChanged += (_, _) => { if (!refreshing && select.SelectedItem is ComboBoxItem { Tag: string id }) { Preferences.AgentHarnessId = id; ConfigureAgent(); Save(); } };
         daily.Click += (_, _) => { Preferences.AgentDailySpeech = daily.IsChecked == true; ApplySettings(); Refresh(); };
-        puppet.Click += async (_, _) => { bool on = puppet.IsChecked == true; if (on && !await Confirm(ControlTools.BehaviorControlTitle, ControlTools.PuppetWarning, "了解并开启")) { puppet.IsChecked = false; return; } SetPuppet(on); Save(); Refresh(); };
+        puppet.Click += async (_, _) => { bool on = puppet.IsChecked == true; if (on && !await Confirm(ControlTools.BehaviorControlTitle, ControlTools.PuppetWarning, "瞭解並開啟")) { puppet.IsChecked = false; return; } SetPuppet(on); Save(); Refresh(); };
         enabled.Click += async (_, _) => {
             enabled.IsEnabled = false;
             try
             {
                 bool on = enabled.IsChecked == true;
-                if (on && !await Confirm("连接本机 Agent", ControlTools.PrivacyWarning, "了解并开启")) { enabled.IsChecked = false; return; }
+                if (on && !await Confirm("連線本機 Agent", ControlTools.PrivacyWarning, "瞭解並開啟")) { enabled.IsChecked = false; return; }
                 // Puppet mode is shared with the MCP interface and ends here only when that is off too.
                 if (!on && !Preferences.McpEnabled) SetPuppet(false); Preferences.AgentEnabled = on;
                 if (on) InitializeMcp(); else StopMcp();
@@ -92,7 +92,7 @@ internal sealed partial class LinuxPetWindow
         body.Children.Add(Paragraph("開啟後，這台電腦上以你的帳號執行的其他程式（例如 Hermes 橋接程式）可以透過 BigBlueFish.Mcp 控制魚魚。上面的 Agent 連線不需要開啟這裡。"));
         var extra = new StackPanel { IsVisible = Preferences.McpEnabled, Spacing = 8 }; body.Children.Add(extra);
         var puppet = new CheckBox { Content = "提線木偶模式", IsChecked = Preferences.PuppetMode }; extra.Children.Add(puppet);
-        extra.Children.Add(Paragraph("關閉魚魚自己的吐字和動作切換，完全交給外部 Agent。這和上面 Agent 連線的「" + ControlTools.BehaviorControlLabel + "」是同一個開關。"));
+        extra.Children.Add(Paragraph("關閉魚魚自己的說話和動作切換，完全交給外部 Agent。這和上面 Agent 連線的「" + ControlTools.BehaviorControlLabel + "」是同一個開關。"));
         var chat = new CheckBox { Content = "雙擊輸入交給 MCP 介面（Hermes 橋接程式）", IsChecked = Preferences.McpChatEnabled }; extra.Children.Add(chat);
         extra.Children.Add(Paragraph("開啟且 MCP 介面有客戶端連線時，雙擊魚魚輸入的文字只會傳給 MCP 介面，不會再送給上面的 Agent 連線，避免兩邊各回答一次；沒有客戶端連線時，仍交給 Agent 連線。"));
         var briefing = new CheckBox { Content = "每天第一次坐下時講今日簡報", IsChecked = Preferences.DailyBriefing }; extra.Children.Add(briefing);
@@ -144,7 +144,7 @@ internal sealed partial class LinuxPetWindow
         clock.Tick += (_, _) => Refresh(); state.DetachedFromVisualTree += (_, _) => clock.Stop(); Refresh(); clock.Start();
     }
     // What the MCP interface means beyond the consent shared with Windows: Hermes runs commands without asking.
-    const string McpInterfaceRisk = "連線的程式可以截取螢幕畫面、修改魚魚的設定，並收到你在魚魚輸入框打的字。Hermes 橋接程式會把這些文字交給 Hermes，而 Hermes 可能不經詢問就以你的身分執行終端機指令、修改檔案。只在自己的電腦上開啟，並只連線你信任的程式。";
+    const string McpInterfaceRisk = "連線的程式可以擷取螢幕畫面、修改魚魚的設定，並收到你在魚魚輸入框打的字。Hermes 橋接程式會把這些文字交給 Hermes，而 Hermes 可能不經詢問就以你的身分執行終端機指令、修改檔案。只在自己的電腦上開啟，並只連線你信任的程式。";
     const string PuppetSharedWithAgent = "內建的 Agent 連線也開著：提線木偶模式和上面 Agent 連線的接管是同一個開關，開啟後內建的 Agent 也會安排日常關心與動作。";
 
     async Task<string?> RequestAgentPermission(AgentPermission request, CancellationToken token)
@@ -152,10 +152,10 @@ internal sealed partial class LinuxPetWindow
         return await Dispatcher.UIThread.InvokeAsync(async () => {
             if (closed || !Preferences.AgentEnabled || token.IsCancellationRequested) return null;
             var content = new StackPanel { Spacing = 12 };
-            string heading = request.Title.Length > 80 || request.Title.StartsWith('{') ? "Agent 请求执行操作" : request.Title;
+            string heading = request.Title.Length > 80 || request.Title.StartsWith('{') ? "Agent 要求執行操作" : request.Title;
             content.Children.Add(new TextBlock { Text = heading, FontSize = 22, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
             content.Children.Add(new ScrollViewer { Content = Paragraph(request.Detail.Length > 8000 ? request.Detail[..8000] : request.Detail), MaxHeight = 280 });
-            var window = Dialog(request.Kind == "authentication" ? "Agent 登录认证" : "Agent 请求权限", content, 700, 500); var choices = new WrapPanel(); content.Children.Add(choices);
+            var window = Dialog(request.Kind == "authentication" ? "Agent 登入驗證" : "Agent 要求權限", content, 700, 500); var choices = new WrapPanel(); content.Children.Add(choices);
             string? selected = null;
             var complete = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
             foreach (var option in request.Options) choices.Children.Add(ActionButton(option.Name, () => { selected = option.Id; window.Close(); }));

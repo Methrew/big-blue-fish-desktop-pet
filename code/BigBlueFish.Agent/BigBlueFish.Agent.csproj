@@ -9,4 +9,6 @@
     <EmbeddedResource Include="Skills/persona.md" />
   </ItemGroup>
   <ItemGroup><ProjectReference Include="../BigBlueFish.Diagnostics/BigBlueFish.Diagnostics.csproj" /></ItemGroup>
+  <!-- The edition's display name, which the ACP handshake shows the Agent. -->
+  <ItemGroup><Compile Include="../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="Shared/CompanionEdition.cs" /></ItemGroup>
 </Project>

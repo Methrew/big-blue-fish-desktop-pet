@@ -21,11 +21,31 @@ internal sealed partial class LinuxPetWindow
     {
         if (closed || phase == "Exit") return;
         if (modelInstalling) { modelDialog?.Activate(); return; }
-        modelInstalling = true; brain.Stop(); speechVersion++;
+        modelInstalling = true;
+        // With a model in place the window manages it: it names the model, and the resident model keeps running until a
+        // download or an import begins (v1.1.3 stopped it as the window opened and loaded it again once it closed).
+        string? installed = ModelStore.Resolve(Environment.CurrentDirectory);
+        bool modelStopped = false;
+        void StopModel() { if (modelStopped) return; modelStopped = true; brain.Stop(); speechVersion++; }
+        if (installed == null) StopModel();
         var panel = new StackPanel { Spacing = 10 };
-        panel.Children.Add(new TextBlock { Text = "安裝本機模型", FontSize = 24 });
-        panel.Children.Add(Paragraph("選擇下載來源，或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"));
-        var dialog = Dialog(CompanionEdition.AppName + " · 安裝模型", panel, 680, 550);
+        panel.Children.Add(new TextBlock { Text = installed == null ? "安裝本機模型" : "管理本機模型", FontSize = 24 });
+        if (installed != null)
+        {
+            var selection = ModelStore.ReadSelection(Environment.CurrentDirectory);
+            string origin = selection?.Source switch
+            {
+                "huggingface" => "從 Hugging Face 下載，已驗證檢查碼",
+                "modelscope" => "從 ModelScope 下載，已驗證檢查碼",
+                "manual" when selection.Sha256 is { } hash && ModelStore.Expected(hash) => "手動匯入，和本程式預期的模型相同",
+                "manual" => "手動匯入，不是本程式預期的模型",
+                _ => "放在模型資料夾中",
+            };
+            panel.Children.Add(Paragraph("目前使用：" + Path.GetFileName(installed) + "（" + origin + "）。"));
+            panel.Children.Add(Paragraph("要換模型時，選擇下載來源或匯入已下載的 GGUF 模型；開始下載或匯入時，目前的模型會先停止。兩個來源的模型有所不同，但都適用於本程式。"));
+        }
+        else panel.Children.Add(Paragraph("選擇下載來源，或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"));
+        var dialog = Dialog(CompanionEdition.AppName + (installed == null ? " · 安裝模型" : " · 管理模型"), panel, 680, 550);
         var status = Paragraph("模型資料夾：" + Path.Combine(Environment.CurrentDirectory, "models")); panel.Children.Add(status);
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, Height = 8 }; panel.Children.Add(progress);
         var choices = new WrapPanel(); panel.Children.Add(choices); var retry = new WrapPanel { IsVisible = false }; panel.Children.Add(retry);
@@ -41,7 +61,7 @@ internal sealed partial class LinuxPetWindow
             if (active == null || active.IsCancellationRequested || confirming) return;
             confirming = true; RefreshControls();
             try {
-                bool accepted = await Confirm("放棄自動安裝？", "放棄自動安裝會刪除已下載的部分模型，您可以手動安裝模型。", "放棄自動安裝", cancel.Token, "不要放棄");
+                bool accepted = await Confirm("放棄自動安裝？", "放棄自動安裝會刪除已下載的部分，之後可以手動安裝模型。", "放棄自動安裝", cancel.Token, "不要放棄");
                 if (!accepted || dialogClosed || closeRequested || transfer != active) return;
                 abandonRequested = true; status.Text = "正在停止自動安裝並清理未完成的下載…"; active.Cancel();
             } finally { confirming = false; RefreshControls(); }
@@ -69,10 +89,10 @@ internal sealed partial class LinuxPetWindow
             if (files.Count == 0 || dialogClosed || closeRequested) return;
             string? path = files[0].TryGetLocalPath();
             if (path == null || !ModelStore.IsGguf(path)) { status.Text = "請選擇有效的 GGUF 模型檔案。"; return; }
-            busy = true; RefreshControls();
+            busy = true; StopModel(); RefreshControls();
             try {
                 status.Text = "正在檢查模型檔案…"; string hash = await ModelStore.Hash(path, cancel.Token);
-                if (!ModelStore.Expected(hash) && !await Confirm("使用此模型", "這不是本軟體期待的模型，您可以嘗試使用，但穩定性無法保證", "繼續使用", cancel.Token)) return;
+                if (!ModelStore.Expected(hash) && !await Confirm("使用此模型", "這不是本程式預期的模型，你可以試用，但不保證穩定。", "繼續使用", cancel.Token)) return;
                 await ModelStore.Import(Environment.CurrentDirectory, path, hash, cancel.Token); brain.RefreshModelAvailability(); dialog.Close();
             } catch (OperationCanceledException) { } catch (Exception error) { status.Text = error.Message; }
             finally { busy = false; RefreshControls(); if (closeRequested && !dialogClosed) dialog.Close(); }
@@ -80,7 +100,7 @@ internal sealed partial class LinuxPetWindow
         async Task Download(ModelSource source)
         {
             if (busy || dialogClosed || closeRequested) return;
-            busy = true; selected = source; abandonRequested = false; retry.IsVisible = false; transfer = CancellationTokenSource.CreateLinkedTokenSource(cancel.Token); RefreshControls();
+            busy = true; StopModel(); selected = source; abandonRequested = false; retry.IsVisible = false; transfer = CancellationTokenSource.CreateLinkedTokenSource(cancel.Token); RefreshControls();
             try {
                 string target = Path.Combine(Environment.CurrentDirectory, "models", source.FileName);
                 await ArtifactDownload.Download(source.Url, target, source.Sha256, new Progress<ArtifactDownload.Progress>(p => { if (dialogClosed || closeRequested || transfer?.IsCancellationRequested != false) return; progress.Value = p.Percent; status.Text = p.ToString(); }), transfer.Token);
@@ -88,7 +108,7 @@ internal sealed partial class LinuxPetWindow
                 if (!ModelStore.IsGguf(target)) throw new IOException("下載檔案不是有效的 GGUF 模型。");
                 ModelStore.Save(Environment.CurrentDirectory, new(source.Id, source.FileName, source.Sha256)); brain.RefreshModelAvailability(); dialog.Close();
             } catch (OperationCanceledException) { if (!closeRequested && !dialogClosed && !abandonRequested) status.Text = "下載已停止，已有進度已保留。"; }
-            catch (Exception error) { if (!closeRequested && !dialogClosed && !abandonRequested) { status.Text = "下載未完成：" + error.Message + "\n您可以改善網路環境後重試、手動安裝模型，或無模型啟動。"; retry.IsVisible = true; } }
+            catch (Exception error) { if (!closeRequested && !dialogClosed && !abandonRequested) { status.Text = "下載未完成：" + error.Message + (installed == null ? "\n可以在網路穩定後重試、手動安裝模型，或無模型啟動。" : "\n可以在網路穩定後重試、手動安裝模型，或保留目前的模型。"); retry.IsVisible = true; } }
             finally {
                 transfer.Dispose(); transfer = null;
                 bool switchToManual = abandonRequested; abandonRequested = false;
@@ -103,8 +123,11 @@ internal sealed partial class LinuxPetWindow
         }
         void Without() { ModelStore.Save(Environment.CurrentDirectory, new("none", null, null)); brain.RefreshModelAvailability(); dialog.Close(); }
         foreach (var source in ModelStore.Sources) choices.Children.Add(ActionButton(source.Label, async () => await Download(source)));
-        choices.Children.Add(ActionButton("手動安裝", async () => await Manual())); choices.Children.Add(ActionButton("無模型啟動", Without));
-        retry.Children.Add(ActionButton("重試", async () => await Download(selected))); retry.Children.Add(ActionButton("手動安裝模型", async () => await Manual())); retry.Children.Add(ActionButton("無模型啟動", Without));
+        // With a model in place, leaving keeps it: 關閉 and 保留目前的模型 stand where 無模型啟動 would drop it.
+        choices.Children.Add(ActionButton("手動安裝", async () => await Manual()));
+        choices.Children.Add(installed == null ? ActionButton("無模型啟動", Without) : ActionButton("關閉", () => dialog.Close()));
+        retry.Children.Add(ActionButton("重試", async () => await Download(selected))); retry.Children.Add(ActionButton("手動安裝模型", async () => await Manual()));
+        retry.Children.Add(installed == null ? ActionButton("無模型啟動", Without) : ActionButton("保留目前的模型", () => dialog.Close()));
         RefreshControls();
         try { dialog.Show(settings ?? this); await finished.Task; }
         finally { modelWindowCancellation = null; modelDialog = null; modelInstalling = false; if (!closed && phase != "Exit") nextWarmup = DateTime.MinValue; }

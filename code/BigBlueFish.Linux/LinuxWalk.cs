@@ -288,8 +288,13 @@ internal sealed partial class LinuxPetWindow
         plan.Distance = Math.Sqrt(dx * dx + dy * dy);
         plan.Motion = plan.Distance < 12 * s ? "none" : Math.Abs(dx) >= .5 * Math.Abs(dy) ? "run" : "float";
         plan.Mirrored = plan.Motion == "run" && dx > 0; // The clips face left.
-        // The user wants the double-click input gone while the fish runs (not when she stays put).
-        if (plan.Motion != "none" && !mcpInputPicking) mcpInput?.Close();
+        // The user wants the double-click input gone while the fish runs (not when she stays put). A box holding a draft
+        // or attachments is only hidden, and comes back when the walk (or the whole tour) is over; an empty one closes.
+        if (plan.Motion != "none" && !mcpInputPicking && mcpInput != null)
+        {
+            if (mcpInputHasDraft?.Invoke() == true) { inputHiddenForWalk = true; mcpInput.Hide(); }
+            else mcpInput.Close();
+        }
         double bodyCenter = plan.To.X + body.CenterX, aimCenter = aim.CenterX;
         plan.FaceMirrored = Math.Abs(aimCenter - bodyCenter) < body.Width / 2 ? plan.Mirrored : aimCenter > bodyCenter;
         walkAvoid = null;

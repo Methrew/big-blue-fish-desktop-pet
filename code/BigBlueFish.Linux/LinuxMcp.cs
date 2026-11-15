@@ -84,6 +84,10 @@ internal sealed partial class LinuxPetWindow
         nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); agent?.DailyCare(); return true;
     }
     Window? mcpInput;
+    // The input box holds text or attachments; set while it is open (TryOpenMcpInput).
+    Func<bool>? mcpInputHasDraft;
+    // Hidden, not closed, while the fish runs (LinuxWalk.StartWalk), so a draft and its pasted pictures survive the walk.
+    bool inputHiddenForWalk;
     bool McpInputAvailable => Preferences.AgentEnabled || McpChatAvailable;
     // Starts whatever is switched on and is not running yet: the MCP interface and the Agent connection each by its own switch.
     void InitializeMcp()
@@ -245,8 +249,8 @@ internal sealed partial class LinuxPetWindow
     bool TryOpenMcpInput()
     {
         if (!McpInputAvailable || closed || phase == "Exit") return false;
-        if (mcpInput != null) { mcpInput.Show(this); mcpInput.Activate(); return true; }
-        const string hint = "透過魚魚和已連線的Agent說話";
+        if (mcpInput != null) { inputHiddenForWalk = false; mcpInput.Show(this); mcpInput.Activate(); return true; }
+        const string hint = "透過魚魚和已連線的 Agent 說話";
         var text = new TextBox { AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxLength = 4000,
             Height = 56, Padding = new Thickness(0, 2, 22, 0), FontSize = 14, Foreground = Hair,
             Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0), PlaceholderText = hint };
@@ -296,6 +300,8 @@ internal sealed partial class LinuxPetWindow
         void Follow()
         {
             if (positioning || mcpInput != dialog) return;
+            // Back once the walk, and a tour with all its stops, is over; the next position avoids the target.
+            if (inputHiddenForWalk) { if (Walking || Touring) { if (dialog.IsVisible) dialog.Hide(); return; } inputHiddenForWalk = false; }
             positioning = true;
             try {
                 if (!IsVisible) { if (!mcpInputPicking) dialog.Hide(); return; }
@@ -336,8 +342,9 @@ internal sealed partial class LinuxPetWindow
             if (state != null && (blocked || status.Text == shown || status.Text == ready)) { status.Text = state; shown = state; }
             else if (state == null && shown != null) { if (status.Text == shown) status.Text = ready; shown = null; }
         };
-        mcpInput = dialog; mcpTray = tray;
-        dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; tray.Discard(); if (mcpTray == tray) mcpTray = null; mcpInput = null; };
+        mcpInput = dialog; mcpTray = tray; inputHiddenForWalk = false;
+        mcpInputHasDraft = () => !string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0 || tray.Saving > 0;
+        dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; tray.Discard(); if (mcpTray == tray) mcpTray = null; mcpInput = null; mcpInputHasDraft = null; inputHiddenForWalk = false; };
         dialog.Opened += (_,_) => { text.Focus(); send.IsEnabled = CanSend(); };
         dialog.Opened += (_, _) => ConfigurePlatformWindow(dialog);
         clock.Start(); Follow(); dialog.Activate(); return true;

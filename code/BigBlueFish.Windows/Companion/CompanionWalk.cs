@@ -295,8 +295,13 @@ public partial class MainWindow
         plan.Motion = plan.Distance < 12 ? "none" : Math.Abs(move.X) >= .5 * Math.Abs(move.Y) ? "run" : "float";
         plan.Mirrored = plan.Motion == "run" && move.X > 0; // The clips face left.
         // The user wants the double-click input gone while the fish runs (not when she stays put); a running
-        // file picker would go down with it.
-        if (plan.Motion != "none" && !mcpInputPicking) mcpInput?.Close();
+        // file picker would go down with it. A box holding a draft or attachments is only hidden and comes back
+        // when the walk (or the whole tour) is over; an empty one closes.
+        if (plan.Motion != "none" && !mcpInputPicking && mcpInput != null)
+        {
+            if (mcpInputHasDraft?.Invoke() == true) { inputHiddenForWalk = true; mcpInput.Hide(); }
+            else mcpInput.Close();
+        }
         double bodyCenter = plan.To.X + body.Left + body.Width / 2, aimCenter = aim.Left + aim.Width / 2;
         plan.FaceMirrored = Math.Abs(aimCenter - bodyCenter) < body.Width / 2 ? plan.Mirrored : aimCenter > bodyCenter;
         walkAvoid = null;

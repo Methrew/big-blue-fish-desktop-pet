@@ -53,6 +53,10 @@ public partial class MainWindow
     private bool mcpConsentOpen;
     private Window? mcpConsentWindow;
     private Window? mcpInput;
+    // The input box holds text or attachments; set while it is open (TryOpenMcpInput).
+    private Func<bool>? mcpInputHasDraft;
+    // Hidden, not closed, while the fish runs (CompanionWalk.StartWalk), so a draft and its pasted pictures survive the walk.
+    private bool inputHiddenForWalk;
     // The input's file picker is open; closing or hiding its owner then would tear the dialog down.
     private bool mcpInputPicking;
     private bool McpChannelOpen(bool agentChannel) => agentChannel ? preferences.AgentEnabled : preferences.McpEnabled;
@@ -523,8 +527,8 @@ public partial class MainWindow
     private bool TryOpenMcpInput()
     {
         if (!McpInputAvailable || exitAnimation || companionClosed) return false;
-        if (mcpInput != null) { mcpInput.Show(); mcpInput.Activate(); return true; }
-        const string hint = "透過魚魚和已連線的Agent說話", ready = "Ctrl+Enter 傳送";
+        if (mcpInput != null) { inputHiddenForWalk = false; mcpInput.Show(); mcpInput.Activate(); return true; }
+        const string hint = "透過魚魚和已連線的 Agent 說話", ready = "Ctrl+Enter 傳送";
         var blue = new SolidColorBrush(global::BigBlueFish.Windows.CompanionBubble.HairBlue);
         var text = new TextBox { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxLength = 4000,
             Height = 56, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, VerticalContentAlignment = VerticalAlignment.Top,
@@ -617,6 +621,8 @@ public partial class MainWindow
         void Follow()
         {
             if (positioning || mcpInput != window) return;
+            // Back once the walk, and a tour with all its stops, is over; the next position avoids the target.
+            if (inputHiddenForWalk) { if (Walking || Touring) { if (window.IsVisible) window.Hide(); return; } inputHiddenForWalk = false; }
             positioning = true;
             try {
                 if (!IsVisible) { if (!mcpInputPicking) window.Hide(); return; }
@@ -686,10 +692,11 @@ public partial class MainWindow
             if (state != null && (blocked || status.Text == shown || status.Text == ready)) { status.Text = state; shown = state; }
             else if (state == null && shown != null) { if (status.Text == shown) status.Text = ready; shown = null; }
         };
-        clock.Start(); mcpInput = window; mcpTray = tray;
+        clock.Start(); mcpInput = window; mcpTray = tray; inputHiddenForWalk = false;
+        mcpInputHasDraft = () => !string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0 || tray.Saving > 0;
         window.Closed += (_, _) => {
             clock.Stop(); LocationChanged -= moved; SizeChanged -= resized; IsVisibleChanged -= visibility; DpiChanged -= dpiChanged;
-            tray.Discard(); if (mcpTray == tray) mcpTray = null; mcpInput = null;
+            tray.Discard(); if (mcpTray == tray) mcpTray = null; mcpInput = null; mcpInputHasDraft = null; inputHiddenForWalk = false;
         };
         window.Loaded += (_, _) => { text.Focus(); send.IsEnabled = CanSend(); };
         Follow(); window.Activate(); return true;

@@ -271,7 +271,7 @@ internal sealed partial class LinuxPetWindow
 
     WalkPlan StartWalk(WalkTarget target, string side, string? arriveAction, string? say, WalkTour? trip = null)
     {
-        HookWalk();
+        HookWalk(); PreloadWalk();
         if (trip == null) StopTour("replaced");
         CancelWalk("replaced"); moveRule = null;
         double s = DesktopScaling;
@@ -464,6 +464,14 @@ internal sealed partial class LinuxPetWindow
     // The pointer, the window and the displays stop a walk. Hooked once, on the first walk, beside the pet's own
     // handlers: the press and the release tunnel in before them (they still see whether this was a drag), and the
     // move, the capture loss and the closing run after them.
+    // Decoded openings of the walk segments (LinuxVideoOpenings), as Windows keeps them, so a turn, a replayed stride or the
+    // stop shows without waiting for a new pipeline: about 22 MB more, within the player's preload budget. Preload ignores repeats.
+    void PreloadWalk()
+    {
+        var run = Path.Combine(AppContext.BaseDirectory, "assets/fish", policy.Find(RunClip).File);
+        foreach (var start in new[] { RunTurn, RunLoop, RunStop }) player.Preload(run, start);
+        player.Preload(Path.Combine(AppContext.BaseDirectory, "assets/fish", policy.Find(FloatClip).File), FloatLoop);
+    }
     void HookWalk()
     {
         if (walkHooked) return;

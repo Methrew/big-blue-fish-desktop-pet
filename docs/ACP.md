@@ -59,6 +59,8 @@ Windows 用可以直接啟動的程式入口打開登入終端機；macOS 打開
 
 優先使用 ACP 的 `configOptions`，支援 select 和已宣告能力的 boolean 類型；透過 `session/set_config_option` 修改，並接收完整的設定結果與 `config_option_update`。一次修改可能會換掉模型清單或思考選項。沒有設定選項時，相容舊式的 `models`、`modes` 狀態，分別呼叫 `session/set_model`、`session/set_mode`；不支援的切換方式改為唯讀顯示。沒有可以調整的選項時，連線會顯示「由 Agent 設定」。連線、切換或產生回覆期間，選擇器會等目前的請求結束後才啟用。
 
+要讓 Claude Code 每次都用同一個權限模式（例如自動接受編輯，不再逐一詢問檔案編輯），把設定寫在工作區的 `.claude/settings.local.json`，例如 `{"permissions": {"defaultMode": "acceptEdits", "allow": ["Read", "Write", "Edit", "WebSearch", "WebFetch", "mcp__big-blue-fish"]}}`，再按「開始新對話」。Claude Code 不會採用工作區 `.claude/settings.json` 裡提高權限的 `defaultMode`（`acceptEdits`、`auto`、`bypassPermissions`），因為那個檔案通常會隨專案分享；「清空工作區」也會刪掉這個檔案。
+
 權限／工作模式與單項操作的核准分開處理。Agent 要求執行檔案、指令等操作時，魚魚會顯示它提供的具體內容和核准選項。切換模型、對話或工作區時，不會把一般的 ACP 回答送進氣泡。
 
 ## 技能與人設

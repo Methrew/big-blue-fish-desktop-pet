@@ -58,7 +58,7 @@ internal sealed partial class LinuxPetWindow : Window
         DiagnosticLog.ObserveSettings(Preferences);
         brain = new() { UseGpu = Preferences.GpuEnabled, StopOnBattery = Preferences.StopModelOnBattery, WeatherRegionCode = Preferences.WeatherRegionCode };
         LoadPlatformSecrets(); ApplyModelSource(); // before Opened asks whether a local model is installed
-        Title = "蓝色大肥鱼"; WindowDecorations = WindowDecorations.None; ShowInTaskbar = false; ShowActivated = false;
+        Title = CompanionEdition.DisplayName; WindowDecorations = WindowDecorations.None; ShowInTaskbar = false; ShowActivated = false;
         Topmost = true; CanResize = false; Background = Brushes.Transparent; TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
         var canvas = new Grid(); canvas.Children.Add(sprite); canvas.Children.Add(loading); Content = canvas;
         loading.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left; loading.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
@@ -72,7 +72,7 @@ internal sealed partial class LinuxPetWindow : Window
         close.Click += (_, _) => { typing = false; bubbleWindow!.Hide(); };
         var bubbleGrid = new Grid(); bubbleGrid.Children.Add(bubbleText); bubbleGrid.Children.Add(close); bubbleText.Margin = new Thickness(0, 0, 24, 0);
         bubbleFrame = new LinuxBubble { Child = bubbleGrid, Padding = new Thickness(16,16,16,30) };
-        bubbleWindow = new Window { Title = "蓝色大肥鱼 · 对话", WindowDecorations = WindowDecorations.None, ShowInTaskbar = false, ShowActivated = false,
+        bubbleWindow = new Window { Title = CompanionEdition.DisplayName + " · 對話", WindowDecorations = WindowDecorations.None, ShowInTaskbar = false, ShowActivated = false,
             Topmost = true, CanResize = false, Background = Brushes.Transparent, TransparencyLevelHint = [WindowTransparencyLevel.Transparent], Content = bubbleFrame };
         Rescale();
         var screen = Screens.Primary?.WorkingArea ?? new PixelRect(0, 0, 1280, 720);
@@ -131,7 +131,7 @@ internal sealed partial class LinuxPetWindow : Window
             if (exitReady || closed || Puppet) return;
             e.Cancel = true; if (phase == "Exit") return;
             speechVersion++; brain.Stop(); moveRule = null; settings?.Close(); hidden = false; fullscreenHidden = false; Show(); player.Paused = false;
-            Play(policy.Find("女仆屈膝礼仪"), "Exit"); ShowText("主人再见~鱼鱼喜欢主人哦", false, true);
+            Play(policy.Find("女仆屈膝礼仪"), "Exit"); ShowText("主人再見~魚魚喜歡主人喔", false, true);
         };
         Closed += (_, _) => { DiagnosticLog.Write(DiagnosticEvent.AppStopped, kind: "Linux"); closed = true; timer.Stop(); StopMcp(); brain.Dispose(); player.Dispose(); bubbleWindow.Close(); settings?.Close(); Save(); mutex.Dispose(); (Avalonia.Application.Current!.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)!.Shutdown(); };
         timer.Tick += async (_, _) => await Tick();
@@ -206,7 +206,7 @@ internal sealed partial class LinuxPetWindow : Window
     void Welcome()
     {
         string period = DateTime.Now.Hour switch { >= 5 and < 11 => "早上", >= 11 and < 14 => "中午", >= 14 and < 18 => "下午", _ => "晚上" };
-        ShowText($"主人{period}好，鱼鱼给主人请安啦~", false, true);
+        ShowText($"主人{period}好，魚魚給主人請安啦~", false, true);
         greetingNoticeActive = true;
     }
     void EndWelcome() { if (greetingNoticeActive) bubbleWindow.Hide(); greetingNoticeActive = false; }
@@ -297,7 +297,7 @@ internal sealed partial class LinuxPetWindow : Window
         DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: weather ? "weather" : "local", state: agentTriggered ? "manual" : "automatic");
         if (Puppet && !agentTriggered || generating || closed || phase == "Exit" || modelInstalling) { DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, state: "blocked"); return; }
         if (!brain.ModelAvailable) { await InstallModel(); return; }
-        if (!Preferences.ModelEnabled) { ShowText("主人，請先在設定裡開啟「啟用模型說話」哦～", false); return; }
+        if (!Preferences.ModelEnabled) { ShowText("主人，請先在設定裡開啟「啟用模型說話」喔～", false); return; }
         if (!brain.CanRunOnCurrentPower) { ShowText("主人，目前設定為筆電使用電池時暫停本機模型，可以到設定裡調整喔。", false); return; }
         generating = true; long version = ++speechVersion; streamed = false; loading.IsVisible = true;
         try
@@ -326,11 +326,11 @@ internal sealed partial class LinuxPetWindow : Window
             try
             {
                 if (weather) { agentWeatherPending = true; loading.IsVisible = true; }
-                else ShowText("主人，正在请 Agent 回应这次吐字测试～", false);
+                else ShowText("主人，正在請 Agent 回應這次說話測試～", false);
                 string context = weather ? await brain.GetWeatherContext(CancellationToken.None) : "";
                 bool accepted = agent?.ManualSpeech(weather, context) == true;
                 DiagnosticLog.Write(DiagnosticEvent.AgentMaterials, kind: weather ? "weather" : "test", state: accepted ? "success" : "blocked");
-                if (!accepted && !weather) ShowText("主人，Agent 请求尚未就绪或队列已满，请查看连接状态后重试～", false);
+                if (!accepted && !weather) ShowText("主人，Agent 還沒準備好，或是要求太多排不進去了，請看看連線狀態再試一次～", false);
             }
             catch (Exception error) { DiagnosticLog.Write(DiagnosticEvent.AgentFailed, kind: weather ? "weather" : "test", error: error); if (!weather) ShowText("主人，" + error.Message, false); }
             finally { agentWeatherPending = false; if (agent?.AwaitingSpeech != true) loading.IsVisible = false; }
@@ -343,8 +343,8 @@ internal sealed partial class LinuxPetWindow : Window
     {
         var menu = new ContextMenu();
         MenuItem Item(string title, Action action, bool available = true) { var item = new MenuItem { Header = title, IsEnabled = available }; item.Click += (_, _) => action(); return item; }
-        menu.ItemsSource = new[] { Item("设置", OpenSettings), Item("天气", async () => await SpeakManual(true)), Item("吐字测试", async () => await SpeakManual(false)),
-            Item(hidden ? "显示桌宠" : "隐藏桌宠", () => { if (hidden) { hidden = false; Show(); Clamp(); } else { hidden = true; Hide(); bubbleWindow.Hide(); speechVersion++; brain.CancelGeneration(); } }), Item("关闭桌宠", Close) };
+        menu.ItemsSource = new[] { Item("設定", OpenSettings), Item("天氣", async () => await SpeakManual(true)), Item("說話測試", async () => await SpeakManual(false)),
+            Item(hidden ? "顯示桌寵" : "隱藏桌寵", () => { if (hidden) { hidden = false; Show(); Clamp(); } else { hidden = true; Hide(); bubbleWindow.Hide(); speechVersion++; brain.CancelGeneration(); } }), Item("關閉桌寵", Close) };
         ContextMenu = menu; menu.Open(this);
     }
     void CloseImmediately() { exitReady = true; Close(); }

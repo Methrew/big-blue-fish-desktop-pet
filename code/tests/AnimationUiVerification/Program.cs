@@ -169,7 +169,7 @@ internal static partial class Program
         Invoke(w,"RestoreCompanion");Pump();Check(w.IsVisible&&!(bool)Read(w,"hiddenByUser"),"existing restore still works");
         var tray=(System.Windows.Forms.ContextMenuStrip)((CompanionTrayIcon)Read(w,"notifyIcon")).ContextMenuStrip!;
         Check(tray.Renderer.GetType().Name=="CompanionTrayMenuRenderer"&&!tray.ShowImageMargin,"tray uses matching palette without obsolete image gutter");
-        Check(tray.Items.Cast<System.Windows.Forms.ToolStripItem>().Select(i=>i.Text).SequenceEqual(new[]{"顯示桌寵","設定","天氣","吐字測試","關閉桌寵"}),"tray retains all original actions");
+        Check(tray.Items.Cast<System.Windows.Forms.ToolStripItem>().Select(i=>i.Text).SequenceEqual(new[]{"顯示桌寵","設定","天氣","說話測試","關閉桌寵"}),"tray retains all original actions");
         tray.Show(new System.Drawing.Point(500,300));System.Windows.Forms.Application.DoEvents();
         Console.WriteLine($"TRAY_METRICS dpi={tray.DeviceDpi} font={tray.Font.Size}/{tray.Font.Unit} size={tray.Size} client={tray.ClientSize} items="+string.Join(";",tray.Items.Cast<System.Windows.Forms.ToolStripItem>().Select(i=>$"{i.Text}:{i.Bounds},font={i.Font.Size}")));
         Check(tray.GetType().Name=="CompanionTrayMenu"&&tray.Region!=null

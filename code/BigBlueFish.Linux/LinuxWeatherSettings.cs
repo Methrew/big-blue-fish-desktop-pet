@@ -13,6 +13,8 @@ internal sealed partial class LinuxPetWindow
 
     const string OpenMeteoWeatherSource = "天氣來自 Open-Meteo（Weather data by Open-Meteo.com），依所選地點中心附近估算；美國地點使用華氏溫度和英里／小時。海外城市資料來自 GeoNames（CC BY 4.0）。";
     const string TownshipCentreSource = "臺灣鄉鎮市區中心座標由內政部國土測繪中心「鄉(鎮、市、區)界線(TWD97經緯度)」計算；此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license";
+    // Both open data sets of a 臺灣 place on macOS, with the licence statement once, word for word.
+    const string TaiwanOpenData = "臺灣鄉鎮市區中心座標由內政部國土測繪中心「鄉(鎮、市、區)界線(TWD97經緯度)」計算。以上開放資料（中央氣象署鄉鎮天氣預報、內政部國土測繪中心鄉(鎮、市、區)界線）依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license";
 
     // 天氣地點 on the settings page: the country (China first, then by English name with 臺灣 Taiwan among them, as
     // CompanionRegions.Countries lists them), then its levels: 臺灣 縣市 → 鄉鎮市區, China three levels, the rest two.
@@ -41,8 +43,8 @@ internal sealed partial class LinuxPetWindow
             province.IsVisible = current == CompanionRegions.China && levels[0].SelectedIndex >= 0 && options[0][levels[0].SelectedIndex].Code == "71";
 #if COMPANION_MAC
             cwa.IsVisible = taiwan;
-            source.Text = taiwan ? $"填了授權碼時，臺灣鄉鎮使用中央氣象署 {DateTime.Now.Year} 鄉鎮天氣預報（F-D0047）。此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。"
-                + "沒有授權碼時改用 Open-Meteo（Weather data by Open-Meteo.com）估計鄉鎮市區中心附近的天氣，只是概略參考。" + TownshipCentreSource : OpenMeteoWeatherSource;
+            source.Text = taiwan ? $"填了授權碼時，臺灣鄉鎮使用中央氣象署 {DateTime.Now.Year} 年鄉鎮天氣預報（F-D0047）；"
+                + "沒有授權碼時改用 Open-Meteo（Weather data by Open-Meteo.com）估計鄉鎮市區中心附近的天氣，只是概略參考。" + TaiwanOpenData : OpenMeteoWeatherSource;
 #else
             source.Text = taiwan ? "臺灣鄉鎮的天氣來自 Open-Meteo（Weather data by Open-Meteo.com），估計鄉鎮市區中心附近的天氣，只是概略參考（Linux 版不使用中央氣象署授權碼）。" + TownshipCentreSource : OpenMeteoWeatherSource;
 #endif

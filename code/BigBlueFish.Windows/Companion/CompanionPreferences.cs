@@ -104,14 +104,14 @@ internal sealed class CompanionPreferences
     };
     internal static readonly string[] BubbleDurationLabels =
     {
-        "5秒",
-        "10秒",
-        "15秒",
-        "30秒",
-        "1分鐘",
-        "2分鐘",
-        "3分鐘",
-        "直至下一句"
+        "5 秒",
+        "10 秒",
+        "15 秒",
+        "30 秒",
+        "1 分鐘",
+        "2 分鐘",
+        "3 分鐘",
+        "直到下一句"
     };
     public double? Left { get; set; }
     public double? Top { get; set; }

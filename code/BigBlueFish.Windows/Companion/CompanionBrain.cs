@@ -238,7 +238,9 @@ internal sealed class CompanionBrain : IDisposable
     private sealed class GpuStartupException(string message) : IOException(message);
 
     internal const string WeatherPersona = CompanionDialogue.WeatherPersona;
-    internal static string WeatherRequest(string context) => "本輪天氣資料：\n" + context;
+    // The small model reads the persona's rule on estimates loosely, so an Open-Meteo estimate says it again beside the data.
+    internal static string WeatherRequest(string context) => "本輪天氣資料：\n" + context
+        + (context.Contains("天氣估算") ? "\n（這份是估計值，不是實測：句子裡要用「大概」或「估計」，也不要說成明天的天氣。）" : "");
     internal const string BasePersona = CompanionDialogue.Voice;
     internal const string SceneGuidance = CompanionDialogue.SceneGuidance;
     internal const string Persona = BasePersona + SceneGuidance + CompanionDialogue.ScreenReadingGuidance;

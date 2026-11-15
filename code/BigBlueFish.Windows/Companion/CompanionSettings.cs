@@ -154,7 +154,7 @@ public partial class MainWindow
             preferences.HideOnFullscreen = v;
             UpdateCompanionVisibility();
         });
-        Toggle("開機自動啟動", StartupEnabled(), SetCompanionStartup);
+        Toggle("開機時啟動", StartupEnabled(), SetCompanionStartup);
         Toggle("啟動時檢查更新", preferences.CheckUpdatesOnStartup, v => preferences.CheckUpdatesOnStartup = v);
         p = pages[1];
         Toggle("自動取得天氣和科技新聞", preferences.PublicInfo, v => preferences.PublicInfo = v);
@@ -330,7 +330,7 @@ public partial class MainWindow
                 preferences.StopModelOnBattery && !brain.UseRemote ? "使用電池 · 已按設定暫停模型" : "使用電池 · 允許模型執行")
                 + "\n" + (AgentDailyActive ? "日常說話由 Agent 編寫，模型不會自動載入。\n" : PuppetActive ? "Agent 決定日常關心的時機，由模型編寫要說的話。\n" : "")
                 + (available ? brain.Status : "尚未安裝模型")
-                + "\n推理裝置：" + brain.ExecutionDevice;
+                + "\n推論裝置：" + brain.ExecutionDevice;
         }
         timer.Tick += (_, _) => UpdateStatus();
         UpdateStatus();

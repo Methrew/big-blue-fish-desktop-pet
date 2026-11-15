@@ -138,7 +138,7 @@ internal static partial class Program
     {
         var menu=(ContextMenu)Read(w,"companionContextMenu");
         var items=menu.Items.Cast<MenuItem>().ToArray();
-        Check(items.Select(i=>i.Header?.ToString()).SequenceEqual(new[]{"設定","天氣","吐字測試","隱藏桌寵"}),"pet menu retains its four actions");
+        Check(items.Select(i=>i.Header?.ToString()).SequenceEqual(new[]{"設定","天氣","說話測試","隱藏桌寵"}),"pet menu retains its four actions");
         menu.IsOpen=true;Pump(120);menu.UpdateLayout();
         var dismissal=Read(w,"companionMenuDismissal");
         Check(Property<bool>(dismissal,"IsListening"),"outside-click observer attaches only while menu is open");

@@ -18,8 +18,8 @@ internal static class LinuxCapture
         var errors = process.StandardError.ReadToEndAsync(token); using var bytes = new MemoryStream();
         await process.StandardOutput.BaseStream.CopyToAsync(bytes, token); await process.WaitForExitAsync(token);
         if (process.ExitCode != 0) throw new IOException((await errors).Trim());
-        using var bitmap = SKBitmap.Decode(bytes.ToArray()) ?? throw new IOException("桌面截图未返回有效图像。");
-        if ((long)bitmap.Width * bitmap.Height > 150_000_000) throw new IOException("截图尺寸过大。");
+        using var bitmap = SKBitmap.Decode(bytes.ToArray()) ?? throw new IOException("桌面截圖未傳回有效影像。");
+        if ((long)bitmap.Width * bitmap.Height > 150_000_000) throw new IOException("截圖尺寸過大。");
         return CompanionNative.Encode(bitmap, maximum);
     }
 }
@@ -91,11 +91,11 @@ internal static partial class CompanionNative
     internal static string ForegroundIdentity(IntPtr handle)
     {
         lock (gate) {
-            if (IsDesktopWindow(handle)) return "前台窗口：Linux 桌面\n画面是壁纸与快捷方式。";
+            if (IsDesktopWindow(handle)) return "前景視窗：Linux 桌面\n畫面是桌布與捷徑。";
             var title = Encoding.UTF8.GetString(Property((ulong)handle.ToInt64(), "_NET_WM_NAME", out _)).TrimEnd('\0');
             if (title.Length == 0) title = Encoding.UTF8.GetString(Property((ulong)handle.ToInt64(), "WM_NAME", out _)).TrimEnd('\0');
             var application = Encoding.UTF8.GetString(Property((ulong)handle.ToInt64(), "WM_CLASS", out _)).Replace('\0', ' ').Trim();
-            return $"前台应用：{application}\n窗口标题：{title}";
+            return $"前景程式：{application}\n視窗標題：{title}";
         }
     }
     internal static bool IsFullscreen()
@@ -118,20 +118,20 @@ internal static partial class CompanionNative
     {
         lock (gate)
         {
-            if (display == IntPtr.Zero) throw new IOException("当前桌面未提供 X11 读屏连接。");
-            if (Wayland) throw new IOException("当前为 Wayland 桌面，读屏需要桌面授权门户。");
-            if (XGetWindowAttributes(display, Root, out var screen) == 0) throw new IOException("无法读取桌面尺寸。");
+            if (display == IntPtr.Zero) throw new IOException("目前桌面未提供讀取畫面用的 X11 連線。");
+            if (Wayland) throw new IOException("目前是 Wayland 桌面，讀取畫面需要桌面 portal 授權。");
+            if (XGetWindowAttributes(display, Root, out var screen) == 0) throw new IOException("無法讀取桌面尺寸。");
             int x = 0, y = 0, width = screen.width, height = screen.height, windowX = 0, windowY = 0;
             bool application = !full && !IsDesktopWindow(handle);
             if (application)
             {
-                if (XGetWindowAttributes(display, (ulong)handle.ToInt64(), out var window) == 0 || window.map_state != 2) throw new IOException("前台窗口不可见。");
+                if (XGetWindowAttributes(display, (ulong)handle.ToInt64(), out var window) == 0 || window.map_state != 2) throw new IOException("前景視窗不可見。");
                 XTranslateCoordinates(display, (ulong)handle.ToInt64(), Root, 0, 0, out x, out y, out _);
                 windowX = x; windowY = y;
                 width = Math.Min(window.width + Math.Min(0, x), screen.width - Math.Max(0, x));
                 height = Math.Min(window.height + Math.Min(0, y), screen.height - Math.Max(0, y)); x = Math.Max(0, x); y = Math.Max(0, y);
             }
-            if (width <= 0 || height <= 0 || (long)width * height > 150_000_000) throw new IOException("截图区域无效。");
+            if (width <= 0 || height <= 0 || (long)width * height > 150_000_000) throw new IOException("截圖區域無效。");
             ulong pixmap = 0; bool redirected = false;
             IntPtr pointer;
             try {
@@ -157,11 +157,11 @@ internal static partial class CompanionNative
                 if (pixmap != 0) XFreePixmap(display, pixmap);
                 if (redirected) XCompositeUnredirectWindow(display, (ulong)handle.ToInt64(), 0);
             }
-            if (pointer == IntPtr.Zero) throw new IOException("无法读取桌面像素。");
+            if (pointer == IntPtr.Zero) throw new IOException("無法讀取桌面像素。");
             try
             {
                 var image = Marshal.PtrToStructure<XImage>(pointer);
-                if (image.bits_per_pixel != 32 || image.byte_order != 0) throw new IOException("当前桌面像素格式不受支持。");
+                if (image.bits_per_pixel != 32 || image.byte_order != 0) throw new IOException("不支援目前桌面的像素格式。");
                 var pixels = new byte[image.bytes_per_line * height]; Marshal.Copy(image.data, pixels, 0, pixels.Length);
                 using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Opaque);
                 for (int row = 0; row < height; row++) Marshal.Copy(pixels, row * image.bytes_per_line, bitmap.GetPixels() + row * bitmap.RowBytes, width * 4);
@@ -236,10 +236,10 @@ internal static class CompanionOcr
                 async () => await LinuxCapture.CaptureAsync(handle, 2560, false, token),
                 async () => await LinuxCapture.CaptureAsync(handle, 2560, true, token), token)
             : new CompanionCaptureResult<CompanionWindowImage>(await LinuxCapture.CaptureAsync(handle, 2560, false, token), false);
-        var image = captured.Image ?? throw new IOException("未能取得可用读屏画面");
+        var image = captured.Image ?? throw new IOException("未能取得可用的螢幕畫面");
         double captureTime = clock.Elapsed.TotalMilliseconds;
         bool desktop = !captured.FullScreen && !CompanionNative.Wayland && CompanionNative.IsDesktopWindow(handle);
-        string identity = captured.FullScreen ? CompanionCaptureFallback.ScreenIdentity : CompanionNative.Wayland ? "当前桌面授权的前台窗口" : CompanionNative.ForegroundIdentity(handle);
+        string identity = captured.FullScreen ? CompanionCaptureFallback.ScreenIdentity : CompanionNative.Wayland ? "目前桌面授權的前景視窗" : CompanionNative.ForegroundIdentity(handle);
         var result = await RecognizeAsync(image, identity, captureTime, token, desktop);
         return result with { WindowHandle = captured.FullScreen ? 0 : handle.ToInt64() };
     }
@@ -250,21 +250,21 @@ internal static class CompanionOcr
         var clock = Stopwatch.StartNew();
         var bytes = Convert.FromBase64String(image.DataUrl[(image.DataUrl.IndexOf(',') + 1)..]);
         var start = new ProcessStartInfo("/usr/bin/tesseract") { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false };
-        foreach (var item in new[] { "stdin", "stdout", "-l", "chi_sim+eng", "tsv" }) start.ArgumentList.Add(item);
+        foreach (var item in new[] { "stdin", "stdout", "-l", "chi_tra+chi_sim+eng", "tsv" }) start.ArgumentList.Add(item);
         using var process = LinuxProcesses.Start(start);
         using var cancel = token.Register(() => { try { process.Kill(true); } catch { } });
         var output = process.StandardOutput.ReadToEndAsync(token); var error = process.StandardError.ReadToEndAsync(token);
         await process.StandardInput.BaseStream.WriteAsync(bytes, token); process.StandardInput.Close();
         await process.WaitForExitAsync(token); var text = await output;
-        if (process.ExitCode != 0) throw new IOException("本地 OCR 未完成：" + await error);
+        if (process.ExitCode != 0) throw new IOException("本機 OCR 未完成：" + await error);
         var words = new List<CompanionOcrWord>();
         foreach (var line in text.Split('\n').Skip(1))
         {
             var cells = line.TrimEnd('\r').Split('\t'); if (cells.Length < 12 || cells[0] != "5" || string.IsNullOrWhiteSpace(cells[11])) continue;
             if (double.TryParse(cells[6], out var x) && double.TryParse(cells[7], out var y) && double.TryParse(cells[8], out var width) && double.TryParse(cells[9], out var height)) words.Add(new(cells[11], x, y, width, height));
         }
-        string context = identity + "\n" + (desktop ? "画面是壁纸与快捷方式图标，没有展开的应用正文。" : CompanionOcrLayout.Format(words, image.Width, image.Height));
-        return new(context, "chi_sim+eng", image.Width, image.Height, words.Count, captureMs, clock.Elapsed.TotalMilliseconds, words.ToArray(), IsDesktop: desktop);
+        string context = identity + "\n" + (desktop ? "畫面是桌布與捷徑圖示，沒有展開的應用程式內容。" : CompanionOcrLayout.Format(words, image.Width, image.Height));
+        return new(context, "chi_tra+chi_sim+eng", image.Width, image.Height, words.Count, captureMs, clock.Elapsed.TotalMilliseconds, words.ToArray(), IsDesktop: desktop);
     }
 }
 

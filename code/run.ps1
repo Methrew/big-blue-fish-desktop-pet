@@ -1,4 +1,5 @@
-﻿param([string]$SdkPath,[string]$RuntimeDirectory,[string]$ModelsDirectory,[ValidateSet('Ocr','Vision')][string]$InputMode='Ocr',[switch]$NoModel)
+﻿# Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
+param([string]$SdkPath,[string]$RuntimeDirectory,[string]$ModelsDirectory,[ValidateSet('Ocr','Vision')][string]$InputMode='Ocr',[switch]$NoModel)
 $ErrorActionPreference='Stop'
 . "$PSScriptRoot/../tools/Model-Helpers.ps1"
 if(Get-CimInstance Win32_Process -Filter "Name='BigBlueFish.exe' OR Name='VPet-Simulator.Windows.exe'"){

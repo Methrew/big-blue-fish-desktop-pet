@@ -1,3 +1,4 @@
+<!-- Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0). -->
 # 連線本機 CLI Harness
 
 標準版的「連線 Agent」頁面透過 ACP 驅動使用者電腦上已經安裝的 CLI Harness。開啟連線、選擇 Harness 後，魚魚會在背景啟動該產品的 ACP 入口，建立自己的對話，並安裝 `big-blue-fish` 操作技能。使用者雙擊魚魚就能輸入：Enter 換行，按「傳送」或 ⌘↩（macOS）、Ctrl+Enter（Windows、Linux，macOS 也可以用）送出。

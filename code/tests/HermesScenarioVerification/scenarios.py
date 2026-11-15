@@ -1,5 +1,5 @@
 # Fork-original file of the taiwan-edition fork by acer1204 (2026-10-28); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
-# Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
+# Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 # Real-use scenarios for the fish + Hermes, on this machine's running pet, Hermes gateway and model: each one sets
 # up files (and a File Explorer or Finder window when the request says "this folder on screen"), asks through the
 # bridge's --ask path in a session of its own, then checks the outcome on disk and every tool call Hermes made:

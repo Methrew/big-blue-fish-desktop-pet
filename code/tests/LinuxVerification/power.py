@@ -1,3 +1,4 @@
+# Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 """Real window check of the fixed offline notice, using an actual GGUF without starting inference."""
 import json,os,pathlib,subprocess,sys,time
 payload=pathlib.Path(sys.argv[1]).resolve();data=pathlib.Path(sys.argv[2]).resolve();model=pathlib.Path(sys.argv[3]).resolve()

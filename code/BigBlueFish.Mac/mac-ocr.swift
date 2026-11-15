@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 // On-device Apple Vision OCR. Reads one image on stdin and prints tesseract's TSV layout
 // (level 5 rows), so the pet parses it exactly as the Linux tesseract output.
 // Taiwan edition: Traditional Chinese is read first, then Simplified Chinese and English. Lines without any CJK

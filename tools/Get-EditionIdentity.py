@@ -1,4 +1,4 @@
-# Fork-original file of the Taiwan macOS edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+# Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 """Print the edition identity from CompanionEdition.cs, the single source the packaging scripts share.
 
 Usage: Get-EditionIdentity.py [--xml] NAME [NAME...]   one value per line (--xml: escaped for XML text)

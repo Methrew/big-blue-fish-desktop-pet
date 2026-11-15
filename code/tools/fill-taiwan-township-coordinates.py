@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 # Added by Methrew on 2026-11-09 for the taiwan-edition merge with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 """Fill township and county centres into taiwan-regions.json for the Open-Meteo fallback.
 

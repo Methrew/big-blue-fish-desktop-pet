@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# Fork-original file of the Taiwan macOS edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+# Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 # The Hermes bridge end to end on macOS or Linux without the real pet or Hermes: a fake pet (an MCP server on a Unix
 # socket, reached through the real BigBlueFish.Mcp --pipe, listing only the tools a macOS pet has) and a fake Hermes API
 # server that streams one tool progress event and an answer. Checks that the answer reaches say once, that progress lines

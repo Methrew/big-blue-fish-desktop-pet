@@ -1,4 +1,4 @@
-// Fork-original file of the Taiwan macOS edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+// Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 // What the reminders and get_context read on this Mac (MacSystem.cs), checked against the system itself:
 // the idle time is not the stuck HID system state v1.1.3 read, the steady clock keeps counting, the battery,
 // lock and foreground readings answer, and Finder's reply is parsed. --finder also asks Finder for its open

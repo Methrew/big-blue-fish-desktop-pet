@@ -1,3 +1,4 @@
+<!-- Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- macOS edition logic that needs no window or permission: run `dotnet bin/Release/net10.0/MacLogicVerification.dll` on a Mac. -->
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><DefineConstants>$(DefineConstants);COMPANION_MAC</DefineConstants></PropertyGroup>

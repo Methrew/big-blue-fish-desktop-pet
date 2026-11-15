@@ -1,3 +1,4 @@
+<!-- Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Regions, display names, weather and the macOS secret storage, runnable on macOS as well as Windows:
        dotnet run with the project code/tests/WeatherRegionVerification and -r osx-arm64 on a Mac (win-x64 is the default);

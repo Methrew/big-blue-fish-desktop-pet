@@ -1,3 +1,4 @@
+// Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 using System.Diagnostics;
 using System.Text.RegularExpressions;
 

@@ -1,3 +1,4 @@
+# Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 """Check that shipped strings and user-facing documents are Taiwan Traditional Chinese.
 
 Errors (fail the run): Simplified-only characters, i.e. the keys of OpenCC's STCharacters.txt whose candidates do

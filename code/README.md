@@ -1,3 +1,4 @@
+<!-- Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0). -->
 # 開發說明
 
 使用說明見儲存庫根目錄的 [README](../README.md) 與 [macOS 說明](../docs/MACOS.md)，發布說明見 [release/README](../release/README.md)。

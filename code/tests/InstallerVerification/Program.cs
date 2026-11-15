@@ -1,4 +1,5 @@
-﻿using System.IO.Compression;
+﻿// Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
+using System.IO.Compression;
 using System.Diagnostics;
 using System.Windows.Automation;
 using System.Security.Cryptography;

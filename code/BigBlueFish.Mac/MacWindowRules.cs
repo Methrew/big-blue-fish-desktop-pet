@@ -1,4 +1,4 @@
-// Fork-original file of the Taiwan macOS edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+// Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 namespace BigBlueFish.Windows;
 
 // One layer-0 window from CGWindowListCopyWindowInfo, in points (the top-left origin of CoreGraphics).

@@ -1,3 +1,4 @@
+<!-- Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- The remote model path of the macOS edition against a fake OpenAI-compatible server (HttpListener):
        dotnet run with the project code/tests/RemoteModelVerification and -r osx-arm64 on a Mac (win-x64 is the default).

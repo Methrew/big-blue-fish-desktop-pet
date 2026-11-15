@@ -1,3 +1,4 @@
+// Fork-original file of the taiwan-edition fork by acer1204 (2026-10-30); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 using System.Text;
 using System.Text.RegularExpressions;
 

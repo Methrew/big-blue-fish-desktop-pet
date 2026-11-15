@@ -1,3 +1,4 @@
+<!-- Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0). -->
 # 藍色大肥魚內部工具參考
 
 標準版透過 ACP 連線本機 CLI Harness，並在建立或恢復專用對話時自動提供本工具服務。使用者操作見[連線 Agent](ACP.md)。魚魚以每次執行時隨機命名、只限目前使用者的管道接收控制（macOS 上是 `/tmp` 底下的 Unix socket），隨附的 stdio 橋接程式用 `--pipe <本次管道名稱>` 連線。管道設定由程式產生，不需要手動加入全域的 Harness 設定。無MCP版在編譯時就排除了這些工具。

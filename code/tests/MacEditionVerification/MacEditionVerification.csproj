@@ -1,3 +1,4 @@
+<!-- Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet. -->
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- Mac-only checks of the Taiwan edition identity: release versions, the read-only import from the original's data folder and the login item. -->
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><RuntimeIdentifier>osx-arm64</RuntimeIdentifier><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><DefineConstants>$(DefineConstants);COMPANION_MAC</DefineConstants></PropertyGroup>

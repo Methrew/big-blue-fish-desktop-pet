@@ -1,4 +1,4 @@
-// Fork-original file of the Taiwan macOS edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+// Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 // The name rules find_on_screen and walk_to's desktop_item share on Windows and macOS (CompanionScreenMatching, the
 // same cases McpUiVerification checks through the Windows wrappers), then the macOS search over made-up screens:
 // what is covered, what shows, which folder a Finder window has open, what a missing permission leaves. With the path

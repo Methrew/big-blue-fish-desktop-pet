@@ -1,3 +1,4 @@
+<!-- Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0). -->
 # macOS 說明（Apple Silicon）
 
 本文說明藍色大肥魚台灣繁體中文版在 Mac 上的安裝、權限、資料夾、設定、更新、解除安裝與從原始碼建置。本版是以原作者 Bai-Cute 的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎、整合 acer1204 台灣版功能的非官方版本，功能介紹見[專案說明](../README.md)。

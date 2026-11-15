@@ -1,4 +1,4 @@
-// Fork-original file of the Taiwan macOS edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+// Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 // What is on the screen for find_on_screen and walk_to: the on-screen windows (CGWindowList), Finder's desktop icons,
 // the Dock and the named interface elements of every window that shows (Accessibility). Prints one JSON object.
 //   BigBlueFish.MacScreen trusted [--prompt]

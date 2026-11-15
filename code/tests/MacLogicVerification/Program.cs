@@ -1,4 +1,4 @@
-// Fork-original file of the Taiwan macOS edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+// Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 // macOS edition logic that needs no window, permission or bundled runtime: inference device reporting, the
 // compatibility-only animation check, the login-shell PATH import under slow or hanging shells, the foreground
 // window rules and the Terminal login script. Usage: dotnet MacLogicVerification.dll [repository root]

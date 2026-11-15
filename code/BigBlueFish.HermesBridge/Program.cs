@@ -1,3 +1,5 @@
+// Fork-original file of the taiwan-edition fork by acer1204 (2026-10-26); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+// Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 // Chat bridge for the taiwan-edition fork: text typed into the pet's double-click box goes to the
 // Hermes Agent API server, and Hermes' answer comes back as the pet's speech bubble. The pet side is
 // the stdio MCP bridge (BigBlueFish.Mcp, .exe on Windows); the Hermes side is its local OpenAI-compatible API.

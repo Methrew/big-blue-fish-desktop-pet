@@ -1,3 +1,4 @@
+# Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 """Build region-display-names.json: the Traditional script names the location pickers show.
 
 Usage: python3 tools/make-region-display-names.py [--review]   (Python 3.9+, no packages needed)

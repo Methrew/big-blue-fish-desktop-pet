@@ -1,4 +1,5 @@
-// Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
+// Fork-original file of the taiwan-edition fork by acer1204 (2026-10-30); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
+// Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 // The fish's own reminders (CompanionReminders) through simulated days: an office day, a night owl, a laptop
 // running down, rain on the way, a restart, a long agent conversation, a computer that slept. Each run prints
 // what the fish would say and when, then checks it never nags an empty chair, never repeats itself too soon

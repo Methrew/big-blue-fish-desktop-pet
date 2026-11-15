@@ -1,4 +1,5 @@
 #!/bin/bash
+# Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 # Build a self-contained Apple Silicon .app from source. See docs/MACOS.md.
 # Usage: tools/build-macos.sh [Standard|Safe] [output directory]
 set -euo pipefail

@@ -1,3 +1,4 @@
+<!-- Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0). -->
 <Project Sdk="Microsoft.NET.Sdk">
   <!-- The Avalonia pet from BigBlueFish.Linux, with only the X11 platform layer (LinuxCapture.cs) replaced by MacCapture.cs. -->
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><RuntimeIdentifier>osx-arm64</RuntimeIdentifier><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>BigBlueFish.Mac</AssemblyName><DefineConstants>$(DefineConstants);COMPANION_OCR;COMPANION_MAC</DefineConstants></PropertyGroup>

@@ -1,4 +1,5 @@
 #!/bin/bash
+# Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 # 啟動 Hermes 對話橋接（macOS／Linux 版；Windows 用 run-hermes-bridge.ps1）：雙擊魚魚輸入的訊息會交給 Hermes，回答顯示在魚魚的氣泡。
 # 需要：桌寵設定的「連線 Agent」頁已開啟「開啟 MCP 介面」與「雙擊輸入交給 MCP 介面（Hermes 橋接程式）」，
 # Hermes 的 ~/.hermes/.env 已設定 API_SERVER_KEY，並已啟動 Hermes gateway。

@@ -1,4 +1,5 @@
-﻿param([Parameter(Mandatory=$true)][string]$Destination,[string]$SourceDirectory)
+﻿# Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
+param([Parameter(Mandatory=$true)][string]$Destination,[string]$SourceDirectory)
 $ErrorActionPreference='Stop'
 if(!$SourceDirectory){
     $vswhere=Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'

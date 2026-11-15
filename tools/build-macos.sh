@@ -29,6 +29,8 @@ fetch() { # url sha256 -> cached path, verified
 "$dotnet" publish "$root/code/BigBlueFish.Mac/BigBlueFish.Mac.csproj" -c Release -r osx-arm64 --self-contained true "-p:CompanionEdition=$edition" -p:RestoreLockedMode=true -o "$payload" --nologo
 if [[ $edition == Standard ]]; then
     "$dotnet" publish "$root/code/BigBlueFish.Mcp/BigBlueFish.Mcp.csproj" -c Release -r osx-arm64 --self-contained true -p:RestoreLockedMode=true -o "$payload" --nologo
+    # The Hermes bridge next to BigBlueFish.Mcp (it finds it there), self-contained like it: code/run-hermes-bridge.sh runs it without an SDK.
+    "$dotnet" publish "$root/code/BigBlueFish.HermesBridge/BigBlueFish.HermesBridge.csproj" -c Release -f net10.0 -r osx-arm64 --self-contained true -p:UseAppHost=true -p:RestoreLockedMode=true -o "$payload" --nologo
 fi
 
 # llama.cpp: the build Windows pins (b10809), macOS arm64 with Metal

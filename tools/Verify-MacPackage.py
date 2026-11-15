@@ -39,14 +39,14 @@ for name in ["BigBlueFish.Mac", "libcoreclr.dylib", "libhostfxr.dylib",
              "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard",
              "runtime/BigBlueFish.MacOcr", "media/gstreamer/lib/libgstreamer-1.0.0.dylib"]:
     check((payload / name).is_file(), "bundled dependency: " + name)
-for name in ["BigBlueFish.Mcp", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dll"]:
+for name in ["BigBlueFish.Mcp", "BigBlueFish.HermesBridge", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dll"]:
     check((payload / name).is_file() == (args.edition == "Standard"), "edition isolation: " + name)
 check(len(list((payload / "assets/fish").glob("*.webm"))) == 106, "106 enhanced clips")
 check(len(list((payload / "assets/fish/compat").glob("*.webm"))) == 106, "106 compatibility clips")
 native = list(payload.rglob("*.dylib")) + [payload / n for n in [
     "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr"]]
 if args.edition == "Standard":
-    native.append(payload / "BigBlueFish.Mcp")
+    native += [payload / "BigBlueFish.Mcp", payload / "BigBlueFish.HermesBridge"]
 names = {p.name for p in payload.rglob("*") if p.is_file()}
 dependency_errors = []
 for file in native:

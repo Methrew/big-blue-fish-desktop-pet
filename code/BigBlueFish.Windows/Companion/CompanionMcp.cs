@@ -652,7 +652,8 @@ public partial class MainWindow
             history.Children.Clear();
             foreach (var (user, line) in chatLog.Lines(preferences.ChatLogShowAll))
             {
-                var block = new TextBlock { Text = line, TextWrapping = TextWrapping.Wrap, FontSize = 13, Foreground = user ? Brushes.Black : blue, Margin = new Thickness(0, 4, 0, 4) };
+                // Fish lines recorded by an earlier, Simplified Chinese version read in Taiwan Traditional too.
+                var block = new TextBlock { Text = user ? line : CompanionTraditional.Convert(line), TextWrapping = TextWrapping.Wrap, FontSize = 13, Foreground = user ? Brushes.Black : blue, Margin = new Thickness(0, 4, 0, 4) };
                 history.Children.Add(!user ? block : new Border { Child = block, Background = ownerBubble, CornerRadius = new CornerRadius(12),
                     Padding = new Thickness(10, 2, 10, 2), Margin = new Thickness(40, 4, 0, 4), HorizontalAlignment = HorizontalAlignment.Right });
             }

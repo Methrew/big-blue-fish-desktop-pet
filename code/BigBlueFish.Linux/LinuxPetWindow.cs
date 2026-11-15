@@ -151,7 +151,7 @@ internal sealed partial class LinuxPetWindow : Window
             nextPhase == "Drag" ? 1.5 : 0, nextPhase == "Drag" ? 6 : null, rule.Pool == "Greeting" ? 1.5 : 1);
     }
     void Idle() => Play(Puppet ? policy.Find("待机呼吸休闲") : policy.Choose("Idle", Context(), random), Puppet ? "PuppetIdle" : "Idle");
-    bool PlayQueued() { if (externalActions.Count == 0) return false; moveRule = null; Play(policy.Find(externalActions.Dequeue()), "External"); return true; }
+    bool PlayQueued() { if (externalActions.Count == 0 || Touring) return false; moveRule = null; Play(policy.Find(externalActions.Dequeue()), "External"); return true; }
     void Finished()
     {
         DiagnosticLog.Write(DiagnosticEvent.AnimationCompleted, kind: phase, action: currentAction);

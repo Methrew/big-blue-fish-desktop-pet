@@ -65,7 +65,7 @@ internal sealed partial class LinuxPetWindow
         long ticks = CompanionNative.SteadyMilliseconds;
         if (ticks < nextReminder) return false;
         nextReminder = ticks + 5000;
-        if (Puppet || settings != null || consentOpen || modelInstalling || ReminderInputOpen || dragging || generating || agentWeatherPending || ReminderAgentPreparing
+        if (Puppet || settings != null || consentOpen || modelInstalling || ReminderInputOpen || dragging || Walking || Touring || generating || agentWeatherPending || ReminderAgentPreparing
             || phase is "Drag" or "Click" or "Startup" or "Exit"
             || utc >= externalSaidAt && utc - externalSaidAt < AgentQuiet || bubbleWindow.IsVisible && (typing || bubbleUntil != DateTime.MaxValue)
             || CompanionNative.IsFullscreen()) return false;

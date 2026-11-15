@@ -56,6 +56,8 @@ cp "$manifest" "$payload/media/gstreamer/runtime-manifest.json"
 # Native helpers: process-exit guard (shared with Linux) and Apple Vision OCR
 clang -O2 -Wall -Wextra -mmacosx-version-min=14.0 -o "$payload/runtime/BigBlueFish.RunnerGuard" "$root/code/BigBlueFish.Linux/runner-guard.c"
 swiftc -O -target arm64-apple-macos14.0 -o "$payload/runtime/BigBlueFish.MacOcr" "$root/code/BigBlueFish.Mac/mac-ocr.swift"
+# Window list and Accessibility reader for find_on_screen and walk_to
+swiftc -O -target arm64-apple-macos14.0 -o "$payload/runtime/BigBlueFish.MacScreen" "$root/code/BigBlueFish.Mac/mac-screen.swift"
 cp -a "$root/code/licenses" "$payload/"; cp "$root/code/LICENSE" "$root/code/THIRD-PARTY.md" "$payload/"
 
 # Bundle

@@ -37,14 +37,14 @@ expected_version = ET.parse(pathlib.Path(__file__).resolve().parents[1] / "Versi
 check(info["CFBundleShortVersionString"] == expected_version, "bundle product version")
 for name in ["BigBlueFish.Mac", "libcoreclr.dylib", "libhostfxr.dylib",
              "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard",
-             "runtime/BigBlueFish.MacOcr", "media/gstreamer/lib/libgstreamer-1.0.0.dylib"]:
+             "runtime/BigBlueFish.MacOcr", "runtime/BigBlueFish.MacScreen", "media/gstreamer/lib/libgstreamer-1.0.0.dylib"]:
     check((payload / name).is_file(), "bundled dependency: " + name)
 for name in ["BigBlueFish.Mcp", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dll"]:
     check((payload / name).is_file() == (args.edition == "Standard"), "edition isolation: " + name)
 check(len(list((payload / "assets/fish").glob("*.webm"))) == 106, "106 enhanced clips")
 check(len(list((payload / "assets/fish/compat").glob("*.webm"))) == 106, "106 compatibility clips")
 native = list(payload.rglob("*.dylib")) + [payload / n for n in [
-    "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr"]]
+    "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr", "runtime/BigBlueFish.MacScreen"]]
 if args.edition == "Standard":
     native.append(payload / "BigBlueFish.Mcp")
 names = {p.name for p in payload.rglob("*") if p.is_file()}
@@ -117,6 +117,10 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
             ocr = subprocess.run([str(payload / "runtime/BigBlueFish.MacOcr")], input=(data / "pet.png").read_bytes(),
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=30)
             check(ocr.stdout.startswith(b"level\tpage_num\t"), "bundled Apple Vision OCR processes a real PNG")
+            # The screen reader answers in JSON, Accessibility granted or not, and never prompts without --prompt.
+            screen = json.loads(subprocess.run([str(payload / "runtime/BigBlueFish.MacScreen"), "find", "windows"], stdout=subprocess.PIPE, check=True, timeout=30).stdout)
+            check(isinstance(screen.get("trusted"), bool) and len(screen.get("displays", [])) > 0 and isinstance(screen.get("windows"), list),
+                  "bundled screen reader lists the displays and windows")
             (data / "test-command.txt").write_text("exit")
             process.wait(timeout=15)
             check(process.returncode == 0, "application exits normally")

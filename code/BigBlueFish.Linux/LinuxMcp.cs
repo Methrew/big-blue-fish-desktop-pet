@@ -97,7 +97,7 @@ internal sealed partial class LinuxPetWindow
         ConfigureAgent();
         if (AgentDailyActive) brain.Stop();
     }
-    void StopMcp() { consentWindow?.Close(); mcpInput?.Close(); agent?.Dispose(); agent = null; mcpServer?.Dispose(); mcpServer = null; externalActions.Clear(); nextExternalText = null; }
+    void StopMcp() { CancelWalk("mcp_disabled"); consentWindow?.Close(); mcpInput?.Close(); agent?.Dispose(); agent = null; mcpServer?.Dispose(); mcpServer = null; externalActions.Clear(); nextExternalText = null; }
     void PublishInteraction(string kind, object detail)
     {
         DiagnosticLog.Write(DiagnosticEvent.Interaction, kind: kind);
@@ -107,6 +107,7 @@ internal sealed partial class LinuxPetWindow
     void SetPuppet(bool enabled)
     {
         if (Preferences.PuppetMode == enabled) return;
+        CancelWalk("puppet_mode");
         Preferences.PuppetMode = enabled; speechVersion++; if (AgentDailyActive) brain.Stop(); else brain.CancelGeneration(); loading.IsVisible = false; moveRule = null;
         if (!externalSpeech) { typing = false; bubbleWindow.Hide(); }
         ConfigureAgent(); Idle();
@@ -135,7 +136,7 @@ internal sealed partial class LinuxPetWindow
             if (closed || phase == "Exit" || !Preferences.McpEnabled) throw new InvalidOperationException("MCP 接口已关闭或桌宠正在退出。");
             switch (name)
             {
-                case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = mcpServer?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status, fullscreen = CompanionNative.IsFullscreen(), idleSeconds = Math.Round(ReminderIdle), activeMinutes = ReminderActiveMinutes, lastBreakMinutes = ReminderLastBreakMinutes } });
+                case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = mcpServer?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status, fullscreen = CompanionNative.IsFullscreen(), idleSeconds = Math.Round(ReminderIdle), activeMinutes = ReminderActiveMinutes, lastBreakMinutes = ReminderLastBreakMinutes, walk = WalkSnapshot(), tour = TourSnapshot(), lastWalk, walkBubble = WalkBubbleShown } });
                 case "update_settings": await UpdateSettings(args, token); return ControlTools.Text(new { settings = CurrentSettings() });
                 case "request_local_speech": await RequestAgentLocalSpeech(token); return ControlTools.Text(new { generated = modelReply && bubbleWindow.IsVisible });
                 case "list_actions": return ControlTools.Text(policy.Rules.Select(r => new { action = r.Id, pool = r.Pool, weight = r.Weight, duration_seconds = r.Pool == "Greeting" ? 10 / 1.5 : 10 }));
@@ -146,11 +147,11 @@ internal sealed partial class LinuxPetWindow
                     var image = await LinuxCapture.CaptureAsync(handle, limit, name == "capture_screen", token);
                     token.ThrowIfCancellationRequested();
                     if (!Preferences.McpEnabled) throw new OperationCanceledException();
-                    return ControlTools.Image(image.DataUrl, new { target = name, identity, image.Width, image.Height, capturedAt = DateTimeOffset.UtcNow });
+                    return ControlTools.Image(image.DataUrl, CaptureMetadata(name, identity, image, handle));
                 case "play_action": case "interrupt_action":
                     string action = ControlTools.RequiredText(args, "action", 200);
                     if (!policy.Rules.Any(r => r.Id == action)) throw new ArgumentException("动作不存在。");
-                    if (name == "interrupt_action") { externalActions.Clear(); moveRule = null; Play(policy.Find(action), "External"); }
+                    if (name == "interrupt_action") { externalActions.Clear(); moveRule = null; CancelWalk("interrupt"); Play(policy.Find(action), "External"); }
                     else { if (externalActions.Count >= 100) throw new InvalidOperationException("待播放动作队列已满。"); externalActions.Enqueue(action); }
                     return ControlTools.Text(new { action, started = name == "interrupt_action", queued = externalActions.Count });
                 case "say": case "say_next":
@@ -163,7 +164,15 @@ internal sealed partial class LinuxPetWindow
                     var folders = await CompanionNative.OpenFoldersAsync(token);
                     token.ThrowIfCancellationRequested();
                     return ControlTools.Text(CurrentContext(folders.Folders, folders.Note));
-                case "walk_to": case "find_on_screen": throw new NotSupportedException($"{(OperatingSystem.IsMacOS() ? "macOS" : "Linux")} 版尚不支援 {name}。"); // The tool list is shared with Windows.
+#if COMPANION_MAC
+                case "walk_to":
+                    if (args.ValueKind == JsonValueKind.Object && args.TryGetProperty("say", out var arrival) && arrival.ValueKind == JsonValueKind.String) agent?.MarkSpoken();
+                    // Awaiting the arrival leaves the dispatcher free, so get_settings and say keep working meanwhile.
+                    return ControlTools.Text(await WalkToMcp(args, token));
+                case "find_on_screen": return ControlTools.Text(await FindOnScreenMcp(args, token));
+#else
+                case "walk_to": case "find_on_screen": throw new NotSupportedException($"Linux 版不支援 {name}。"); // Not offered on Linux (ControlTools.Definitions).
+#endif
                 case "get_operation_guide": case "get_wakeups": case "schedule_wakeup": case "cancel_wakeup":
                     return ControlTools.Text(agent?.ExecuteTool(name, args) ?? throw new InvalidOperationException("Agent 尚未连接。"));
                 default: throw new ArgumentException("未知 MCP 工具。");
@@ -256,6 +265,7 @@ internal sealed partial class LinuxPetWindow
                 int x = Position.X + (int)(SpriteSize * 208 / 360 * scale) - width - gap;
                 if (x < area.X + gap) x = Position.X + (int)(SpriteSize * 428 / 360 * scale) + gap;
                 int y = Position.Y + (int)(SpriteSize * 336 / 360 * scale) - height;
+                (x, y) = AvoidWalkTarget(x, y, width, height);
                 dialog.Position = new(Math.Clamp(x, area.X + gap, Math.Max(area.X + gap, area.Right - width - gap)),
                     Math.Clamp(y, area.Y + gap, Math.Max(area.Y + gap, area.Bottom - height - gap)));
                 if (!dialog.IsVisible) dialog.Show(this);

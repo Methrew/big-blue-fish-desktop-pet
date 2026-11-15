@@ -44,8 +44,10 @@ internal static class Program
             if (options.Brief is { } brief)
                 return await bridge.BriefOnceAsync(brief == "daily" ? Briefings.Kind.Daily : Briefings.Kind.Welcome,
                     brief.StartsWith("welcome:", StringComparison.Ordinal) && int.TryParse(brief[8..], out var away) ? away : null, stop.Token);
-            // Two listening bridges would answer every message twice.
-            using var single = new Mutex(true, @"Local\BigBlueFish.HermesBridge", out bool first);
+            // Two listening bridges would answer every message twice. One per user across sessions: on macOS and Linux a
+            // Local\ name covers one session only, and every Terminal tab or launchd job is a session of its own.
+            using var single = OperatingSystem.IsWindows() ? new Mutex(true, @"Local\BigBlueFish.HermesBridge", out bool first)
+                : new Mutex(true, "BigBlueFish.HermesBridge", new NamedWaitHandleOptions { CurrentUserOnly = true, CurrentSessionOnly = false }, out first);
             if (!first) { Log.Write("另一個橋接程式已經在執行，這個就先結束。"); return 1; }
             return await bridge.RunAsync(stop.Token);
         }
@@ -155,17 +157,36 @@ internal static class Program
     private static string? ReadHermesKey(string home)
     {
         string file = Path.Combine(home, ".env");
-        if (!File.Exists(file)) return null;
-        foreach (var line in File.ReadLines(file))
+        return File.Exists(file) ? EnvValue(File.ReadLines(file), "API_SERVER_KEY") : null;
+    }
+
+    // A value from .env lines as python-dotenv, which Hermes loads the file with, reads it: an optional `export`, a
+    // quoted value up to its closing quote, an unquoted one up to a # after whitespace; the last assignment wins.
+    internal static string? EnvValue(IEnumerable<string> lines, string name)
+    {
+        string? found = null;
+        foreach (var line in lines)
         {
             var text = line.Trim();
-            if (!text.StartsWith("API_SERVER_KEY", StringComparison.Ordinal)) continue;
+            if (text.Length == 0 || text[0] == '#') continue;
+            if (text.StartsWith("export", StringComparison.Ordinal) && text.Length > 6 && char.IsWhiteSpace(text[6])) text = text[6..].TrimStart();
             int equals = text.IndexOf('=');
-            if (equals < 0 || text[..equals].Trim() != "API_SERVER_KEY") continue;
-            var value = text[(equals + 1)..].Trim().Trim('"', '\'');
-            return value.Length > 0 ? value : null;
+            if (equals < 0 || text[..equals].Trim() != name) continue;
+            var value = text[(equals + 1)..].TrimStart();
+            if (value.Length > 0 && value[0] is '"' or '\'')
+            {
+                int end = value.IndexOf(value[0], 1);
+                value = end < 0 ? value[1..] : value[1..end];
+            }
+            else
+            {
+                for (int i = 1; i < value.Length; i++)
+                    if (value[i] == '#' && char.IsWhiteSpace(value[i - 1])) { value = value[..i]; break; }
+                value = value.Trim();
+            }
+            found = value;
         }
-        return null;
+        return string.IsNullOrEmpty(found) ? null : found;
     }
 }
 

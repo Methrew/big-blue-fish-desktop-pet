@@ -11,6 +11,7 @@ $target = [IO.Path]::GetFullPath($TestRoot)
 if (!$target.StartsWith($workspace + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw '测试目录必须位于本仓库 .work 子目录中。' }
 $manifestPath = Join-Path $target 'manifest.json'
 $definitions = @(
+    @{ Id='claude'; Commands=@('claude'); Package='@anthropic-ai/claude-code' },
     @{ Id='codex'; Commands=@('codex'); Package='@openai/codex' },
     @{ Id='gemini'; Commands=@('gemini'); Package='@google/gemini-cli' },
     @{ Id='dsh'; Commands=@('dsh'); Package='@deepseek-ai/dsh' },

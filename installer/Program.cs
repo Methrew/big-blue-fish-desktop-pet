@@ -43,10 +43,10 @@ internal sealed class InstallerForm : ModernWindow
     private sealed record InstalledManifest(string Version, string InputMode, string[] Files, string Edition = "Standard");
 #if COMPANION_SAFE
     internal const string Edition = "Safe";
-    private const string InstallerTitle = "蓝色大肥鱼无MCP版安装程序";
+    private const string InstallerTitle = BigBlueFish.Windows.CompanionEdition.SafeDisplayName + "安裝程式";
 #else
     internal const string Edition = "Standard";
-    private const string InstallerTitle = "蓝色大肥鱼安装程序";
+    private const string InstallerTitle = BigBlueFish.Windows.CompanionEdition.DisplayName + "安裝程式";
 #endif
     private static readonly byte[] PayloadMarker = Encoding.ASCII.GetBytes("BIGBLUEFISH_PAYLOAD_V1");
     private readonly TextBox destination = new();
@@ -57,7 +57,7 @@ internal sealed class InstallerForm : ModernWindow
     private readonly int waitPid;
     private bool working;
 
-    internal InstallerForm(string[]? arguments = null) : base(InstallerTitle, "让鱼鱼住进你的桌面", "安装桌宠、动画资源和本地运行环境。", 650, 550)
+    internal InstallerForm(string[]? arguments = null) : base(InstallerTitle, "讓魚魚住進你的桌面", "安裝桌寵、動畫資源和本機執行環境。", 650, 550)
     {
         var args = arguments ?? [];
         updating = args.Length >= 2 && args[0] == "--update";
@@ -66,15 +66,15 @@ internal sealed class InstallerForm : ModernWindow
         // Its own folder and shortcuts, apart from the original's 蓝色大肥鱼, so both can be installed.
         destination.Text = updating ? Path.GetFullPath(args[1]) : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), BigBlueFish.Windows.CompanionEdition.DisplayName);
         destination.IsReadOnly = updating;
-        Body.Children.Add(ModernUI.Text("安装位置")); Body.Children.Add(destination);
-        var browse = ModernUI.Button("选择文件夹", () =>
+        Body.Children.Add(ModernUI.Text("安裝位置")); Body.Children.Add(destination);
+        var browse = ModernUI.Button("選擇資料夾", () =>
         {
-            var picker = new OpenFolderDialog { Title = "选择安装位置", InitialDirectory = Path.GetDirectoryName(destination.Text) };
+            var picker = new OpenFolderDialog { Title = "選擇安裝位置", InitialDirectory = Path.GetDirectoryName(destination.Text) };
             if (picker.ShowDialog(this) == true) destination.Text = Path.Combine(picker.FolderName, BigBlueFish.Windows.CompanionEdition.DisplayName);
         });
         browse.IsEnabled = !updating; Body.Children.Add(browse);
         Body.Children.Add(progress); Body.Children.Add(status);
-        install = ModernUI.Button(updating ? "更新蓝色大肥鱼" : "安装蓝色大肥鱼", async () => await InstallClickedAsync(), true);
+        install = ModernUI.Button(updating ? "更新" + BigBlueFish.Windows.CompanionEdition.DisplayName : "安裝" + BigBlueFish.Windows.CompanionEdition.DisplayName, async () => await InstallClickedAsync(), true);
         install.HorizontalAlignment = HorizontalAlignment.Right; Actions.Children.Add(install);
         Closing += (_, e) => { if (working) e.Cancel = true; };
         if (updating) Loaded += async (_, _) => await InstallClickedAsync();
@@ -95,10 +95,10 @@ internal sealed class InstallerForm : ModernWindow
             var identity = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(target.ToUpperInvariant())))[..24];
             installLock = new System.Threading.Mutex(false, "Local\\BigBlueFish.Install." + identity);
             try { ownsLock = installLock.WaitOne(0); } catch (System.Threading.AbandonedMutexException) { ownsLock = true; }
-            if (!ownsLock) throw new IOException("此目录已有一个安装程序正在工作，请等待它完成。");
+            if (!ownsLock) throw new IOException("這個資料夾已有一個安裝程式正在執行，請等它完成。");
             if (updating)
             {
-                status.Text = "正在等待桌宠退出…";
+                status.Text = "正在等待桌寵結束…";
                 if (waitPid > 0)
                 {
                     try { using var previous = Process.GetProcessById(waitPid); using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(40)); await previous.WaitForExitAsync(timeout.Token); }
@@ -106,7 +106,7 @@ internal sealed class InstallerForm : ModernWindow
                 }
             }
             EnsureNotRunning(target);
-            status.Text = "正在安装程序文件…"; progress.IsIndeterminate = true;
+            status.Text = "正在安裝程式檔案…"; progress.IsIndeterminate = true;
             await Task.Run(() =>
             {
                 UpdateTransaction.Recover(target);
@@ -123,7 +123,7 @@ internal sealed class InstallerForm : ModernWindow
                 model.ShowDialog();
                 if (!model.Completed) ModelStore.Save(ApplicationData.DirectoryFor(target), new ModelStore.Selection("none", null, null));
             }
-            status.Text = "安装完成，正在启动蓝色大肥鱼…"; progress.Value = 100;
+            status.Text = "安裝完成，正在啟動" + BigBlueFish.Windows.CompanionEdition.DisplayName + "…"; progress.Value = 100;
             if (!applicationStarted) Launch(target);
             working = false; Close();
         }
@@ -133,8 +133,8 @@ internal sealed class InstallerForm : ModernWindow
             {
                 try { EnsureNotRunning(installedTarget); Launch(installedTarget); } catch { }
             }
-            status.Text = "安装未完成，可以重试。";
-            ModernUI.Error(this, "安装未完成", error);
+            status.Text = "安裝未完成，可以重試。";
+            ModernUI.Error(this, "安裝未完成", error);
         }
         finally
         {
@@ -145,7 +145,7 @@ internal sealed class InstallerForm : ModernWindow
     }
 
     private static Process Launch(string target) => Process.Start(new ProcessStartInfo(Path.Combine(target, "BigBlueFish.exe"))
-        { WorkingDirectory = target, UseShellExecute = true }) ?? throw new IOException("未能启动蓝色大肥鱼。");
+        { WorkingDirectory = target, UseShellExecute = true }) ?? throw new IOException("未能啟動" + BigBlueFish.Windows.CompanionEdition.DisplayName + "。");
 
     internal static void LaunchAndVerify(string target)
     {
@@ -156,9 +156,9 @@ internal sealed class InstallerForm : ModernWindow
         {
             var watch = Stopwatch.StartNew();
             while (!process.HasExited && !File.Exists(ready) && watch.Elapsed < TimeSpan.FromSeconds(30)) System.Threading.Thread.Sleep(100);
-            if (process.HasExited || !File.Exists(ready)) throw new IOException("新版本未能正常启动，正在恢复原版本。");
+            if (process.HasExited || !File.Exists(ready)) throw new IOException("新版本未能正常啟動，正在還原舊版本。");
             System.Threading.Thread.Sleep(1000);
-            if (process.HasExited) throw new IOException("新版本启动后退出，正在恢复原版本。");
+            if (process.HasExited) throw new IOException("新版本啟動後就結束了，正在還原舊版本。");
         }
         catch
         {
@@ -174,7 +174,7 @@ internal sealed class InstallerForm : ModernWindow
             using (process)
             {
                 try { if (string.Equals(process.MainModule?.FileName, Path.Combine(target, "BigBlueFish.exe"), StringComparison.OrdinalIgnoreCase))
-                        throw new IOException("请先退出此目录中正在运行的蓝色大肥鱼，再继续安装。"); }
+                        throw new IOException("請先結束這個資料夾中正在執行的" + BigBlueFish.Windows.CompanionEdition.DisplayName + "，再繼續安裝。"); }
                 catch (System.ComponentModel.Win32Exception) { }
             }
         }
@@ -210,7 +210,7 @@ internal sealed class InstallerForm : ModernWindow
             var path = Path.GetFullPath(Path.Combine(target, relative));
             if (!path.StartsWith(target.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
                 StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("安装包包含无效路径。");
+                throw new InvalidDataException("安裝程式包含無效的路徑。");
             return path;
         }
         static bool Preserved(string relative) => ApplicationData.IsDataFile(relative);
@@ -246,20 +246,20 @@ internal sealed class InstallerForm : ModernWindow
 
     internal static Stream OpenPayload(string? installerPath = null)
     {
-        var self = installerPath ?? Environment.ProcessPath ?? throw new InvalidOperationException("无法定位安装程序。");
+        var self = installerPath ?? Environment.ProcessPath ?? throw new InvalidOperationException("找不到安裝程式的位置。");
         var stream = new FileStream(self, FileMode.Open, FileAccess.Read, FileShare.Read);
-        if (stream.Length < 8 + PayloadMarker.Length) throw new InvalidDataException("安装程序不完整。");
+        if (stream.Length < 8 + PayloadMarker.Length) throw new InvalidDataException("安裝程式不完整。");
         stream.Seek(-8, SeekOrigin.End);
         Span<byte> lengthBytes = stackalloc byte[8];
         stream.ReadExactly(lengthBytes);
         var length = BitConverter.ToInt64(lengthBytes);
         var markerOffset = stream.Length - 8 - PayloadMarker.Length;
         var payloadOffset = markerOffset - length;
-        if (length <= 0 || markerOffset < 0 || payloadOffset < 0) throw new InvalidDataException("安装程序数据不完整。");
+        if (length <= 0 || markerOffset < 0 || payloadOffset < 0) throw new InvalidDataException("安裝程式資料不完整。");
         stream.Seek(markerOffset, SeekOrigin.Begin);
         var marker = new byte[PayloadMarker.Length];
         stream.ReadExactly(marker);
-        if (!marker.AsSpan().SequenceEqual(PayloadMarker)) throw new InvalidDataException("安装程序数据标记不匹配。");
+        if (!marker.AsSpan().SequenceEqual(PayloadMarker)) throw new InvalidDataException("安裝程式資料標記不符。");
         stream.Seek(payloadOffset, SeekOrigin.Begin);
         return new LimitedStream(stream, length);
     }
@@ -279,7 +279,7 @@ internal sealed class InstallerForm : ModernWindow
             shortcut.Arguments = arguments;
             shortcut.WorkingDirectory = target;
             shortcut.IconLocation = Path.Combine(target, "BigBlueFish.ico") + ",0";
-            shortcut.Description = "蓝色大肥鱼桌宠";
+            shortcut.Description = BigBlueFish.Windows.CompanionEdition.DisplayName + "桌寵";
             shortcut.Save();
         }
         catch

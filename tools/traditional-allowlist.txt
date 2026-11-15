@@ -35,3 +35,7 @@ tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble t
 # l1-pet
 code/BigBlueFish.Windows/Companion/CompanionScreenSearch.cs	個符合的項目	find_on_screen note: 項目 means matched items here (Taiwan usage), not a project
 code/BigBlueFish.Linux/LinuxScreenSearch.cs	個符合的項目	find_on_screen note: 項目 means matched items here (Taiwan usage), not a project
+
+# l2-settings
+code/BigBlueFish.Linux/LinuxWeatherSettings.cs	進行公眾釋出	prescribed attribution wording of the Open Government Data License (data.gov.tw/license), quoted verbatim
+code/BigBlueFish.Windows/Companion/CompanionMenus.cs	進行公眾釋出	prescribed attribution wording of the Open Government Data License (data.gov.tw/license), quoted verbatim

@@ -34,7 +34,7 @@ public partial class MainWindow
         weather.Click += async (_, _) => { companionContextMenu.IsOpen = false; await SpeakCompanionWeather(); };
         companionContextMenu.Items.Add(settings);
         companionContextMenu.Items.Add(weather);
-        var test = new MenuItem { Header = "吐字測試" };
+        var test = new MenuItem { Header = "說話測試" };
         test.Icon = Icon("\uE8F2");
         test.Click += async (_, _) => { companionContextMenu.IsOpen = false; await SpeakCompanionTest(); };
         companionContextMenu.Items.Add(test);
@@ -134,7 +134,7 @@ public partial class MainWindow
         try
         {
             if (weather) { weatherRequestPending = true; BeginModelSpeech(); }
-            else ShowCompanionNotice("主人，正在請 Agent 回應這次吐字測試～", true, true);
+            else ShowCompanionNotice("主人，正在請 Agent 回應這次說話測試～", true, true);
             string context = weather ? await brain.GetWeatherContext(System.Threading.CancellationToken.None) : "";
             if (companionClosed || exitAnimation) return true;
             bool accepted = agent?.ManualSpeech(weather, context) == true;

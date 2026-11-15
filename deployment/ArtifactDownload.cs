@@ -56,7 +56,7 @@ internal static class ArtifactDownload
                 int read;
                 try { read = await input.ReadAsync(buffer, idle.Token); }
                 catch (OperationCanceledException) when (!token.IsCancellationRequested)
-                { throw new IOException("下載連線暫時沒有響應。"); }
+                { throw new IOException("下載連線暫時沒有回應。"); }
                 if (read == 0) break;
                 await output.WriteAsync(buffer.AsMemory(0, read), token);
                 received += read; progress?.Report(new Progress(received, total));

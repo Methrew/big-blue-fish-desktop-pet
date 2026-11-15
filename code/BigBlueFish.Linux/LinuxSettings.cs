@@ -22,16 +22,18 @@ internal sealed partial class LinuxPetWindow
 #if COMPANION_MAC
     // A LaunchAgent labelled with this edition's bundle identifier (MacLoginItem). Refused while the app runs from a
     // translocated or read-only location; the switch then shows the real state again.
+    const string StartupLabel = "登入時自動開啟";
     bool StartupEnabled => MacLoginItem.Enabled;
     void SetStartup(bool on)
     {
         try { MacLoginItem.Set(on); }
         catch (Exception error) {
-            if (!consentOpen) _ = Confirm("登入時啟動", error.Message, "知道了");
+            if (!consentOpen) _ = Confirm(StartupLabel, error.Message, "知道了");
             Dispatcher.UIThread.Post(() => refreshLinuxSettings?.Invoke());
         }
     }
 #else
+    const string StartupLabel = "開機時啟動";
     static string AutostartFile => Path.Combine(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config"), "autostart/bigbluefish.desktop");
     bool StartupEnabled => File.Exists(AutostartFile);
     void SetStartup(bool on)
@@ -62,9 +64,9 @@ internal sealed partial class LinuxPetWindow
         FontFamily = LinuxFonts.Interface, FontSize = 14,
         WindowStartupLocation = WindowStartupLocation.CenterScreen, Background = new SolidColorBrush(Color.FromRgb(247, 248, 251)),
         Content = new Border { Padding = new Thickness(28), Child = content } };
-    async Task<bool> Confirm(string title, string message, string accept = "确定", CancellationToken token = default, string reject = "取消")
+    async Task<bool> Confirm(string title, string message, string accept = "確定", CancellationToken token = default, string reject = "取消")
     {
-        if (consentOpen) throw new InvalidOperationException("请先处理已打开的提示窗口。");
+        if (consentOpen) throw new InvalidOperationException("請先處理已開啟的提示視窗。");
         consentOpen = true; bool accepted = false;
         try {
             var panel = new StackPanel { Spacing = 15 };
@@ -85,7 +87,7 @@ internal sealed partial class LinuxPetWindow
         var root = new Grid { ColumnDefinitions = new ColumnDefinitions("180,*") };
         var navigation = new StackPanel { Spacing = 10, Margin = new Thickness(0, 0, 20, 0) };
         var body = new StackPanel { Spacing = 8 }; var scroll = new ScrollViewer { Content = body }; Grid.SetColumn(scroll, 1); root.Children.Add(navigation); root.Children.Add(scroll);
-        settings = Dialog("蓝色大肥鱼 · 设置", root, 880, 700); settings.MinWidth = 780; settings.MinHeight = 600;
+        settings = Dialog(CompanionEdition.DisplayName + " · 設定", root, 880, 700); settings.MinWidth = 780; settings.MinHeight = 600;
         settings.Closed += (_, _) => { disposeLogConsole?.Invoke(); disposeLogConsole = null; settings = null; refreshLinuxSettings = null; DiagnosticLog.Write(DiagnosticEvent.SettingsClosed); Save(); nextEvent = DateTime.UtcNow.AddSeconds(Preferences.AnimationIntervalSeconds); };
         Action selectedPage = General;
         void Navigate(Action page) { selectedPage = page; page(); }
@@ -101,10 +103,10 @@ internal sealed partial class LinuxPetWindow
             combo.SelectionChanged += (_, _) => { if (combo.SelectedIndex >= 0) { set(combo.SelectedIndex); Save(); } }; body.Children.Add(combo); return combo;
         }
         void General() {
-            Title("桌宠与显示"); Slider("桌宠大小（%）", Preferences.Scale * 100, 50, 200, value => { Preferences.Scale = value / 100; Rescale(); Clamp(); }, 5);
-            Slider("文字气泡大小（%）", Preferences.BubbleScale * 100, 50, 200, value => { Preferences.BubbleScale = value / 100; MoveBubble(); }, 5);
-            Toggle("开机启动", StartupEnabled, SetStartup); Toggle("全屏时自动隐藏桌宠", Preferences.HideOnFullscreen, value => { Preferences.HideOnFullscreen = value; ApplySettings(); });
-            Select("气泡驻留时间", CompanionPreferences.BubbleDurationLabels, Preferences.BubbleDurationIndex, value => { Preferences.BubbleDurationIndex = value; ResetDwell(); });
+            Title("桌寵與顯示"); Slider("桌寵大小（%）", Preferences.Scale * 100, 50, 200, value => { Preferences.Scale = value / 100; Rescale(); Clamp(); }, 5);
+            Slider("文字氣泡大小（%）", Preferences.BubbleScale * 100, 50, 200, value => { Preferences.BubbleScale = value / 100; MoveBubble(); }, 5);
+            Toggle(StartupLabel, StartupEnabled, SetStartup); Toggle("全螢幕時自動隱藏桌寵", Preferences.HideOnFullscreen, value => { Preferences.HideOnFullscreen = value; ApplySettings(); });
+            Select("氣泡駐留時間", CompanionPreferences.BubbleDurationLabels, Preferences.BubbleDurationIndex, value => { Preferences.BubbleDurationIndex = value; ResetDwell(); });
             AddPlatformGeneralOptions(body);
         }
         void Model() {
@@ -113,40 +115,40 @@ internal sealed partial class LinuxPetWindow
             LocalModelOnly(Toggle("使用 GPU 加速（只對本機模型有效）", Preferences.GpuEnabled, value => { Preferences.GpuEnabled = value; ApplySettings(); }));
             var deviceStatus = Paragraph(""); body.Children.Add(deviceStatus);
             var deviceClock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            void UpdateDevice() => deviceStatus.Text = "推理裝置：" + brain.ExecutionDevice;
+            void UpdateDevice() => deviceStatus.Text = "推論裝置：" + brain.ExecutionDevice;
             deviceClock.Tick += (_, _) => UpdateDevice();
             deviceStatus.AttachedToVisualTree += (_, _) => { UpdateDevice(); deviceClock.Start(); };
             deviceStatus.DetachedFromVisualTree += (_, _) => deviceClock.Stop();
-            LocalModelOnly(Toggle("筆電使用電池時暫停模型（只對本機模型有效）", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); }));
-            Toggle("联网获取天气和科技新闻", Preferences.PublicInfo, value => Preferences.PublicInfo = value);
-            Toggle("感知当前前台应用", Preferences.ForegroundEnabled, value => Preferences.ForegroundEnabled = value);
+            LocalModelOnly(Toggle("筆電拔掉電源時暫停模型（只對本機模型有效）", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); }));
+            Toggle("連網取得天氣和科技新聞", Preferences.PublicInfo, value => Preferences.PublicInfo = value);
+            Toggle("感知目前使用的程式", Preferences.ForegroundEnabled, value => Preferences.ForegroundEnabled = value);
 #if !COMPANION_SAFE
             body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型時，會傳送到上面填寫的伺服器。由 Agent 編寫日常關心時，會提供前景視窗截圖給 Agent。"));
 #endif
-            body.Children.Add(ActionButton(brain.ModelAvailable ? "管理本地模型" : "安装模型", async () => await InstallModel()));
-            var frequency = Select("自动说话间隔", CompanionPreferences.SpeechRanges.Select(r => $"{r.Min}–{r.Max} 分钟").ToArray(), Preferences.SpeechRangeIndex, value => { Preferences.SpeechMinMinutes = CompanionPreferences.SpeechRanges[value].Min; nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); });
+            body.Children.Add(ActionButton(brain.ModelAvailable ? "管理本機模型" : "安裝模型", async () => await InstallModel()));
+            var frequency = Select("自動說話間隔", CompanionPreferences.SpeechRanges.Select(r => $"{r.Min}–{r.Max} 分鐘").ToArray(), Preferences.SpeechRangeIndex, value => { Preferences.SpeechMinMinutes = CompanionPreferences.SpeechRanges[value].Min; nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); });
             frequency.IsEnabled = !Puppet;
-            body.Children.Add(Paragraph(Puppet ? "日常关心的触发时机已交给 Agent，此时说话间隔不可调节。关闭接管触发后恢复使用此设置。" : AgentDailyActive ? "鱼鱼按此间隔触发日常关心，由 Agent 编写吐字。" : "魚魚依這個間隔觸發日常關心，由模型編寫要說的話。"));
+            body.Children.Add(Paragraph(Puppet ? "日常關心的觸發時機已交給 Agent，此時說話間隔不可調整。關閉接管後會恢復使用此設定。" : AgentDailyActive ? "魚魚按此間隔觸發日常關心，由 Agent 編寫要說的話。" : "魚魚按此間隔觸發日常關心，由模型編寫要說的話。"));
             BuildWeatherSettings(body);
         }
         void Animation() {
-            Title("动作与作息"); Slider("动作触发间隔（秒）", Preferences.AnimationIntervalSeconds, 30, 300, value => { Preferences.AnimationIntervalSeconds = (int)value; nextEvent = DateTime.UtcNow.AddSeconds(value); });
+            Title("動作與作息"); Slider("動作觸發間隔（秒）", Preferences.AnimationIntervalSeconds, 30, 300, value => { Preferences.AnimationIntervalSeconds = (int)value; nextEvent = DateTime.UtcNow.AddSeconds(value); });
             foreach (var meal in new[] { ("早餐", "BreakfastHour"), ("午餐", "LunchHour"), ("晚餐", "DinnerHour") }) {
                 var property = typeof(CompanionPreferences).GetProperty(meal.Item2)!;
-                Slider(meal.Item1 + "时间（时）", (int)property.GetValue(Preferences)!, 0, 23, value => property.SetValue(Preferences, (int)value));
+                Slider(meal.Item1 + "時間（時）", (int)property.GetValue(Preferences)!, 0, 23, value => property.SetValue(Preferences, (int)value));
             }
             BuildReminderSettings(body);
         }
         void About() { Title("關於與更新"); BuildAbout(body); }
-        navigation.Children.Add(ActionButton("桌宠与显示", () => Navigate(General))); navigation.Children.Add(ActionButton("模型与信息", () => Navigate(Model))); navigation.Children.Add(ActionButton("动作与作息", () => Navigate(Animation)));
+        navigation.Children.Add(ActionButton("桌寵與顯示", () => Navigate(General))); navigation.Children.Add(ActionButton("模型與資訊", () => Navigate(Model))); navigation.Children.Add(ActionButton("動作與作息", () => Navigate(Animation)));
 #if !COMPANION_SAFE
-        void Agent() { Title("连接 Agent"); BuildAgentSettings(body); }
-        navigation.Children.Add(ActionButton("连接 Agent", () => Navigate(Agent)));
+        void Agent() { Title("連線 Agent"); BuildAgentSettings(body); }
+        navigation.Children.Add(ActionButton("連線 Agent", () => Navigate(Agent)));
 #endif
-        navigation.Children.Add(ActionButton("关于与更新", () => Navigate(About)));
+        navigation.Children.Add(ActionButton("關於與更新", () => Navigate(About)));
         refreshLinuxSettings = () => { var offset = scroll.Offset; selectedPage(); scroll.Offset = offset; };
-        void Logs() { Title("日志控制台"); disposeLogConsole = BuildLogConsole(body); }
-        navigation.Children.Add(ActionButton("日志控制台", () => Navigate(Logs)));
+        void Logs() { Title("記錄主控台"); disposeLogConsole = BuildLogConsole(body); }
+        navigation.Children.Add(ActionButton("記錄主控台", () => Navigate(Logs)));
         DiagnosticLog.Write(DiagnosticEvent.SettingsOpened);
         General(); settings.Show(); settings.Activate();
     }

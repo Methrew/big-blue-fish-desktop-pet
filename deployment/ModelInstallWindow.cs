@@ -23,7 +23,7 @@ internal sealed class ModelInstallWindow : ModernWindow
     private readonly string directory;
     private ModelSource source = ModelStore.HuggingFace;
     private readonly RadioButton recommended = new() { Content = "Hugging Face（推薦）", GroupName = "ModelSource", IsChecked = true };
-    private readonly RadioButton domestic = new() { Content = "國內來源（穩定）", GroupName = "ModelSource" };
+    private readonly RadioButton domestic = new() { Content = "中國大陸鏡像（ModelScope）", GroupName = "ModelSource" };
     private readonly RadioButton manual = new() { Content = "手動安裝", GroupName = "ModelSource" };
     private readonly StackPanel manualPanel = new();
     private readonly TextBlock status = ModernUI.Text("");
@@ -41,7 +41,7 @@ internal sealed class ModelInstallWindow : ModernWindow
     private readonly Action<string>? openAddress;
     internal bool Completed { get; private set; }
 
-    internal ModelInstallWindow(string installationDirectory, HttpClient? client = null, Action<string>? openAddress = null) : base("安裝本機模型", "為魚魚準備本機模型", "兩個源的模型有所不同，但是均適合本應用。自動安裝會從 Hugging Face 或國內 ModelScope 下載約 2.7 GB 的模型。", 650, 630)
+    internal ModelInstallWindow(string installationDirectory, HttpClient? client = null, Action<string>? openAddress = null) : base("安裝本機模型", "為魚魚準備本機模型", "兩個來源的模型有所不同，但都適用於本程式。自動安裝會從 Hugging Face 或中國大陸的 ModelScope 下載約 2.7 GB 的模型。", 650, 630)
     {
         this.client = client; this.openAddress = openAddress;
         directory = Path.GetFullPath(installationDirectory); Directory.CreateDirectory(Path.Combine(directory, "models"));
@@ -53,7 +53,7 @@ internal sealed class ModelInstallWindow : ModernWindow
         manualPanel.Children.Add(new TextBox { Text = Path.Combine(directory, "models"), IsReadOnly = true, TextWrapping = TextWrapping.Wrap });
         var links = new WrapPanel();
         links.Children.Add(ModernUI.Button("開啟模型資料夾", () => Open(Path.Combine(directory, "models"))));
-        links.Children.Add(ModernUI.Button("國內模型頁面", () => Open(ModelStore.Domestic.Page)));
+        links.Children.Add(ModernUI.Button("ModelScope 頁面", () => Open(ModelStore.Domestic.Page)));
         links.Children.Add(ModernUI.Button("Hugging Face 頁面", () => Open(ModelStore.HuggingFace.Page)));
         links.Children.Add(ModernUI.Button("選擇已下載檔案", async () => await PickFile()));
         manualPanel.Children.Add(links); manualPanel.Visibility = Visibility.Collapsed;

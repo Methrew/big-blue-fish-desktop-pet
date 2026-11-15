@@ -26,7 +26,7 @@ internal static class UpdateService
         request.Headers.Accept.ParseAdd("application/vnd.github+json");
         using var response = await http.SendAsync(request, token);
         // No release published yet: only a manual check reports it, automatic checks stay silent.
-        if (response.StatusCode == HttpStatusCode.NotFound) throw new IOException("這個版本目前還沒有發布任何正式版本，之後再來看看。");
+        if (response.StatusCode == HttpStatusCode.NotFound) throw new IOException(BigBlueFish.Windows.CompanionEdition.DisplayName + "目前還沒有發布任何正式版本，之後再來看看。");
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
         var release = json.RootElement;
@@ -44,13 +44,13 @@ internal static class UpdateService
 #endif
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
         var installer = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name);
-        if (installer.ValueKind == JsonValueKind.Undefined) throw new IOException("新版本的安裝器暫未準備完成，請稍後重試。");
+        if (installer.ValueKind == JsonValueKind.Undefined) throw new IOException("新版本的安裝程式還沒準備好，請稍後再試一次。");
         string digest = installer.TryGetProperty("digest", out var value) ? value.GetString() ?? "" : "";
         string hash = digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) ? digest[7..] : "";
         if (!Regex.IsMatch(hash, "^[a-fA-F0-9]{64}$"))
         {
             var checksum = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name.Replace(".exe", ".sha256"));
-            if (checksum.ValueKind == JsonValueKind.Undefined) throw new IOException("新版本的校驗檔案暫未準備完成。");
+            if (checksum.ValueKind == JsonValueKind.Undefined) throw new IOException("新版本的校驗檔案還沒準備好。");
             using var checksumRequest = new HttpRequestMessage(HttpMethod.Get, checksum.GetProperty("browser_download_url").GetString());
             checksumRequest.Headers.UserAgent.ParseAdd("BigBlueFish/" + typeof(UpdateService).Assembly.GetName().Version!.ToString(3));
             using var checksumResponse = await http.SendAsync(checksumRequest, token); checksumResponse.EnsureSuccessStatusCode();

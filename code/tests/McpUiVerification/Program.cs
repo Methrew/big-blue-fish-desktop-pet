@@ -850,7 +850,7 @@ internal static class Program
         Wait(() => Member("mcpInput") != null, 4, opened);
         var inputWindow = (Window)Read("mcpInput"); Pump(150);
         var input = Descendants<TextBox>(inputWindow).Single();
-        const string hint = "通過魚魚和已連線的Agent說話";
+        const string hint = "透過魚魚和已連線的Agent說話";
         var placeholder = Descendants<TextBlock>(inputWindow).Single(t => t.Text == hint);
         Check(inputWindow.WindowStyle == System.Windows.WindowStyle.None && !inputWindow.ShowInTaskbar && inputWindow.Owner == pet && inputWindow.Topmost, "Input is a frameless pet attachment, without independent title bar or taskbar button");
         Check(inputWindow.Width <= 354 && inputWindow.Height <= 120 && placeholder.IsVisible && placeholder.Foreground == Brushes.Gray, "Compact input shows the exact gray placeholder while empty");
@@ -1052,7 +1052,7 @@ internal static class Program
         Check(!Descendants<Button>(disconnectedInput).Single(b => b.Content?.ToString() == "傳送").IsEnabled, "Disconnect disables sending in the already-open input");
         Check(Descendants<TextBox>(disconnectedInput).Single().Text == "斷線時保留這條草稿", "Disconnect preserves unsent draft");
         Check(RemoveButtons(disconnectedInput).Length == 1, "Disconnect preserves unsent attachments");
-        Check(Descendants<TextBlock>(disconnectedInput).Any(t => t.Text == "Agent 已斷開，重新連線後可傳送。"), "The input says the client has gone");
+        Check(Descendants<TextBlock>(disconnectedInput).Any(t => t.Text == "Agent 已中斷連線，重新連線後可傳送。"), "The input says the client has gone");
         Check(!(bool)Invoke("TryOpenMcpInput")!, "Disconnected double-click cannot open chat");
         Check((bool)pet.GetType().GetProperty("PuppetActive", Access)!.GetValue(pet)! && (string)Read("currentAction") == "待机呼吸休闲", "Disconnect keeps puppet mode and fixed idle");
         using (new Client())

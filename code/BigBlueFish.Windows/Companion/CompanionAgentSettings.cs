@@ -65,7 +65,7 @@ public partial class MainWindow
         extra.Children.Add(puppet); extra.Children.Add(ModernUI.Text(ControlTools.BehaviorControlDescription));
         var wake = ModernUI.Text(""); extra.Children.Add(wake);
         var chatLogAll = new CheckBox { Content = "聊天記錄顯示魚魚說過的所有話", IsChecked = preferences.ChatLogShowAll, Margin = new(0, 10, 0, 5) };
-        extra.Children.Add(chatLogAll); extra.Children.Add(ModernUI.Text("在輸入框上往上捲動就能查看聊天記錄。預設只顯示主人說的話，以及前後相鄰的魚魚那一句。"));
+        extra.Children.Add(chatLogAll); extra.Children.Add(ModernUI.Text("在輸入框上往上捲動就能看到聊天記錄。預設只顯示主人說的話，以及前後相鄰的魚魚那一句。"));
         chatLogAll.Click += (_, _) => { preferences.ChatLogShowAll = chatLogAll.IsChecked == true; SaveCompanion(); };
         extra.Children.Add(ModernUI.Button("編輯人設", () => EditAgentPersona(owner)));
         var details = new TextBlock { TextWrapping = TextWrapping.Wrap, Foreground = Brushes.SlateGray };

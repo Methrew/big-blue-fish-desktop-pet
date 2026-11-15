@@ -21,13 +21,14 @@ public sealed class AgentWorkspaceStore
         this.root = Path.GetFullPath(root); statePath = Path.Combine(this.root, "workspace-state.json");
         string documents = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         if (string.IsNullOrEmpty(documents)) documents = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Documents");
-        string fallback = Path.GetFullPath(defaultWorkspace ?? DefaultWorkspace(documents));
+        // Worked out only when nothing is saved: DefaultWorkspace looks into Documents, which macOS guards.
+        WorkspaceState Initial() { string fallback = Path.GetFullPath(defaultWorkspace ?? DefaultWorkspace(documents)); return new(fallback, [fallback]); }
         try
         {
             var saved = JsonSerializer.Deserialize<WorkspaceState>(File.ReadAllText(statePath));
-            state = saved == null ? new(fallback, [fallback]) : new(Normalize(saved.Current), (saved.Recent ?? []).Where(p => !string.IsNullOrWhiteSpace(p) && Path.IsPathFullyQualified(p)).Select(Normalize).ToArray());
+            state = saved == null ? Initial() : new(Normalize(saved.Current), (saved.Recent ?? []).Where(p => !string.IsNullOrWhiteSpace(p) && Path.IsPathFullyQualified(p)).Select(Normalize).ToArray());
         }
-        catch (Exception e) when (e is IOException or JsonException or ArgumentException) { state = new(fallback, [fallback]); }
+        catch (Exception e) when (e is IOException or JsonException or ArgumentException) { state = Initial(); }
     }
     // New installs get this edition's folder; the original edition's folder keeps being used where it already exists
     // and this one does not. A workspace the user chose is in workspace-state.json and never comes through here.

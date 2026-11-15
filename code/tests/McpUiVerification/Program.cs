@@ -1119,7 +1119,7 @@ internal static class Program
                 "Sending through the Agent publishes user_message with its attachment and clears the input");
             // The fixture answers each message with say; let those turns end before the bubble checks below.
             Pump(500); Wait(() => Member("agent") is AgentCoordinator { Busy: false }, 30, "The Agent finishes the turns the messages started");
-            // With the MCP interface on but 雙擊與魚魚對話 off, what the user types for the Agent reaches no client of the interface.
+            // With the MCP interface on but 雙擊輸入交給 MCP 介面 off, what the user types for the Agent reaches no client of the interface.
             var interfacePrefs = Read("preferences");
             interfacePrefs.GetType().GetProperty("McpEnabled")!.SetValue(interfacePrefs, true); interfacePrefs.GetType().GetProperty("McpChatEnabled")!.SetValue(interfacePrefs, false);
             Invoke("InitializeMcp");
@@ -1129,9 +1129,23 @@ internal static class Program
                 input.Text = "只給內建 Agent 的話"; inputWindow.Activate(); input.Focus(); Pump(50);
                 SendWithCtrlEnter(); client.Data("get_settings"); outsider.Data("get_settings");
                 Check(UserMessages(client, agentBefore).Length == 1 && UserMessages(outsider, outsiderBefore).Length == 0,
-                    "Without 雙擊與魚魚對話 the Agent's input stays off the MCP interface");
+                    "Without 雙擊輸入交給 MCP 介面 the Agent's input stays off the MCP interface");
                 Pump(500); Wait(() => Member("agent") is AgentCoordinator { Busy: false }, 30, "The Agent finishes that turn too");
             }
+            // With it on and a client of the interface there, the input goes to that client only: the Agent gets no turn and
+            // its private pipe no user_message, so the two never both answer.
+            interfacePrefs.GetType().GetProperty("McpChatEnabled")!.SetValue(interfacePrefs, true);
+            using (var outsider = new Client())
+            {
+                outsider.Data("get_settings"); // initialized before the message goes out
+                int agentBefore = client.Events.Count, outsiderBefore = outsider.Events.Count;
+                input.Text = "只給 MCP 介面的話"; inputWindow.Activate(); input.Focus(); Pump(50);
+                SendWithCtrlEnter(); client.Data("get_settings"); outsider.Data("get_settings");
+                Check(UserMessages(client, agentBefore).Length == 0 && UserMessages(outsider, outsiderBefore).Length == 1
+                    && Member("agent") is AgentCoordinator { Busy: false } && Descendants<TextBlock>(inputWindow).Any(t => t.Text == "已傳送給 MCP 介面"),
+                    "With 雙擊輸入交給 MCP 介面 on the input reaches only the MCP interface");
+            }
+            interfacePrefs.GetType().GetProperty("McpChatEnabled")!.SetValue(interfacePrefs, false);
             interfacePrefs.GetType().GetProperty("McpEnabled")!.SetValue(interfacePrefs, false); Invoke("StopMcp");
             Check(Member("mcpInterface") == null && Member("agent") is AgentCoordinator { Connected: true }, "Switching the MCP interface off again keeps the Agent connected");
             keybd_event(0x1B,0,0,UIntPtr.Zero); keybd_event(0x1B,0,2,UIntPtr.Zero); Pump(100);

@@ -33,14 +33,22 @@ internal sealed partial class LinuxPetWindow
         ScrollViewer.SetVerticalScrollBarVisibility(console, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         ScrollViewer.SetHorizontalScrollBarVisibility(console, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto); panel.Children.Add(console);
         long revision = -1;
+        var shownIds = new Dictionary<string, string>(StringComparer.Ordinal);
         void Refresh()
         {
             if (revision == DiagnosticLog.Revision) return;
             revision = DiagnosticLog.Revision; var snapshot = DiagnosticLog.Snapshot();
-            console.Text = string.Join(Environment.NewLine, snapshot.Select(x => x.ToString()));
-            if (follow.IsChecked == true) console.CaretIndex = console.Text.Length;
+            // Animation ids are the clips' Simplified file names: shown in Traditional here, kept as they are in the saved TXT.
+            console.Text = string.Join(Environment.NewLine, snapshot.Select(x => ActionId().Replace(x.ToString(),
+                m => "action=" + (shownIds.TryGetValue(m.Groups[1].Value, out var shown) ? shown : shownIds[m.Groups[1].Value] = CompanionTraditional.Convert(m.Groups[1].Value)))));
+            // The caret at the start of the last line: the box scrolls to the bottom but stays at the first column, where
+            // each line's time, level and event are (the end of a long last line would scroll it sideways).
+            if (follow.IsChecked == true) console.CaretIndex = console.Text.LastIndexOf('\n') + 1;
             count.Text = $"{snapshot.Length} / {DiagnosticLog.Capacity} 筆 · INFO / WARN · 自動重新整理";
         }
         var clock = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) }; clock.Tick += (_, _) => Refresh(); Refresh(); clock.Start(); return clock.Stop;
     }
+
+    [System.Text.RegularExpressions.GeneratedRegex(@"action=([^;]+)")]
+    private static partial System.Text.RegularExpressions.Regex ActionId();
 }

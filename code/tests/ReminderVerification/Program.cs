@@ -113,6 +113,27 @@ Said? First(List<Said> said, string kind, string? text = null) => said.FirstOrDe
     Check(desktop.Count == 0, "desktop without battery: nothing about power");
     var straight = Run("battery found at 9%", new(), T("10:00"), T("10:30"), [At("10:00", "10:30")], defaults with { SitMinutes = 0, Meals = false }, _ => (false, 9));
     Check(straight.Count == 1 && straight[0].Text.StartsWith("電量只剩 9%"), "battery found at 9%: one warning, not a 20% one after it");
+    // Charged overnight with the lid closed (or the fish closed): power is never seen connected, the next day starts full.
+    var evening = new CompanionReminders();
+    var told = Run("battery, evening", evening, T("20:00"), T("20:10"), [At("20:00", "20:10")], defaults with { SitMinutes = 0, Meals = false, LateHour = -1 }, _ => (false, 20));
+    var restarted = new CompanionReminders(evening.Remembered);
+    var morning = Run("battery, next day", restarted, T("09:00", 1), T("16:00", 1), [At("09:00", "16:00", 1, 1)], defaults with { SitMinutes = 0, Meals = false, LateHour = -1 },
+        t => (false, Math.Max(5, 100 - (int)(t - T("09:00", 1)).TotalMinutes / 4)));
+    var nextDay = morning.Where(entry => entry.Kind == "battery").ToList();
+    Check(told.Count == 1 && nextDay.Count == 2 && nextDay[0].Text.StartsWith("電量剩 20%") && nextDay[1].Text.StartsWith("電量只剩 10%"),
+        "charged while asleep and restarted: the next day's 20% and 10% are told again");
+    // Said at 10% (which also covers 20%), then charged unseen: both come back once each.
+    var low = new CompanionReminders();
+    Run("battery at 10%", low, T("10:00"), T("10:05"), [At("10:00", "10:05")], defaults with { SitMinutes = 0, Meals = false }, _ => (false, 10));
+    low.ObservePower(false, 100);
+    var again = Run("battery after an unseen charge", low, T("13:00"), T("15:00"), [At("13:00", "15:00")], defaults with { SitMinutes = 0, Meals = false },
+        t => (false, Math.Max(5, 40 - (int)(t - T("13:00")).TotalMinutes / 3)));
+    Check(again.Count(entry => entry.Kind == "battery" && entry.Text.StartsWith("電量剩 20")) == 1 && again.Count(entry => entry.Kind == "battery" && entry.Text.StartsWith("電量只剩")) == 1,
+        "said at 10%, charged unseen: 20% and 10% are each told once more");
+    var wavering = new CompanionReminders();
+    var waver = Run("battery wavering around 20%", wavering, T("10:00"), T("11:00"), [At("10:00", "11:00")], defaults with { SitMinutes = 0, Meals = false },
+        t => (false, (int)(t - T("10:00")).TotalMinutes % 2 == 0 ? 20 : 21));
+    Check(waver.Count(entry => entry.Kind == "battery") == 1, "a level wavering between 20% and 21% is told once");
 }
 
 // 5. Rain on the way (CWA forecast text as CompanionWeather writes it), refreshed in the afternoon.

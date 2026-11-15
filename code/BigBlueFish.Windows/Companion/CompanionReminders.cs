@@ -123,9 +123,18 @@ internal sealed class CompanionReminders
     internal Reminder? Next(Moment now, Settings settings, bool observe = true)
     {
         if (observe) Observe(now.Local, now.IdleSeconds);
-        if (now.OnAC) { said.Remove("battery:20"); said.Remove("battery:10"); }
+        ObservePower(now.OnAC, now.Battery);
         if (now.IdleSeconds >= Present.TotalSeconds || Recent(lastSaid, now.Local, Spacing)) return null;
         return Battery(now, settings) ?? Late(now, settings) ?? Meal(now, settings) ?? RainSoon(now, settings) ?? Sit(now, settings);
+    }
+
+    // The low-battery reminders count again once the battery is charged: power seen connected, or a charge well above
+    // the 20% mark (a laptop charged while asleep or while the fish was closed is never seen on AC). The window calls
+    // this on its own every few seconds, whether or not a reminder may speak then; 30% keeps a level that wavers
+    // around 20% from repeating the reminder.
+    internal void ObservePower(bool onAC, int? battery)
+    {
+        if (onAC || battery is >= 30) { said.Remove("battery:20"); said.Remove("battery:10"); }
     }
 
     internal void Said(Reminder reminder, DateTime local)

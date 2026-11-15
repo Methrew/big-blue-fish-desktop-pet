@@ -19,7 +19,7 @@ internal sealed partial class LinuxPetWindow
     // progress bubble at least every 15 seconds, and a reply wants reading).
     static readonly TimeSpan AgentQuiet = TimeSpan.FromSeconds(60);
     CompanionReminders? reminders;
-    long nextObservation, nextReminder, nextMemorySave, observedAt;
+    long nextObservation, nextReminder, nextMemorySave, nextPowerCheck, observedAt;
     bool reminderMemoryHooked;
     // SayExternal's last bubble (UTC).
     DateTime externalSaidAt = DateTime.MinValue;
@@ -49,6 +49,8 @@ internal sealed partial class LinuxPetWindow
         // meanwhile). Only MCP: the built-in Agent is not woken up for it, a return is no reason to pay for a turn.
         if (Reminders.TakeReturn() is { Break: { } pause } back)
             PublishInteraction("user_returned", new { breakMinutes = (int)Math.Round(pause.TotalMinutes), since = ReminderIso(back.At - pause), at = ReminderIso(back.At), watching = back.Watching });
+        // Charging is noticed even while no reminder may speak (hidden, full screen, settings open).
+        if (ticks >= nextPowerCheck) { nextPowerCheck = ticks + 10_000; Reminders.ObservePower(CompanionNative.OnAC, CompanionNative.BatteryPercent); }
         if (App.Args.Contains("--test-mode")) WriteReminderTestStatus(idle);
         // The stretch under way survives a restart of the fish (an update, a crash) shorter than a break.
         if (ticks < nextMemorySave) return;

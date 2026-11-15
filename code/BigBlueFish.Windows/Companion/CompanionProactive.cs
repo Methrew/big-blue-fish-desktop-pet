@@ -20,7 +20,7 @@ public partial class MainWindow
     private static readonly TimeSpan AgentQuiet = TimeSpan.FromSeconds(60);
     private CompanionReminders? reminders;
     // On Environment.TickCount64, which no clock change moves: the wall clock set back would stall these.
-    private long nextObservation, nextReminder, nextMemorySave, observedAt;
+    private long nextObservation, nextReminder, nextMemorySave, nextPowerCheck, observedAt;
     // --test-mode only: a shifted wall clock and a fixed idle time, so a test can visit lunchtime or midnight.
     private TimeSpan reminderClockShift;
     private double? reminderIdleOverride;
@@ -45,6 +45,8 @@ public partial class MainWindow
         // Agents hear when the user is back after a break (the Hermes bridge greets and tells what happened meanwhile).
         if (Reminders.TakeReturn() is { Break: { } pause } back)
             PublishMcpInteraction("user_returned", new { breakMinutes = (int)Math.Round(pause.TotalMinutes), since = Iso(back.At - pause), at = Iso(back.At), watching = back.Watching });
+        // Charging is noticed even while no reminder may speak (hidden, full screen, settings open).
+        if (ticks >= nextPowerCheck) { nextPowerCheck = ticks + 10_000; Reminders.ObservePower(CompanionNative.OnAC, CompanionNative.BatteryPercent); }
         // The stretch under way survives a restart of the fish (an update, a crash) shorter than a break.
         if (ticks < nextMemorySave) return;
         nextMemorySave = ticks + 60_000;

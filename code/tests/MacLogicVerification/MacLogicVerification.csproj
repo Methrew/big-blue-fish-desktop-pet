@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- macOS edition logic that needs no window or permission: run `dotnet bin/Release/net10.0/MacLogicVerification.dll` on a Mac. -->
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><DefineConstants>$(DefineConstants);COMPANION_MAC</DefineConstants></PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionInferenceDevices.cs" Link="Shared/CompanionInferenceDevices.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionAnimationPolicy.cs" Link="Shared/CompanionAnimationPolicy.cs" />
+    <Compile Include="../../BigBlueFish.Mac/MacLoginPath.cs" Link="Mac/MacLoginPath.cs" />
+    <Compile Include="../../BigBlueFish.Mac/MacWindowRules.cs" Link="Mac/MacWindowRules.cs" />
+    <ProjectReference Include="../../BigBlueFish.Agent/BigBlueFish.Agent.csproj" />
+  </ItemGroup>
+</Project>

@@ -31,3 +31,7 @@ code/run-hermes-bridge.sh	蓝色大肥鱼.app	the original edition's app, search
 
 # Test input.
 tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble text proving the packaged app shows it in Taiwan Traditional
+
+# l1-pet
+code/BigBlueFish.Windows/Companion/CompanionScreenSearch.cs	個符合的項目	find_on_screen note: 項目 means matched items here (Taiwan usage), not a project
+code/BigBlueFish.Linux/LinuxScreenSearch.cs	個符合的項目	find_on_screen note: 項目 means matched items here (Taiwan usage), not a project

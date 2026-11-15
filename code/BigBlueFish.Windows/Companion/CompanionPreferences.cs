@@ -79,7 +79,7 @@ internal sealed class CompanionPreferences
     public int LunchHour { get; set; } = 12;
     public int DinnerHour { get; set; } = 18;
     public string? LastBrushDate { get; set; }
-    // The fish's own reminders (CompanionReminders, Windows only): minutes of use before a break reminder (0 = off)
+    // The fish's own reminders (CompanionReminders; Windows, and LinuxProactive on Linux and macOS): minutes of use before a break reminder (0 = off)
     // and the hour from which a late night is mentioned (-1 = off).
     public int SitReminderMinutes { get; set; } = 60;
     public bool MealReminder { get; set; } = true;

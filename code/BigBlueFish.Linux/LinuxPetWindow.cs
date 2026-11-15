@@ -170,7 +170,7 @@ internal sealed partial class LinuxPetWindow : Window
             nextPhase == "Drag" ? 1.5 : 0, nextPhase == "Drag" ? 6 : null, rule.Pool == "Greeting" ? 1.5 : 1);
     }
     void Idle() => Play(Puppet ? policy.Find("待机呼吸休闲") : policy.Choose("Idle", Context(), random), Puppet ? "PuppetIdle" : "Idle");
-    bool PlayQueued() { if (externalActions.Count == 0) return false; moveRule = null; Play(policy.Find(externalActions.Dequeue()), "External"); return true; }
+    bool PlayQueued() { if (externalActions.Count == 0 || Touring) return false; moveRule = null; Play(policy.Find(externalActions.Dequeue()), "External"); return true; }
     void Finished()
     {
         DiagnosticLog.Write(DiagnosticEvent.AnimationCompleted, kind: phase, action: currentAction);
@@ -274,6 +274,7 @@ internal sealed partial class LinuxPetWindow : Window
         if (full && !fullscreenHidden && !hidden) { fullscreenHidden = true; Hide(); bubbleWindow.Hide(); speechVersion++; brain.CancelGeneration(); }
         else if (!full && fullscreenHidden) { fullscreenHidden = false; if (!hidden) { Show(); Clamp(); } }
         player.Paused = hidden || fullscreenHidden;
+        ObserveActivity();
         TickAgent(now);
         if (hidden || fullscreenHidden) return;
         if (typing)
@@ -283,6 +284,7 @@ internal sealed partial class LinuxPetWindow : Window
             if (count == textBoundaries.Length) { typing = false; ResetDwell(); }
         }
         if (now >= bubbleUntil) bubbleWindow.Hide();
+        if (Remind(now)) return;
         if (Puppet || dragging || settings != null || modelInstalling || now < nextSpeech) return;
         if (nextExternalText == null && !AgentDailyActive && (generating || brain.Busy || !Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower)) return;
         if (CompanionNative.IdleSeconds < 8 || CompanionNative.IdleSeconds > 600) { nextSpeech = now.AddSeconds(30); return; }
@@ -310,7 +312,7 @@ internal sealed partial class LinuxPetWindow : Window
         }
         finally { generating = false; loading.IsVisible = false; }
     }
-    void SayExternal(string text) { speechVersion++; brain.CancelGeneration(); loading.IsVisible = false; ShowText(text, true); }
+    void SayExternal(string text) { speechVersion++; brain.CancelGeneration(); loading.IsVisible = false; ShowText(text, true); externalSaidAt = DateTime.UtcNow; }
     async Task SpeakManual(bool weather)
     {
         if (closed || phase == "Exit") return;

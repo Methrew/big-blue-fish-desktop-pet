@@ -45,6 +45,7 @@ internal static partial class CompanionNative
     {
         get
         {
+            if (TestPowerOverride is { } forced) return forced;
             if (App.Args.Contains("--test-mode") && App.Args.Contains("--test-battery")) return false;
             try {
                 var info = IOPSCopyPowerSourcesInfo(); if (info == IntPtr.Zero) return true;
@@ -112,8 +113,7 @@ internal static partial class CompanionNative
         return $"前台应用：{window.Owner}\n窗口标题：{window.Title}";
     }
     // The foreground window covers a whole display (kept as a cover test, which tolerates windows larger than the display).
-    internal static bool IsFullscreen() { var current = Snapshot(); return current.Pid != 0 && current.Pid != Environment.ProcessId && current.Fullscreen; }
-    internal static double IdleSeconds => CGEventSourceSecondsSinceLastEventType(1, uint.MaxValue);
+    internal static bool IsFullscreen() { if (TestFullscreenOverride is { } forced) return forced; var current = Snapshot(); return current.Pid != 0 && current.Pid != Environment.ProcessId && current.Fullscreen; }
     internal static CompanionWindowImage Encode(SKBitmap bitmap, int maximum)
     {
         double scale = Math.Min(1d, maximum / (double)Math.Max(bitmap.Width, bitmap.Height));

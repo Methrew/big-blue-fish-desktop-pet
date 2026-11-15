@@ -28,7 +28,7 @@ internal sealed record CompanionWindowImage(string DataUrl, int Width, int Heigh
 {
     internal void SaveJpeg(string path) => File.WriteAllBytes(path, Convert.FromBase64String(DataUrl[(DataUrl.IndexOf(',') + 1)..]));
 }
-internal static class CompanionNative
+internal static partial class CompanionNative
 {
     static readonly object gate = new();
     static readonly IntPtr display = XOpenDisplay(IntPtr.Zero);
@@ -38,6 +38,7 @@ internal static class CompanionNative
     {
         get
         {
+            if (TestPowerOverride is { } forced) return forced;
             if (App.Args.Contains("--test-mode") && App.Args.Contains("--test-battery")) return false;
             try {
                 var supplies = Directory.GetDirectories("/sys/class/power_supply");
@@ -99,6 +100,7 @@ internal static class CompanionNative
     }
     internal static bool IsFullscreen()
     {
+        if (TestFullscreenOverride is { } forced) return forced;
         lock (gate) {
             var window = GetForegroundWindow();
             return window != IntPtr.Zero && Integers((ulong)window.ToInt64(), "_NET_WM_STATE").Contains(Atom("_NET_WM_STATE_FULLSCREEN"));

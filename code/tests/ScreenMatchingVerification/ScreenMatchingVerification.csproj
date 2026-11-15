@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- find_on_screen's and walk_to's shared name rules (CompanionScreenMatching) and the macOS search over made-up
+       snapshots (MacScreenSearch); with the path of a built runtime/BigBlueFish.MacScreen it also reads the real screen. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionScreenMatching.cs" Link="Shared/CompanionScreenMatching.cs" />
+    <Compile Include="../../BigBlueFish.Mac/MacScreenSearch.cs" Link="Mac/MacScreenSearch.cs" />
+  </ItemGroup>
+</Project>

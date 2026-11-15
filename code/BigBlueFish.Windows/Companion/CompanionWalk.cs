@@ -211,59 +211,11 @@ public partial class MainWindow
         return targets;
     }
 
-    // Ignoring case: the exact name, then the same name with or without its extension, then the one
-    // name containing the query, then a one-character slip (資源回收桶 for 資源回收筒) that no other name
-    // matches as well, so a typo costs no second call. Several names at one step are listed instead of
-    // picking whichever UI Automation happens to give first (報告1 against 報告10.docx and 報告1.pdf).
-    // files: the desktop's file names, when known, so an icon shown without its extension is taken for
-    // 報告1.docx only if that file is there (not 報告1.pdf, nor a folder 報告1).
+    // The rules are shared with the macOS app (CompanionScreenMatching.MatchDesktopItem); the icons keep their WPF rectangles here.
     private static (Rect Pixels, string Name) MatchDesktopItem(IReadOnlyList<(string Name, Rect Bounds)> items, string query, IReadOnlyCollection<string>? files)
     {
-        static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
-        (Rect, string)? One(List<(string Name, Rect Bounds)> found, string several)
-        {
-            if (found.Count == 0) return null;
-            var names = found.Select(i => i.Name).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
-            if (names.Length > 1) throw new ArgumentException($"有 {names.Length} 個桌面圖示的名稱{several}「{query}」，請用完整名稱指定其中一個：{string.Join("、", names.Take(12))}");
-            // Extensions hidden: 報告.docx and 報告.pdf both show as 報告, and nothing on the screen tells them apart.
-            if (found.Count > 1)
-                throw new ArgumentException($"桌面上有 {found.Count} 個圖示都叫「{names[0]}」（副檔名被隱藏），從名稱分不出是哪一個。它們在 "
-                    + string.Join("、", found.Select(f => $"x={f.Bounds.X + f.Bounds.Width / 2:0}, y={f.Bounds.Y + f.Bounds.Height / 2:0}, width={f.Bounds.Width:0}, height={f.Bounds.Height:0}"))
-                    + "。可以用 stops 每個都跑，或用 capture_screen 從圖示分辨。");
-            return (found[0].Bounds, found[0].Name);
-        }
-        // The extension one way only: 報告1 finds 報告1.docx and 報告1.docx finds an icon shown as 報告1, but 報告1.pdf never
-        // stands in for 報告1.docx, and a version number is no extension ("Python 3" is not "Python 3.12").
-        var bare = CompanionScreenSearch.Stem(query);
-        bool hiddenThere = bare == query || files == null || files.Contains(query, StringComparer.OrdinalIgnoreCase);
-        if (One(items.Where(i => Same(i.Name, query)).ToList(), "是") is { } exact) return exact;
-        if (One(items.Where(i => Same(CompanionScreenSearch.Stem(i.Name), query) || hiddenThere && Same(i.Name, bare)).ToList(), "去掉副檔名後都是") is { } stem) return stem;
-        // A number in the query is a whole number in the name: 報告1 is not part of 報告10.docx.
-        if (One(items.Where(i => WholeNumbers(i.Name, query)).ToList(), "包含") is { } part) return part;
-        // Two characters or fewer, one wrong one is half the name: too much of a guess. Nor is a different
-        // number a slip: 報告2 is another file than 報告1.
-        if (query.EnumerateRunes().Count() >= 3
-            && items.Where(i => CompanionScreenSearch.EditDistance(i.Name, query) == 1 && Digits(i.Name) == Digits(query)).ToList() is { Count: > 0 } close
-            && close.Select(i => i.Name).Distinct(StringComparer.OrdinalIgnoreCase).Count() == 1)
-            return One(close, "接近")!.Value;
-        if (items.Count == 0) throw new ArgumentException("桌面上沒有可辨識的圖示。");
-        // Only names close enough to be what was meant; listing unrelated ones invites a wrong guess.
-        int reach = Math.Max(2, query.Length / 3);
-        var near = items.Select(i => i.Name).Distinct().Select(n => (Name: n, Distance: CompanionScreenSearch.EditDistance(n, query))).Where(n => n.Distance <= reach)
-            .OrderBy(n => n.Distance).Take(8).Select(n => n.Name).ToArray();
-        throw new ArgumentException(near.Length == 0 ? $"桌面上沒有名為「{query}」或相近名稱的圖示。" : $"找不到名為「{query}」的桌面圖示。相近的名稱：{string.Join("、", near)}");
-    }
-
-    private static string Digits(string text) => new(text.Where(char.IsDigit).ToArray());
-
-    private static bool WholeNumbers(string name, string query)
-    {
-        for (int at = name.IndexOf(query, StringComparison.OrdinalIgnoreCase); at >= 0; at = name.IndexOf(query, at + 1, StringComparison.OrdinalIgnoreCase))
-        {
-            int end = at + query.Length;
-            if (!(char.IsDigit(query[0]) && at > 0 && char.IsDigit(name[at - 1])) && !(char.IsDigit(query[^1]) && end < name.Length && char.IsDigit(name[end]))) return true;
-        }
-        return false;
+        var (box, name) = CompanionScreenMatching.MatchDesktopItem(items.Select(i => (i.Name, CompanionScreenSearch.Box(i.Bounds))).ToList(), query, files);
+        return (new Rect(box.X, box.Y, box.Width, box.Height), name);
     }
 
     // Runs on the dispatcher. Whatever stops a walk (drag, click, interrupt_action, a new walk_to, hiding, settings)

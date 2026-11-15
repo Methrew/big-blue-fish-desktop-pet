@@ -135,6 +135,7 @@ internal sealed partial class LinuxPetWindow
                 var property = typeof(CompanionPreferences).GetProperty(meal.Item2)!;
                 Slider(meal.Item1 + "时间（时）", (int)property.GetValue(Preferences)!, 0, 23, value => property.SetValue(Preferences, (int)value));
             }
+            BuildReminderSettings(body);
         }
         void About() { Title("關於與更新"); BuildAbout(body); }
         navigation.Children.Add(ActionButton("桌宠与显示", () => Navigate(General))); navigation.Children.Add(ActionButton("模型与信息", () => Navigate(Model))); navigation.Children.Add(ActionButton("动作与作息", () => Navigate(Animation)));

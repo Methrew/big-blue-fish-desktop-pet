@@ -45,7 +45,7 @@ check(info.get("CFBundleDevelopmentRegion") == "zh_TW", "Taiwan development regi
 check(identity["Credits"] in info.get("NSHumanReadableCopyright", ""), "credits to the original author and the Taiwan edition")
 for name in ["BigBlueFish.Mac", "libcoreclr.dylib", "libhostfxr.dylib",
              "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard",
-             "runtime/BigBlueFish.MacOcr", "media/gstreamer/lib/libgstreamer-1.0.0.dylib"]:
+             "runtime/BigBlueFish.MacOcr", "runtime/BigBlueFish.MacScreen", "media/gstreamer/lib/libgstreamer-1.0.0.dylib"]:
     check((payload / name).is_file(), "bundled dependency: " + name)
 for name in ["BigBlueFish.Mcp", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dll"]:
     check((payload / name).is_file() == (args.edition == "Standard"), "edition isolation: " + name)
@@ -62,7 +62,7 @@ for name in ["licenses/jf-open-huninn-OFL.txt", "licenses/OpenCC-Apache-2.0.txt"
 check(b"LemiXiaoNaiPaoTi" not in program and not any(p.name.lower().replace("-", "").startswith("lemixiao") for p in payload.rglob("*")),
       "no Lemi font or license in the bundle")
 native = list(payload.rglob("*.dylib")) + [payload / n for n in [
-    "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr"]]
+    "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr", "runtime/BigBlueFish.MacScreen"]]
 if args.edition == "Standard":
     native.append(payload / "BigBlueFish.Mcp")
 names = {p.name for p in payload.rglob("*") if p.is_file()}
@@ -148,6 +148,10 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
                     pass
                 time.sleep(.25)
             check(status["text"] == "主人，我們一起乾杯吧！" and status["bubbleVisible"], "bubble shows Simplified text in Taiwan Traditional")
+            # The screen reader answers in JSON, Accessibility granted or not, and never prompts without --prompt.
+            screen = json.loads(subprocess.run([str(payload / "runtime/BigBlueFish.MacScreen"), "find", "windows"], stdout=subprocess.PIPE, check=True, timeout=30).stdout)
+            check(isinstance(screen.get("trusted"), bool) and len(screen.get("displays", [])) > 0 and isinstance(screen.get("windows"), list),
+                  "bundled screen reader lists the displays and windows")
             (data / "test-command.txt").write_text("exit")
             process.wait(timeout=15)
             check(process.returncode == 0, "application exits normally")

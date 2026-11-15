@@ -79,14 +79,16 @@ try:
     version=ET.parse(pathlib.Path(__file__).resolve().parents[3]/'Version.props').findtext('.//Version')
     # The bridge reports the numeric assembly version; Version.props may add the Taiwan revision (1.1.3-tw.1).
     check(init['serverInfo']['version']==version.split('-')[0],'real stdio bridge negotiates current version')
-    check(len(request('tools/list')['tools'])==17,'all MCP tools available')
-    # The tool list is shared with Windows; walk_to, find_on_screen and get_context are Windows-only and must say so on Linux.
+    names={t['name'] for t in request('tools/list')['tools']}
+    check(len(names)==15 and 'get_context' in names,'all MCP tools Linux supports are available')
+    # walk_to and find_on_screen need a reader of the screen's contents (Windows, macOS); Linux does not offer them.
+    check(not names & {'walk_to','find_on_screen'},'walk_to and find_on_screen are not offered on Linux')
     walk=request('tools/call',dict(name='walk_to',arguments=dict(x=1,y=1)))
-    check(walk.get('isError') and 'Linux' in walk['content'][0]['text'],'walk_to reports unsupported on Linux')
+    check(walk.get('isError'),'walk_to is refused on Linux')
     find=request('tools/call',dict(name='find_on_screen',arguments=dict(query='x')))
-    check(find.get('isError') and 'Linux' in find['content'][0]['text'],'find_on_screen reports unsupported on Linux')
-    context=request('tools/call',dict(name='get_context',arguments={}))
-    check(context.get('isError') and 'Linux' in context['content'][0]['text'],'get_context reports unsupported on Linux')
+    check(find.get('isError'),'find_on_screen is refused on Linux')
+    context=content('get_context')
+    check(context['summary'] and context['power']['onAC'] in (True,False) and context['openFolders']==[],'get_context reads the moment on Linux, without folders')
     check(len(content('list_actions'))==106,'same 106 production actions')
     # The bubble converts Simplified text to Taiwan Traditional; the Agent gets back exactly what it sent.
     said=content('say',text='主人，我们一起干杯吧！'); wait(lambda: state()['text']=='主人，我們一起乾杯吧！')

@@ -61,6 +61,8 @@ cp "$manifest" "$payload/media/gstreamer/runtime-manifest.json"
 # Native helpers: process-exit guard (shared with Linux) and Apple Vision OCR
 clang -O2 -Wall -Wextra -mmacosx-version-min=14.0 -o "$payload/runtime/BigBlueFish.RunnerGuard" "$root/code/BigBlueFish.Linux/runner-guard.c"
 swiftc -O -target arm64-apple-macos14.0 -o "$payload/runtime/BigBlueFish.MacOcr" "$root/code/BigBlueFish.Mac/mac-ocr.swift"
+# Window list and Accessibility reader for find_on_screen and walk_to
+swiftc -O -target arm64-apple-macos14.0 -o "$payload/runtime/BigBlueFish.MacScreen" "$root/code/BigBlueFish.Mac/mac-screen.swift"
 cp -a "$root/code/licenses" "$payload/"; cp "$root/code/LICENSE" "$root/code/THIRD-PARTY.md" "$payload/"
 
 # Bundle
@@ -83,6 +85,7 @@ cat > "$work/$title.app/Contents/Info.plist" <<EOF
 <key>NSLocalNetworkUsageDescription</key><string>使用遠端模型時，會連線到你在「設定 › 模型與資訊 › 模型來源」填寫的區域網路模型伺服器（例如 llama.cpp），不會搜尋或連線其他裝置。</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSAppleEventsUsageDescription</key><string>Agent 讀取目前狀況（get_context）時，${title}會詢問 Finder 開著哪些資料夾；只讀取視窗的資料夾路徑，不會修改檔案。</string>
 <key>NSHumanReadableCopyright</key><string>${credits}Apache-2.0；素材授權見 THIRD-PARTY.md。</string>
 </dict></plist>
 EOF

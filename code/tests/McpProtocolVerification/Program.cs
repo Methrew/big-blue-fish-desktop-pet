@@ -7,7 +7,8 @@ using BigBlueFish.Diagnostics;
 
 int checks = 0;
 void Check(bool condition, string label) { if (!condition) throw new Exception(label); checks++; }
-var pipe = "BigBlueFish.Verification." + Guid.NewGuid().ToString("N");
+// macOS keeps a relative pipe under the long $TMPDIR, past the 104-byte socket path limit; the pet's own pipes live in /tmp there too.
+var pipe = OperatingSystem.IsMacOS() ? "/tmp/bbf-verify-" + Guid.NewGuid().ToString("N")[..12] : "BigBlueFish.Verification." + Guid.NewGuid().ToString("N");
 using var server = new ControlServer((name, args, token) => Task.FromResult(ControlTools.Text(new { name, args })), pipe);
 var bridge = Path.GetFullPath(args[0]);
 Process Start() => Process.Start(new ProcessStartInfo(bridge) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
@@ -78,6 +79,10 @@ bool Rejected(Action parse) { try { parse(); return false; } catch (ArgumentExce
 Check(Rejected(() => ControlTools.OptionalNumber(sample, "word", 0, 1)) && Rejected(() => ControlTools.OptionalNumber(sample, "big", 0, 100))
     && Rejected(() => ControlTools.OptionalBool(sample, "x", true)) && Rejected(() => ControlTools.OptionalChoice(sample, "space", "screen"))
     && Rejected(() => ControlTools.OptionalText(sample, "word", 2)), "Invalid optional arguments are rejected");
+// The Hermes bridge marks its progress lines so the pet keeps them out of the chat history; plain say calls stay as they were.
+var sayInput = tools.Single(t => t.GetProperty("name").GetString() == "say").GetProperty("inputSchema");
+Check(sayInput.GetProperty("properties").GetProperty("transient").GetProperty("type").GetString() == "boolean"
+    && sayInput.GetProperty("required").EnumerateArray().Select(v => v.GetString()).SequenceEqual(new[] { "text" }), "say takes an optional transient flag");
 var settingSchema = tools.Single(t => t.GetProperty("name").GetString() == "update_settings").GetProperty("inputSchema").GetProperty("properties").GetProperty("settings");
 Check(!settingSchema.GetProperty("additionalProperties").GetBoolean(), "Settings schema rejects undocumented fields");
 var settingProperties = settingSchema.GetProperty("properties");
@@ -108,6 +113,16 @@ Check(notices.Any(n => n.TryGetProperty("method", out var m) && m.GetString() ==
 Check(notices.Any(n => n.TryGetProperty("method", out var m) && m.GetString() == "notifications/resources/updated"), "Subscription pushed");
 response = await Request(6, "tools/call", new { name = "unknown", arguments = new { } });
 Check(response.GetProperty("result").GetProperty("isError").GetBoolean(), "Unknown tool returns tool error");
+// A pet without some tools (macOS and Linux) leaves them out of tools/list and refuses them, as if they did not exist.
+ControlTools.Unavailable.UnionWith(["walk_to", "find_on_screen"]);
+response = await Request(6001, "tools/list");
+var offered = response.GetProperty("result").GetProperty("tools").EnumerateArray().Select(t => t.GetProperty("name").GetString()).ToList();
+Check(offered.Count == 15 && !offered.Contains("walk_to") && !offered.Contains("find_on_screen") && offered.Contains("get_context"), "Unavailable tools are left out of tools/list");
+response = await Request(6002, "tools/call", new { name = "walk_to", arguments = new { x = 1, y = 1 } });
+Check(response.GetProperty("result").GetProperty("isError").GetBoolean(), "An unavailable tool is refused like an unknown one");
+ControlTools.Unavailable.Clear();
+response = await Request(6003, "tools/list");
+Check(response.GetProperty("result").GetProperty("tools").GetArrayLength() == 17, "The full list returns once nothing is unavailable");
 response = await Request(7, "resources/read", new { uri = "other://wrong" });
 Check(response.GetProperty("error").GetProperty("code").GetInt32() == -32602, "Unknown resource rejected");
 response = await Request(8, "logging/setLevel", new { level = "not-a-level" });

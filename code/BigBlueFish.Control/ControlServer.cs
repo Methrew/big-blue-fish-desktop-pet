@@ -159,8 +159,8 @@ public sealed class ControlServer : IDisposable
                     instructions = "藍色大肥魚的控制工具，內建Agent連線與外部MCP客戶端共用。內建Agent使用big-blue-fish技能，完整指南可呼叫get_operation_guide；get_operation_guide、get_wakeups、schedule_wakeup與cancel_wakeup只供內建Agent連線使用。"
                         + "讓魚魚說話使用say或say_next，普通Agent文字不會進入氣泡；say/say_next顯示你提供的原文（Windows台灣版會把其中的簡體字轉成繁體），請使用台灣繁體中文與台灣用語。工具成功表示提交操作，不能當作主人已讀或動畫播放完成。"
                         + "先讀get_settings與工具schema，動作名稱取自list_actions；AnimationIntervalSeconds只接受30–300整數秒，SpeechMinMinutes是列舉檔位；要知道使用者此刻的狀況（時間、閒置、前景程式、電源、天氣）時讀get_context（Windows版）。預約喚醒由魚魚計時執行。"
-                        + "點選、拖曳及雙擊輸入的user_message（detail.text為原文，可為空字串；使用者附加檔案時另有detail.attachments，最多10項，每項含path本機絕對路徑、name、kind為image/video/file、mimeType、size位元組與source，只有路徑不含檔案內容，需要時以與使用者相同的權限讀取該路徑；貼上的截圖已先存成PNG；沒有附件時省略此欄位；路徑也會交給所有收到這則事件的客戶端；Windows版的MCP介面只在使用者開啟「雙擊與魚魚對話」時收到user_message）透過notifications/message推送，logger為bigbluefish.interaction、level為info（Windows版另有user_returned：使用者離開5分鐘以上後回到電腦前，detail含breakMinutes、since、at與watching（離開期間大多開著全螢幕程式，例如看片或用手把玩遊戲，可能只是在看，不是離開））；需接收info記錄，或訂閱並讀取bigbluefish://interactions。"
-                        + "內建Agent會另外經ACP收到同一則輸入與它負責回應的事件，不必再處理通知；外部客戶端自行安排收到事件後的模型呼叫，本服務不會自動啟動你的Agent輪次。資源只在記憶體中保留最近128筆事件，依sequence去除重複，斷線後不保證補齊。"
+                        + "點選、拖曳及雙擊輸入的user_message（detail.text為原文，可為空字串；使用者附加檔案時另有detail.attachments，最多10項，每項含path本機絕對路徑、name、kind為image/video/file、mimeType、size位元組與source，只有路徑不含檔案內容，需要時以與使用者相同的權限讀取該路徑；貼上的截圖已先存成PNG；沒有附件時省略此欄位；路徑也會交給所有收到這則事件的客戶端；雙擊輸入只交給一方：使用者開啟「雙擊輸入交給 MCP 介面」且MCP介面有客戶端連線時只交給MCP介面，內建Agent收不到，否則只交給內建Agent連線，MCP介面收不到user_message）透過notifications/message推送，logger為bigbluefish.interaction、level為info（Windows版另有user_returned：使用者離開5分鐘以上後回到電腦前，detail含breakMinutes、since、at與watching（離開期間大多開著全螢幕程式，例如看片或用手把玩遊戲，可能只是在看，不是離開））；需接收info記錄，或訂閱並讀取bigbluefish://interactions。"
+                        + "輸入交給內建Agent時，它另外經ACP收到同一則輸入與它負責回應的事件，不必再處理通知；外部客戶端自行安排收到事件後的模型呼叫，本服務不會自動啟動你的Agent輪次。資源只在記憶體中保留最近128筆事件，依sequence去除重複，斷線後不保證補齊。"
                         + "截圖會把螢幕內容交給目前客戶端；ForegroundEnabled僅控制內建模型讀取螢幕，不限制MCP截圖。截圖metadata附captureId、screen（來源矩形）、scale（影像畫素÷實體畫素）與pet（魚身矩形），皆以Windows實體畫素表示；walk_to的space=screen同樣是實體畫素虛擬桌面座標（與UI Automation及computer_use元素bounds相同，不是縮圖後的截圖畫素），space=capture則直接使用本服務截圖的影像座標。walk_to讓魚魚跑到目標旁並停在那裡，行走中state.animationPhase為WalkStart、WalkLoop或WalkStop。"
                         + "開啟PuppetMode（提線木偶模式）需真實使用者確認，等待期間其他控制與拖曳可繼續；中斷連線後模式仍會保持，需明確關閉才能恢復自主功能。修改設定不會開啟或啟用設定視窗。多個客戶端共享狀態和佇列，沒有獨佔鎖。" });
                 return Task.CompletedTask;
@@ -169,7 +169,7 @@ public sealed class ControlServer : IDisposable
             if (!Initialized) { Error(id, -32002, "MCP 尚未初始化。"); return Task.CompletedTask; }
             switch (method)
             {
-                case "tools/list": Result(id, new { tools = ControlTools.Definitions }); break;
+                case "tools/list": Result(id, new { tools = ControlTools.Available }); break;
                 case "resources/list": Result(id, new { resources = new[] { new { uri = "bigbluefish://interactions", name = "使用者互動與輸入", mimeType = "application/json" } } }); break;
                 case "resources/read":
                     if (!args.TryGetProperty("uri", out var uri) || uri.GetString() != "bigbluefish://interactions") Error(id, -32602, "未知資源。");
@@ -197,7 +197,7 @@ public sealed class ControlServer : IDisposable
             try
             {
                 var name = args.GetProperty("name").GetString()!;
-                if (!ControlTools.Definitions.Any(t => JsonSerializer.SerializeToElement(t).GetProperty("name").GetString() == name)) throw new ArgumentException("未知工具。");
+                if (!ControlTools.Available.Any(t => ControlTools.NameOf(t) == name)) throw new ArgumentException("未知工具。");
                 var parameters = args.TryGetProperty("arguments", out var a) ? a : JsonSerializer.SerializeToElement(new { });
                 DiagnosticLog.Write(DiagnosticEvent.McpTool, kind: name, state: "start");
                 var result = await owner.execute(name, parameters, cancel.Token);

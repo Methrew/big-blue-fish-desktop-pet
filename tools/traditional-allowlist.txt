@@ -31,3 +31,8 @@ code/run-hermes-bridge.sh	蓝色大肥鱼.app	the original edition's app, search
 
 # Test input.
 tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble text proving the packaged app shows it in Taiwan Traditional
+
+# l3-agent
+code/BigBlueFish.Control/ControlTools.cs	地點的代碼	WeatherRegionCode is an identifier; 代碼 is the Taiwan word for such a code
+code/BigBlueFish.Control/ControlTools.cs	鄉鎮市區代碼	township code of the CWA region table, an identifier
+code/BigBlueFish.Control/ControlTools.cs	無效代碼	an invalid region code, an identifier

@@ -48,9 +48,13 @@ internal static class CompanionOcr
     {
         var watch = new Stopwatch();
         var languages = OcrEngine.AvailableRecognizerLanguages;
-        var language = languages.FirstOrDefault(x => x.LanguageTag.StartsWith("zh", StringComparison.OrdinalIgnoreCase))
-            ?? languages.FirstOrDefault(x => x.LanguageTag.StartsWith("en", StringComparison.OrdinalIgnoreCase))
-            ?? languages.FirstOrDefault();
+        // Traditional Chinese first, as the Linux and macOS builds read Traditional text first: zh-Hant-TW, other
+        // zh-Hant, zh-TW/HK/MO tags, then any Chinese (Simplified), English, and whatever else is installed.
+        static int Rank(string tag) =>
+            tag.StartsWith("zh-Hant-TW", StringComparison.OrdinalIgnoreCase) ? 0 : tag.StartsWith("zh-Hant", StringComparison.OrdinalIgnoreCase) ? 1
+            : tag.StartsWith("zh-TW", StringComparison.OrdinalIgnoreCase) || tag.StartsWith("zh-HK", StringComparison.OrdinalIgnoreCase) || tag.StartsWith("zh-MO", StringComparison.OrdinalIgnoreCase) ? 2
+            : tag.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? 3 : tag.StartsWith("en", StringComparison.OrdinalIgnoreCase) ? 4 : 5;
+        var language = languages.OrderBy(x => Rank(x.LanguageTag)).FirstOrDefault();
         if (language == null)
             throw new IOException("Windows 尚未安裝文字辨識語言，請在語言設定中安裝中文（繁體或簡體）文字辨識");
         var engine = OcrEngine.TryCreateFromLanguage(new Language(language.LanguageTag))

@@ -464,7 +464,7 @@ internal sealed partial class LinuxPetWindow
         {
             var glyph = new Shape { Data = Geometry.Parse(item.Kind switch { "image" => ImageGlyph, "video" => VideoGlyph, _ => FileGlyph }), Stroke = Hair,
                 StrokeThickness = 1.2, StrokeJoin = PenLineJoin.Round, Width = 16, Height = 16, Stretch = Stretch.None, HorizontalAlignment = HorizontalAlignment.Center };
-            var label = new TextBlock { Text = item.Name, FontSize = 10, Foreground = Brushes.SlateGray, TextTrimming = TextTrimming.CharacterEllipsis,
+            var label = new TextBlock { Text = TileName(item.Name), FontSize = 10, Foreground = Brushes.SlateGray, TextTrimming = TextTrimming.CharacterEllipsis,
                 TextAlignment = TextAlignment.Center, Margin = new Thickness(3, 3, 3, 0) };
             var placeholder = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Children = { glyph, label } };
             var picture = new Image { Stretch = Stretch.UniformToFill, IsVisible = false };
@@ -481,6 +481,19 @@ internal sealed partial class LinuxPetWindow
             AutomationProperties.SetName(tile, item.Name);
             if (item.Kind == "image") _ = ShowThumbnail(item, picture, placeholder);
             return tile;
+        }
+
+        // About nine narrow characters fit under a tile (a Chinese one counts twice): a longer name keeps its start and its
+        // extension, so 測試….pdf and 筆記….txt stay apart; the tooltip has the whole path.
+        internal static string TileName(string name)
+        {
+            const int Room = 9;
+            static int Width(string text) => text.Sum(c => c < 0x1100 ? 1 : 2);
+            string extension = System.IO.Path.GetExtension(name), stem = name[..^extension.Length];
+            if (Width(name) <= Room || extension.Length is < 2 or > 6 || stem.Length == 0) return name;
+            int room = Room - Width(extension) - 1, kept = 0;
+            while (kept < stem.Length && Width(stem[..(kept + 1)]) <= room) kept++;
+            return kept == 0 ? name : stem[..kept] + "…" + extension;
         }
 
         async Task ShowThumbnail(McpAttachment item, Image picture, Avalonia.Controls.Control placeholder)

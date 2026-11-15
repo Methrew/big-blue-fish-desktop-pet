@@ -175,13 +175,15 @@ internal sealed partial class LinuxPetWindow
         return await Dispatcher.UIThread.InvokeAsync(async () => {
             if (closed || !Preferences.AgentEnabled || token.IsCancellationRequested) return null;
             var content = new StackPanel { Spacing = 12 };
-            string heading = request.Title.Length > 80 || request.Title.StartsWith('{') ? "Agent 要求執行操作" : request.Title;
+            // The title and the buttons come from the Agent: shown in Taiwan Traditional Chinese where AgentText knows them;
+            // a shell command stays exactly as it will run.
+            string heading = request.Title.Length > 80 || request.Title.StartsWith('{') ? "Agent 要求執行操作" : AgentText.LocalizeTitle(request.Title, request.Kind);
             content.Children.Add(new TextBlock { Text = heading, FontSize = 22, TextWrapping = Avalonia.Media.TextWrapping.Wrap });
             content.Children.Add(new ScrollViewer { Content = Paragraph(request.Detail.Length > 8000 ? request.Detail[..8000] : request.Detail), MaxHeight = 280 });
             var window = Dialog(request.Kind == "authentication" ? "Agent 登入驗證" : "Agent 要求權限", content, 700, 500); var choices = new WrapPanel(); content.Children.Add(choices);
             string? selected = null;
             var complete = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-            foreach (var option in request.Options) choices.Children.Add(ActionButton(option.Name, () => { selected = option.Id; window.Close(); }));
+            foreach (var option in request.Options) choices.Children.Add(ActionButton(AgentText.Localize(option.Name), () => { selected = option.Id; window.Close(); }));
             choices.Children.Add(ActionButton("取消", window.Close));
             window.Closed += (_, _) => complete.TrySetResult(token.IsCancellationRequested ? null : selected);
             using var registration = token.Register(() => Dispatcher.UIThread.Post(window.Close));

@@ -37,11 +37,14 @@ public sealed class AgentSessionConfiguration
                         foreach (var value in values.EnumerateArray())
                         {
                             if (value.ValueKind != JsonValueKind.Object) continue;
+                            // The Agent picker lists agents the user named and described: shown as written, but its own "default".
                             if (value.TryGetProperty("options", out var nested) && nested.ValueKind == JsonValueKind.Array)
-                                foreach (var entry in nested.EnumerateArray()) AddChoice(entry, Text(value, "name"), choices);
-                            else AddChoice(value, "", choices);
+                                foreach (var entry in nested.EnumerateArray()) AddChoice(entry, Text(value, "name"), choices, id == "agent");
+                            else AddChoice(value, "", choices, id == "agent");
                         }
-                    found.Add(new(id, Text(item, "name", id), Text(item, "description"), Text(item, "category"), type,
+                    // Names and descriptions are shown, so they are read in Taiwan Traditional Chinese where AgentText knows them;
+                    // ids and values go back to the Agent unchanged.
+                    found.Add(new(id, AgentText.LocalizeOption(Text(item, "name", id)), AgentText.LocalizeOption(Text(item, "description")), Text(item, "category"), type,
                         type == "boolean" ? current.GetBoolean().ToString().ToLowerInvariant() : current.GetString()!, choices.ToArray()));
                 }
                 options = found.DistinctBy(o => o.Id).ToArray(); Revision++; return;
@@ -58,7 +61,7 @@ public sealed class AgentSessionConfiguration
                     {
                         if (item.ValueKind != JsonValueKind.Object) continue;
                         string key = Text(item, category == "model" ? "modelId" : "id");
-                        if (key.Length > 0) choices.Add(new(key, Text(item, "name", key), Text(item, "description")));
+                        if (key.Length > 0) choices.Add(new(key, AgentText.LocalizeOption(Text(item, "name", key)), AgentText.LocalizeOption(Text(item, "description"))));
                     }
                 legacy.RemoveAll(o => o.Id == id);
                 if (current.Length > 0 || choices.Count > 0) legacy.Add(new(id, category == "model" ? "模型" : "權限／工作模式", "由目前的 Agent 提供", category, "select", current, choices.ToArray(), method));
@@ -68,10 +71,12 @@ public sealed class AgentSessionConfiguration
             options = legacy.ToArray(); Revision++;
         }
     }
-    private static void AddChoice(JsonElement item, string group, List<AgentConfigChoice> choices)
+    private static void AddChoice(JsonElement item, string group, List<AgentConfigChoice> choices, bool userNamed = false)
     {
         if (item.ValueKind != JsonValueKind.Object) return;
-        string value = Text(item, "value"); if (value.Length > 0) choices.Add(new(value, Text(item, "name", value), Text(item, "description"), group));
+        string value = Text(item, "value"); if (value.Length == 0) return;
+        Func<string, string> shown = userNamed && value != "default" ? text => text : AgentText.LocalizeOption;
+        choices.Add(new(value, shown(Text(item, "name", value)), shown(Text(item, "description")), AgentText.LocalizeOption(group)));
     }
     public void Notification(JsonElement update)
     {

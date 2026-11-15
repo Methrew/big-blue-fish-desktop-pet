@@ -85,9 +85,10 @@ internal sealed partial class LinuxPetWindow
             foreach (var option in options)
             {
                 string label = option.Category switch { "model" => "模型 · ", "mode" => "權限／工作模式 · ", "thought_level" => "思考深度 · ", _ => "" };
-                rows.Children.Add(Paragraph(label + option.Name));
+                // A translated name that only repeats the category (模型, 思考深度) is shown once.
+                rows.Children.Add(Paragraph(label == option.Name + " · " ? option.Name : label + option.Name));
                 if (option.Description.Length > 0) rows.Children.Add(Paragraph(option.Description));
-                if (option.Method.Length == 0) { rows.Children.Add(Paragraph(option.CurrentValue + " · 由 Agent 設定")); continue; }
+                if (option.Method.Length == 0) { rows.Children.Add(Paragraph((option.Choices.FirstOrDefault(c => c.Value == option.CurrentValue)?.Name ?? option.CurrentValue) + " · 由 Agent 設定")); continue; }
                 if (option.Type == "boolean")
                 {
                     var toggle = new CheckBox { Content = option.Name, IsChecked = option.CurrentValue == "true" };

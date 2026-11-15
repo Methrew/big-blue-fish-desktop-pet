@@ -281,6 +281,40 @@ try
     await Until(() => !host.Connected && server.Connections == 0, "disable closes owned ACP/MCP sessions");
 }
 finally { host?.Dispose(); Environment.SetEnvironmentVariable("PATH", oldPath); }
+// What an Agent sends for people to read is shown in Taiwan Traditional Chinese where AgentText knows it (the texts
+// below are claude-agent-acp's); ids, values, shell commands, user-named agents and model names stay as they are.
+Check(AgentText.Localize("Yes") == "允許" && AgentText.Localize("No") == "拒絕" && AgentText.Localize("Yes, allow all edits during this session") == "允許，這次對話中的編輯都不再詢問"
+    && AgentText.Localize("Yes, during this session") == "允許，這次對話中讀取檔案都不再詢問", "permission buttons in Traditional Chinese");
+Check(AgentText.LocalizeTitle("Write TypeC光碟機推薦.html", "edit") == "寫入 TypeC光碟機推薦.html" && AgentText.LocalizeTitle("Read /tmp/a.txt (from line 40)", "read") == "讀取 /tmp/a.txt（從第 40 行起）"
+    && AgentText.LocalizeTitle("Search \"新聞\"", "fetch") == "搜尋「新聞」" && AgentText.LocalizeTitle("Write Notes — Draft.md", "edit") == "寫入 Notes — Draft.md",
+    "file, read and search titles translated, names kept");
+Check(AgentText.LocalizeTitle("task", "execute") == "task" && AgentText.LocalizeTitle("git commit -m \"Refactor — Read config lazily\"", "execute") == "git commit -m \"Refactor — Read config lazily\""
+    && AgentText.LocalizeTitle("Write unit tests for parser", "think") == "Write unit tests for parser" && AgentText.LocalizeTitle("Task", "think") == "工作"
+    && AgentText.LocalizeTitle("Write a.txt", "") == "Write a.txt", "shell commands, sub-agent descriptions and unknown kinds stay as sent");
+Check(AgentText.Localize("Yes, and don't ask again for git and npm commands") == "允許，之後 git、npm 指令都不再詢問"
+    && AgentText.Localize("Yes, and don't ask again for similar commands") == "允許，之後類似的指令都不再詢問"
+    && AgentText.Localize("Yes, and always allow access to src/, docs/ and 3 more from this project") == "允許，這個專案之後都可以存取 src/、docs/ 和其他 3 個路徑"
+    && AgentText.Localize("Yes, and always allow access to similar from this project") == "允許，這個專案之後都可以存取類似的路徑"
+    && AgentText.Localize("Yes, allow all edits in Rock and Roll/ during this session") == "允許，這次對話中 Rock and Roll/ 裡的編輯都不再詢問"
+    && AgentText.Localize("Yes, allow all edits in this directory/ during this session") == "允許，這次對話中這個資料夾裡的編輯都不再詢問"
+    && AgentText.Localize("Yes, and allow src/, docs/ and 2 more access and git commands") == "允許，之後也可以存取 src/、docs/ 和其他 2 個路徑、執行 git 指令"
+    && AgentText.Localize("Yes, and don't ask again for Find and Replace commands") == "允許，之後 Find and Replace 指令都不再詢問"
+    && AgentText.Localize("Yes, clear context (42% used) and use auto mode") == "好，清除上下文（已用 42%）並改用自動模式", "permission texts with folders, commands and numbers");
+Check(AgentText.LocalizeOption("Faster responses on supported models — not available on the free plan") == "支援的模型會回應得更快（免費方案不提供）"
+    && AgentText.LocalizeOption("Opus") == "Opus" && AgentText.LocalizeOption("Write unit tests for new code") == "Write unit tests for new code" && AgentText.Localize("Something new") == "Something new",
+    "descriptions joined, proper nouns, free text and unknown text unchanged");
+var shown = new AgentSessionConfiguration();
+shown.Read(JsonSerializer.SerializeToElement(new { configOptions = new object[] {
+    new { id = "mode", name = "Mode", description = "Session permission mode", category = "mode", type = "select", currentValue = "acceptEdits",
+        options = new[] { new { value = "default", name = "Manual", description = "Always ask before making changes" }, new { value = "acceptEdits", name = "Accept edits", description = "Automatically accept all file edits" } } },
+    new { id = "effort", name = "Effort", category = "thought_level", type = "select", currentValue = "xhigh", options = new[] { new { value = "xhigh", name = "Xhigh", description = "" } } },
+    new { id = "agent", name = "Agent", description = "Main-thread agent persona", category = "", type = "select", currentValue = "default",
+        options = new[] { new { value = "default", name = "Default", description = "Standard Claude Code agent" }, new { value = "plan", name = "plan", description = "Write a plan first" } } } } }));
+Check(shown.Options[0].Name == "權限／工作模式" && shown.Options[0].Choices.Select(c => c.Name).SequenceEqual(["手動確認", "自動接受編輯"])
+    && shown.Options[0].Choices.Select(c => c.Value).SequenceEqual(["default", "acceptEdits"]) && shown.Options[0].CurrentValue == "acceptEdits"
+    && shown.Options[1].Name == "思考深度" && shown.Options[1].Choices[0].Name == "很高" && shown.Options[1].Choices[0].Value == "xhigh"
+    && shown.Options[2].Choices[0].Name == "預設" && shown.Options[2].Choices[1].Name == "plan" && shown.Options[2].Choices[1].Description == "Write a plan first",
+    "config option names translated, values and user-named agents unchanged");
 Console.WriteLine($"RESULT {passed} Agent checks passed; fixtures are not real model compatibility evidence.");
 
 static class Fixture

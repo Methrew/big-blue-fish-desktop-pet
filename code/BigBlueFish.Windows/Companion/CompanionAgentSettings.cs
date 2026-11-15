@@ -145,14 +145,16 @@ public partial class MainWindow
     {
         return await Dispatcher.InvokeAsync(async () => {
             if (companionClosed || !preferences.AgentEnabled || token.IsCancellationRequested) return null;
-            string heading = request.Title.Length > 80 || request.Title.StartsWith('{') ? "Agent 要求執行操作" : request.Title;
+            // The title and the buttons come from the Agent: shown in Taiwan Traditional Chinese where AgentText knows them;
+            // a shell command stays exactly as it will run.
+            string heading = request.Title.Length > 80 || request.Title.StartsWith('{') ? "Agent 要求執行操作" : AgentText.LocalizeTitle(request.Title, request.Kind);
             var dialog = new ModernWindow(request.Kind == "authentication" ? "Agent 登入驗證" : "Agent 要求權限", heading,
                 request.Detail.Length > 8000 ? request.Detail[..8000] : request.Detail, 700, 540);
             if (companionSettings?.IsVisible == true) dialog.Owner = companionSettings;
             string? selected = null;
             var finished = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
             foreach (var option in request.Options)
-                dialog.Actions.Children.Add(ModernUI.Button(option.Name, () => { selected = option.Id; dialog.Close(); }));
+                dialog.Actions.Children.Add(ModernUI.Button(AgentText.Localize(option.Name), () => { selected = option.Id; dialog.Close(); }));
             dialog.Actions.Children.Add(ModernUI.Button("取消", dialog.Close));
             dialog.Closed += (_, _) => finished.TrySetResult(token.IsCancellationRequested ? null : selected);
             using var registration = token.Register(() => Dispatcher.BeginInvoke(() => dialog.Close()));

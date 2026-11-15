@@ -433,7 +433,7 @@ public sealed class AgentCoordinator : IDisposable
                         Report("等待驗證 · " + harness.Name, "請選擇這個 Agent 提供的登入方式；已經登入的帳號會由官方元件沿用。");
                         string? selected = await permission(new AgentPermission("選擇 " + harness.Name + " 的登入方式",
                             "現有的 CLI 登入和 ACP 驗證方式分開處理。請選擇你正在使用的帳號方式，之後的驗證由 Agent 的官方元件完成。\n"
-                                + string.Join("\n", choices.Select(c => c.Name + "：" + c.Description + (c.Type == "terminal"
+                                + string.Join("\n", choices.Select(c => AgentText.Localize(c.Name) + "：" + AgentText.Localize(c.Description) + (c.Type == "terminal"
                                     ? (c.ReplaceArguments ? "\n會開啟登入終端機；登入參數：" : "\n會開啟登入終端機；附加參數：") + JsonSerializer.Serialize(c.Arguments) + "\n環境變數：" + JsonSerializer.Serialize(c.Environment) : ""))),
                             choices.Select(c => new AgentPermissionOption(c.Id, c.Name, "authentication")).ToArray(), "authentication"), token);
                         token.ThrowIfCancellationRequested();
@@ -548,7 +548,7 @@ public sealed class AgentCoordinator : IDisposable
         });
         own |= skillRead || request.Title.StartsWith("\"big-blue-fish\":", StringComparison.Ordinal);
         if (own && request.Options.FirstOrDefault(x => x.Kind == "allow_once") is { } allow) return Task.FromResult<string?>(allow.Id);
-        Report("等待你核准操作", request.Title);
+        Report("等待你核准操作", AgentText.LocalizeTitle(request.Title, request.Kind));
         return permission(request, token);
     }
 

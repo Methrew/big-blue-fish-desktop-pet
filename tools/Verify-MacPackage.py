@@ -41,7 +41,8 @@ for name in ["BigBlueFish.Mac", "libcoreclr.dylib", "libhostfxr.dylib",
     check((payload / name).is_file(), "bundled dependency: " + name)
 for name in ["BigBlueFish.Mcp", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dll"]:
     check((payload / name).is_file() == (args.edition == "Standard"), "edition isolation: " + name)
-check(len(list((payload / "assets/fish").glob("*.webm"))) == 106, "106 enhanced clips")
+# macOS always plays the 640x360 compatibility clips, so the 1280x720 clips are not bundled.
+check(not list((payload / "assets/fish").glob("*.webm")), "no enhanced clips in the macOS bundle")
 check(len(list((payload / "assets/fish/compat").glob("*.webm"))) == 106, "106 compatibility clips")
 native = list(payload.rglob("*.dylib")) + [payload / n for n in [
     "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr"]]

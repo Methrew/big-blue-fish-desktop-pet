@@ -19,6 +19,10 @@ internal sealed class CompanionPreferences
     public bool ForegroundEnabled { get; set; } = true;
     public bool StopModelOnBattery { get; set; } = true;
     public bool HideOnFullscreen { get; set; } = true;
+#if COMPANION_MAC
+    // The pet, its bubble and the input box on every desktop Space (Mission Control leaves them in place).
+    public bool ShowOnAllSpaces { get; set; } = true;
+#endif
     public bool CheckUpdatesOnStartup { get; set; } = true;
     public bool AgentEnabled { get; set; }
     public string AgentHarnessId { get; set; } = "codex";

@@ -36,6 +36,7 @@ internal sealed partial class LinuxPetWindow
         ConfigureAgent();
         Rescale(); var appliedPosition = Clamp(requestedPosition); nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); nextEvent = DateTime.UtcNow.AddSeconds(Preferences.AnimationIntervalSeconds); nextWarmup = DateTime.MinValue;
         if (!Preferences.HideOnFullscreen && fullscreenHidden) { fullscreenHidden = false; if (!hidden) Show(); }
+        ApplyPlatformSettings();
         if (bubbleWindow.IsVisible) ResetDwell();
         Preferences.Left = appliedPosition.X; Preferences.Top = appliedPosition.Y; Preferences.Save(); DiagnosticLog.ObserveSettings(Preferences);
     }
@@ -93,6 +94,7 @@ internal sealed partial class LinuxPetWindow
             Slider("文字气泡大小（%）", Preferences.BubbleScale * 100, 50, 200, value => { Preferences.BubbleScale = value / 100; MoveBubble(); }, 5);
             Toggle("开机启动", StartupEnabled, SetStartup); Toggle("全屏时自动隐藏桌宠", Preferences.HideOnFullscreen, value => { Preferences.HideOnFullscreen = value; ApplySettings(); });
             Select("气泡驻留时间", CompanionPreferences.BubbleDurationLabels, Preferences.BubbleDurationIndex, value => { Preferences.BubbleDurationIndex = value; ResetDwell(); });
+            AddPlatformGeneralOptions(body);
         }
         void Model() {
             Title("模型与信息"); Toggle("启用本地大模型", Preferences.ModelEnabled, value => { Preferences.ModelEnabled = value; ApplySettings(); });

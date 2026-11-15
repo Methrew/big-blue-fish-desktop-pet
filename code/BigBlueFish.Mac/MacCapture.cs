@@ -20,10 +20,14 @@ internal static class LinuxCapture
         {
             using var process = LinuxProcesses.Start(start); using var cancel = token.Register(() => { try { process.Kill(true); } catch { } });
             var errors = process.StandardError.ReadToEndAsync(token); await process.WaitForExitAsync(token);
-            if (process.ExitCode != 0 || !File.Exists(file)) throw new IOException("桌面截图未完成，请在“系统设置 › 隐私与安全性 › 录屏与系统录音”中允许蓝色大肥鱼。" + (await errors).Trim());
-            using var bitmap = SKBitmap.Decode(file) ?? throw new IOException("桌面截图未返回有效图像。");
-            if ((long)bitmap.Width * bitmap.Height > 150_000_000) throw new IOException("截图尺寸过大。");
-            return CompanionNative.Encode(bitmap, maximum);
+            if (process.ExitCode != 0 || !File.Exists(file)) throw CompanionNative.CaptureFailure((await errors).Trim());
+            // Decoding, scaling and encoding a Retina screenshot takes over 100 ms: off the UI thread, which presents the animation.
+            return await Task.Run(() =>
+            {
+                using var bitmap = SKBitmap.Decode(file) ?? throw new IOException("螢幕截圖沒有傳回有效的影像。");
+                if ((long)bitmap.Width * bitmap.Height > 150_000_000) throw new IOException("截圖尺寸過大。");
+                return CompanionNative.Encode(bitmap, maximum);
+            }, token);
         }
         finally { File.Delete(file); }
     }
@@ -33,9 +37,9 @@ internal sealed record CompanionWindowImage(string DataUrl, int Width, int Heigh
 {
     internal void SaveJpeg(string path) => File.WriteAllBytes(path, Convert.FromBase64String(DataUrl[(DataUrl.IndexOf(',') + 1)..]));
 }
-internal static class CompanionNative
+internal static partial class CompanionNative
 {
-    // Stands for the desktop, like the X11 root window: the frontmost app has no visible window.
+    // Stands for the desktop, like the X11 root window: Finder is frontmost without a visible window.
     internal static readonly IntPtr Desktop = new(-1);
     internal static bool OnAC
     {
@@ -49,47 +53,54 @@ internal static class CompanionNative
             } catch { return true; }
         }
     }
-    readonly record struct WindowInfo(long Id, int Pid, int Layer, string Owner, string Title, CGRect Bounds);
+    readonly record struct WindowInfo(long Id, int Pid, int Layer, string Owner, string Title, CGRect Bounds, double Alpha = 1, bool OnScreen = true);
     static readonly IntPtr NumberKey = Key("kCGWindowNumber"), PidKey = Key("kCGWindowOwnerPID"), LayerKey = Key("kCGWindowLayer"),
-        OwnerKey = Key("kCGWindowOwnerName"), NameKey = Key("kCGWindowName"), BoundsKey = Key("kCGWindowBounds");
+        OwnerKey = Key("kCGWindowOwnerName"), NameKey = Key("kCGWindowName"), BoundsKey = Key("kCGWindowBounds"),
+        AlphaKey = Key("kCGWindowAlpha"), OnScreenKey = Key("kCGWindowIsOnscreen");
     static IntPtr Key(string name) => CFStringCreateWithCString(IntPtr.Zero, name, 0x08000100);
-    // Front-to-back list of on-screen application windows (layer 0).
-    static List<WindowInfo> Windows()
+    // Front-to-back list of application windows (layer 0): all on-screen ones by default, or with
+    // kCGWindowListOptionIncludingWindow (8) the one window asked for. Owner and title strings are read only when asked for.
+    static List<WindowInfo> Windows(uint option = 1 | 16, uint relativeTo = 0, bool names = true)
     {
         var result = new List<WindowInfo>();
-        var array = CGWindowListCopyWindowInfo(1 | 16, 0); if (array == IntPtr.Zero) return result;
+        var array = CGWindowListCopyWindowInfo(option, relativeTo); if (array == IntPtr.Zero) return result;
         try
         {
             for (long i = 0, count = CFArrayGetCount(array); i < count; i++)
             {
                 var item = CFArrayGetValueAtIndex(array, i);
                 long Number(IntPtr key) { var value = CFDictionaryGetValue(item, key); return value != IntPtr.Zero && CFNumberGetValue(value, 4, out long number) ? number : 0; }
-                string Field(IntPtr key) { var value = CFDictionaryGetValue(item, key); return value == IntPtr.Zero ? "" : Text(value); }
+                string Field(IntPtr key) { var value = CFDictionaryGetValue(item, key); return !names || value == IntPtr.Zero ? "" : Text(value); }
                 var bounds = CFDictionaryGetValue(item, BoundsKey); CGRect rect = default;
                 if (bounds != IntPtr.Zero) CGRectMakeWithDictionaryRepresentation(bounds, out rect);
-                if (Number(LayerKey) == 0) result.Add(new(Number(NumberKey), (int)Number(PidKey), 0, Field(OwnerKey), Field(NameKey), rect));
+                var alpha = CFDictionaryGetValue(item, AlphaKey); var onScreen = CFDictionaryGetValue(item, OnScreenKey);
+                double opacity = alpha != IntPtr.Zero && CFNumberGetValue(alpha, 13, out double level) ? level : 1;
+                if (Number(LayerKey) == 0) result.Add(new(Number(NumberKey), (int)Number(PidKey), 0, Field(OwnerKey), Field(NameKey), rect, opacity, onScreen != IntPtr.Zero && CFBooleanGetValue(onScreen)));
             }
         }
         finally { CFRelease(array); }
         return result;
     }
+    // Current data of one window (an empty record once it is gone), without enumerating the others.
+    static WindowInfo Window(long id, bool names = true) => id is > 0 and <= uint.MaxValue ? Windows(8, (uint)id, names).FirstOrDefault() : default;
     static int FrontmostPid()
     {
         var application = Send(Send(Class("NSWorkspace"), "sharedWorkspace"), "frontmostApplication");
         return application == IntPtr.Zero ? 0 : SendInt(application, "processIdentifier");
     }
+    // From the foreground snapshot (at most 250 ms old): the frontmost app's window, Desktop when that app is Finder
+    // without a window, and IntPtr.Zero for any other app without a window (a menu bar app, a floating panel).
     internal static IntPtr GetForegroundWindow()
     {
-        int pid = FrontmostPid();
-        if (pid == 0 || pid == Environment.ProcessId) return IntPtr.Zero;
-        var window = Windows().FirstOrDefault(w => w.Pid == pid);
-        return window.Id == 0 ? Desktop : new IntPtr(window.Id);
+        var current = Snapshot();
+        if (current.Pid == 0 || current.Pid == Environment.ProcessId) return IntPtr.Zero;
+        return current.Window != 0 ? new IntPtr(current.Window) : current.Desktop ? Desktop : IntPtr.Zero;
     }
     internal static bool IsDesktopWindow(IntPtr handle) => handle == IntPtr.Zero || handle == Desktop;
     internal static IntPtr ResolveForeground(IntPtr current, IntPtr previous)
     {
-        var windows = Windows();
-        bool Valid(IntPtr handle) => handle == Desktop || handle != IntPtr.Zero && windows.Any(w => w.Id == handle.ToInt64() && w.Pid != Environment.ProcessId);
+        // One single-window query per candidate, with fresh data: still on screen and not the pet's own.
+        static bool Valid(IntPtr handle) => handle == Desktop || handle != IntPtr.Zero && Window(handle.ToInt64(), false) is { Id: > 0, OnScreen: true } window && window.Pid != Environment.ProcessId;
         if (Valid(current)) return current;
         if (Valid(previous)) return previous;
         return Desktop;
@@ -97,16 +108,11 @@ internal static class CompanionNative
     internal static string ForegroundIdentity(IntPtr handle)
     {
         if (IsDesktopWindow(handle)) return "前台窗口：macOS 桌面\n画面是壁纸与快捷方式。";
-        var window = Windows().FirstOrDefault(w => w.Id == handle.ToInt64());
+        var window = Window(handle.ToInt64());
         return $"前台应用：{window.Owner}\n窗口标题：{window.Title}";
     }
-    internal static bool IsFullscreen()
-    {
-        var handle = GetForegroundWindow(); if (IsDesktopWindow(handle)) return false;
-        var bounds = Windows().FirstOrDefault(w => w.Id == handle.ToInt64()).Bounds;
-        var displays = new uint[16]; if (CGGetActiveDisplayList(16, displays, out uint count) != 0) return false;
-        return displays.Take((int)count).Select(CGDisplayBounds).Any(d => bounds.X <= d.X && bounds.Y <= d.Y && bounds.X + bounds.Width >= d.X + d.Width && bounds.Y + bounds.Height >= d.Y + d.Height);
-    }
+    // The foreground window covers a whole display (kept as a cover test, which tolerates windows larger than the display).
+    internal static bool IsFullscreen() { var current = Snapshot(); return current.Pid != 0 && current.Pid != Environment.ProcessId && current.Fullscreen; }
     internal static double IdleSeconds => CGEventSourceSecondsSinceLastEventType(1, uint.MaxValue);
     internal static CompanionWindowImage Encode(SKBitmap bitmap, int maximum)
     {
@@ -116,17 +122,12 @@ internal static class CompanionNative
         return new("data:image/png;base64," + Convert.ToBase64String(png.ToArray()), image.Width, image.Height);
     }
     // AppKit has no input-shape region like XShape: let clicks through whenever the cursor is over a transparent pixel.
+    // The frame's alpha is kept, so the 40 ms tick re-evaluates it while no new frame arrives (MacWindowBehavior.cs).
     internal static void SetInputShape(IntPtr handle, byte[] pixels, int width, int height, double scale, bool mirror)
     {
-        if (handle == IntPtr.Zero) return;
-        var window = SendBool(handle, "respondsToSelector:", Selector("setIgnoresMouseEvents:")) ? handle : Send(handle, "window");
-        if (window == IntPtr.Zero || Send(Class("NSEvent"), "pressedMouseButtons") != IntPtr.Zero) return; // never drop a press or drag in progress
-        var mouse = SendPoint(Class("NSEvent"), "mouseLocation"); var frame = SendRect(window, "frame");
-        if (frame.Width <= 0 || frame.Height <= 0) return;
-        int x = (int)Math.Floor((mouse.X - frame.X) * width / frame.Width), y = (int)Math.Floor((frame.Y + frame.Height - mouse.Y) * height / frame.Height);
-        if (mirror) x = width - 1 - x;
-        bool opaque = x >= 0 && y >= 0 && x < width && y < height && pixels[(y * width + x) * 4 + 3] >= 8;
-        SendBool(window, "setIgnoresMouseEvents:", !opaque);
+        if (handle == IntPtr.Zero || width <= 0 || height <= 0 || pixels.Length < width * height * 4) return;
+        KeepShape(handle, pixels, width, height, mirror);
+        UpdatePointerPassThrough();
     }
     static string Text(IntPtr value)
     {

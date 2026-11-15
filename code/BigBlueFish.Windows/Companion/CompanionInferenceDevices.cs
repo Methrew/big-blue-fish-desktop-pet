@@ -33,9 +33,12 @@ internal sealed class CompanionInferenceDevices
         string id = buffer.Groups[1].Value;
         lock (gate)
         {
-            if (id is "CPU" or "CPU_Mapped") cpuWeights = true;
-            // Host buffers belong to system RAM; they do not establish GPU use.
-            else if (!id.EndsWith("_Host", StringComparison.Ordinal)) modelDevices.Add(id);
+            // CPU_Mapped (the mapped model file) and CPU_REPACK (weights repacked for the CPU's own kernels) are system RAM.
+            if (id == "CPU" || id.StartsWith("CPU_", StringComparison.Ordinal)) cpuWeights = true;
+            // Host buffers belong to system RAM; they do not establish GPU use. A mapped GPU buffer (Metal's MTL0_Mapped)
+            // is named after its device (MTL0), whose name the device line gives.
+            else if (!id.EndsWith("_Host", StringComparison.Ordinal))
+                modelDevices.Add(id.EndsWith("_Mapped", StringComparison.Ordinal) ? id[..^"_Mapped".Length] : id);
         }
     }
 

@@ -270,6 +270,7 @@ internal sealed partial class LinuxPetWindow
             else if (status.Text != "已发送给 Agent") status.Text = agent.Busy ? "Agent 正在处理…" : "Ctrl+Enter 发送";
         };
         mcpInput = dialog; dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; mcpInput = null; }; dialog.Opened += (_,_) => { text.Focus(); send.IsEnabled = false; };
+        dialog.Opened += (_, _) => ConfigurePlatformWindow(dialog);
         clock.Start(); Follow(); dialog.Activate(); return true;
     }
 #endif

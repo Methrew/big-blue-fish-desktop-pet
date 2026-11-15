@@ -249,6 +249,20 @@ var big = Busy();
 var clock = Stopwatch.StartNew();
 for (int i = 0; i < 5; i++) CompanionRemoteScreen.ToJpeg(big, 1568);
 Console.WriteLine($"INFO PNG to JPEG of a busy 1568×1000 window: {clock.Elapsed.TotalMilliseconds / 5:0} ms, {big.DataUrl.Length / 1024} KiB PNG -> {CompanionRemoteScreen.ToJpeg(big, 1568).DataUrl.Length / 1024} KiB JPEG (Base64)");
+// The weather request names the place as it should be said and, for 臺灣 and China (UTC+8), says when the data is today's.
+Check(CompanionBrain.WeatherPlace("TW-061-01") == "臺北市中正區", "weather place 臺北市中正區");
+Check(CompanionBrain.WeatherPlace("340104") == "安徽省合肥市蜀山區", "weather place in China");
+Check(CompanionBrain.WeatherPlace("500101") == "重慶市萬州區" && CompanionBrain.WeatherPlace("500229") == "重慶市城口縣", "Chongqing's grouping rows stay out of the place");
+Check(CompanionBrain.WeatherPlace("US-06037") == "加利福尼亞州 Los Angeles County", "a US place leaves out the postal code");
+var taipeiEvening = new DateTimeOffset(2026, 11, 15, 12, 0, 0, TimeSpan.Zero); // 20:00 in Taipei
+Check(CompanionBrain.WeatherToday("TW-061-01", taipeiEvening) == new DateTime(2026, 11, 15) && CompanionBrain.WeatherToday("TW-061-01", taipeiEvening.AddHours(4)) == new DateTime(2026, 11, 16),
+    "today for 臺灣 is the date in Taipei, whatever the computer's zone");
+Check(CompanionBrain.WeatherToday("US-06037", taipeiEvening) == null, "no today for places outside UTC+8");
+const string estimate = "地點：臺灣 · 臺北市 · 中正區（鄉鎮市區中心附近的天氣估算）。資料日期2026-11-15最低20℃、最高25℃，最高降水機率90%。";
+var weatherRequest = CompanionBrain.WeatherRequest(estimate, "臺北市中正區", new DateTime(2026, 11, 15));
+Check(weatherRequest.Contains("照寫「臺北市中正區」") && weatherRequest.Contains("資料日期就是今天 11 月 15 日") && weatherRequest.Contains("「大概」或「估計」"), "weather request names the place, today and the estimate");
+Check(!CompanionBrain.WeatherRequest(estimate, "臺北市中正區", new DateTime(2026, 11, 16)).Contains("今天") && CompanionBrain.WeatherRequest(estimate) == "本輪天氣資料：\n" + estimate + "\n（這份是估計值，不是實測：句子裡要用「大概」或「估計」，也不要說成明天的天氣。）",
+    "yesterday's data is not called today, and the request without a place is as before");
 Console.WriteLine($"All {checks} remote model checks passed.");
 return 0;
 

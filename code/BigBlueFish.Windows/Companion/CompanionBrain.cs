@@ -251,13 +251,23 @@ internal sealed class CompanionBrain : IDisposable
         return request.ToString();
     }
 
-    // The place a weather sentence names: 臺北市中正區, 安徽省合肥市蜀山區; elsewhere the names keep a space between them.
+    // The place a weather sentence names: 臺北市中正區, 安徽省合肥市蜀山區, 重慶市萬州區 (the data's 重庆城区 and 重庆郊县
+    // only group Chongqing's districts), 加利福尼亞州 Los Angeles County (the picker's postal code left out).
     internal static string WeatherPlace(string regionCode)
     {
         var district = CompanionRegions.District(regionCode);
         var country = CompanionRegions.Country(district);
-        var names = CompanionRegions.Chain(district).Select(CompanionRegions.DisplayName).Distinct();
+        var names = CompanionRegions.Chain(district).Where(r => r.Code is not ("5001" or "5002")).Select(CompanionRegions.DisplayName)
+            .Select(name => country == CompanionRegions.UnitedStates ? Regex.Replace(name, @" [A-Z]{2}$", "") : name).Distinct();
         return country == CompanionRegions.Taiwan || country == CompanionRegions.China ? string.Concat(names) : string.Join(" ", names);
+    }
+
+    // 資料日期 is the place's own date. Taiwan and China are always UTC+8, so their data is checked against today there
+    // whatever the computer's time zone; elsewhere the request does not say which day it is.
+    internal static DateTime? WeatherToday(string regionCode, DateTimeOffset now)
+    {
+        var country = CompanionRegions.Country(CompanionRegions.District(regionCode));
+        return country == CompanionRegions.Taiwan || country == CompanionRegions.China ? now.ToOffset(TimeSpan.FromHours(8)).Date : null;
     }
     internal const string BasePersona = CompanionDialogue.Voice;
     internal const string SceneGuidance = CompanionDialogue.SceneGuidance;
@@ -681,7 +691,7 @@ internal sealed class CompanionBrain : IDisposable
             }
             await EnsureRunner(token);
             Status = "正在生成天氣播報";
-            var request = WeatherRequest(context, WeatherPlace(WeatherRegionCode), DateTime.Now.Date);
+            var request = WeatherRequest(context, WeatherPlace(WeatherRegionCode), WeatherToday(WeatherRegionCode, DateTimeOffset.UtcNow));
             var text = await Complete(WeatherPersona, request, CompanionDialogue.Temperature, token, onPartial: onPartial);
             Status = ReadyStatus("本機模型就緒");
             DiagnosticLog.Write(DiagnosticEvent.SpeechCompleted, kind: kind, chars: text.Length, elapsedMs: generationWatch.Elapsed.TotalMilliseconds);

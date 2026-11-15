@@ -24,6 +24,9 @@
     <Compile Include="../../../deployment/ModelStore.cs" Link="Shared/ModelStore.cs" />
     <Compile Include="../../BigBlueFish.Linux/LinuxProcesses.cs" Link="Linux/LinuxProcesses.cs" />
     <Compile Include="../../BigBlueFish.Linux/LinuxRemoteScreen.cs" Link="Linux/LinuxRemoteScreen.cs" />
+    <!-- The weather request names the place from the region data, as the app embeds it. -->
+    <EmbeddedResource Include="../../BigBlueFish.Windows/assets/regions/china-regions.json;../../BigBlueFish.Windows/assets/regions/taiwan-regions.json;../../BigBlueFish.Windows/assets/regions/us-regions.json;../../BigBlueFish.Windows/assets/regions/world-regions.json;../../BigBlueFish.Windows/assets/regions/world-countries.json;../../BigBlueFish.Windows/assets/regions/region-display-names.json"
+      LogicalName="BigBlueFish.Windows.assets.regions.%(Filename)%(Extension)" />
     <PackageReference Include="SkiaSharp" Version="3.119.4" />
     <ProjectReference Include="../../BigBlueFish.Diagnostics/BigBlueFish.Diagnostics.csproj" />
   </ItemGroup>

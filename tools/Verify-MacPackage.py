@@ -166,4 +166,13 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
+# Taiwan edition: no string a bundled assembly carries may contain a Simplified-only character (animation ids and the
+# allowlisted markers aside); Mainland wording is reported in traditional-strings.json but does not fail the package.
+assemblies = sorted(str(p) for p in payload.glob("BigBlueFish.*.dll"))
+traditional = subprocess.run([sys.executable, str(pathlib.Path(__file__).resolve().parent / "Check-Traditional.py"), "--errors-only",
+                              "--json", str(args.output / "traditional-strings.json"), "--assembly", *assemblies],
+                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+print(traditional.stdout, end="", flush=True)
+check(str(payload / "BigBlueFish.Mac.dll") in assemblies and traditional.returncode == 0,
+      "assembly strings are Taiwan Traditional Chinese: " + ", ".join(pathlib.Path(a).name for a in assemblies))
 (args.output / "checks.json").write_text(json.dumps(checks, indent=2))

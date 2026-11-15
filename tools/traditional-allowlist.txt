@@ -1,0 +1,33 @@
+# Legitimate Simplified Chinese and Mainland wording for tools/Check-Traditional.py: path<TAB>text<TAB>reason.
+# The text is searched in each string literal (C#, Swift, C) or line (other files) of that path and allows only the
+# hits inside its own occurrences, so the rest of the literal is still checked. "*" as path matches every file; an
+# --assembly scan applies every entry whatever its path, because an assembly does not record source files.
+# \n and \t in the text stand for a newline and a tab. Animation ids and "<id>.webm" never need an entry.
+
+# Speech-brief markers: CompanionBrain writes them, the ACP host text and the Agent skill name them; all three must match.
+code/BigBlueFish.Windows/Companion/CompanionBrain.cs	【鱼鱼说话要求】	speech-brief start marker, kept identical in CompanionBrain, AgentCoordinator and SKILL.md
+code/BigBlueFish.Windows/Companion/CompanionBrain.cs	【说话要求结束】	speech-brief end marker written by CompanionBrain.AgentBrief
+code/BigBlueFish.Agent/AgentCoordinator.cs	【鱼鱼说话要求】	speech-brief marker quoted in the ACP host text
+code/BigBlueFish.Agent/Skills/SKILL.md	【鱼鱼说话要求】	speech-brief marker named by the Agent skill
+
+# Strings matched against what other programs write.
+code/BigBlueFish.Agent/AcpConnection.cs	图片	ImageContentRejected matches Simplified error messages of external Agents (圖片/圖像/影像 are matched too)
+code/BigBlueFish.Agent/AcpConnection.cs	图像	ImageContentRejected matches Simplified error messages of external Agents
+code/BigBlueFish.HermesBridge/CronReports.cs	静默	Hermes silent-reply markers ([静默]) are accepted in both scripts
+code/BigBlueFish.HermesBridge/Briefings.cs	[記记][錄录][時时]	regex parsing CompanionWeather sentences in either script
+code/BigBlueFish.HermesBridge/Briefings.cs	[機机概]	regex parsing CompanionWeather sentences in either script
+code/BigBlueFish.HermesBridge/Briefings.cs	[資资]	regex parsing CompanionWeather sentences in either script
+code/BigBlueFish.Windows/Companion/CompanionReminders.cs	[資资]	regex parsing CompanionWeather sentences in either script
+
+# Converter data: Simplified input CompanionTraditional recognises.
+code/BigBlueFish.Windows/Companion/CompanionTraditional.cs	亘挂极蚝蝎万厂据虫种胜柜叶适党价蜡愿广帘确几云丰后腊淀苹	PracticallySimplified: characters the converter treats as Simplified
+code/BigBlueFish.Windows/Companion/CompanionTraditional.cs	着	ExtraTriggers: Simplified-only character not keyed in STCharacters
+code/BigBlueFish.Windows/Companion/CompanionTraditional.cs	一起干杯	PhraseFixes key: Simplified input phrase
+
+# Names of the original edition that existing installs still use.
+code/BigBlueFish.Agent/AgentWorkspaceStore.cs	蓝色大肥鱼工作区	old default workspace folder; an existing one keeps being used
+code/BigBlueFish.HermesBridge/Program.cs	蓝色大肥鱼	install folder and app name of the original edition, searched for its BigBlueFish.Mcp
+code/run-hermes-bridge.sh	蓝色大肥鱼.app	the original edition's app, searched for its bundled bridge
+
+# Test input.
+tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble text proving the packaged app shows it in Taiwan Traditional

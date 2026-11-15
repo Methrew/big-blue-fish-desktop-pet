@@ -34,6 +34,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.401
+      - name: Check Taiwan Traditional strings
+        # Simplified-only characters in shipped sources and user-facing docs fail; Mainland wording is only reported.
+        run: python3 tools/Check-Traditional.py --errors-only
       - name: Build self-contained application
         run: |
           test "$(uname -m)" = arm64

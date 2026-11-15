@@ -14,7 +14,7 @@ MCP 的連線設定、工具欄位、動作與文字排程、事件的接收及�
 | `BigBlueFish.Mac/` | macOS 版 App。編譯 `BigBlueFish.Linux/` 的 Avalonia 原始碼，並連結 `BigBlueFish.Windows/Companion/` 裡共用的 `*.cs`，定義 `COMPANION_MAC`；以 `MacCapture.cs` 取代 `LinuxCapture.cs`。另有 `mac-ocr.swift`（Apple Vision OCR）、`mac-screen.swift`（`find_on_screen` 用的視窗清單與輔助使用讀取）、資料匯入（`MacDataImport.cs`）、登入項目（`MacLoginItem.cs`）、鑰匙圈（`MacKeychain.cs`、`MacSecrets.cs`）、系統讀數（`MacSystem.cs`）與畫面搜尋（`MacScreenSearch.cs`） |
 | `BigBlueFish.Linux/` | Avalonia 桌寵，Linux 版直接使用，macOS 版也編譯同一份 |
 | `BigBlueFish.Windows/` | WPF 的 Windows 版；`Companion/` 裡有各平台共用的邏輯，例如 `CompanionEdition.cs`（本版的名稱、識別碼與發布來源）、`CompanionTraditional.cs`（OpenCC 繁體轉換）、`CompanionActionNames.cs`（繁體動作名稱）、`CompanionBrain.cs`、`CompanionCloud.cs`（雲端 AI 服務）、`CompanionWeather.cs`、`CompanionRegions.cs`、`CompanionReminders.cs`、`CompanionScreenMatching.cs`、`CompanionAttachmentRules.cs` |
-| `BigBlueFish.Agent/` | ACP 用戶端、Harness 清單、工作區、技能與人設（`Skills/`）；`AgentLaunch.cs` 是宿主替某個 Harness 啟動的程式加上的環境變數與對話分組，例如 Claude Code 改用 Claude API Key（`ClaudeApiKeyLaunch`） |
+| `BigBlueFish.Agent/` | ACP 用戶端、Harness 清單、工作區、技能與人設（`Skills/`）；`AgentLaunch.cs` 是宿主替某個 Harness 啟動的程式加上的環境變數與對話分組，例如 Claude Code、Codex CLI、Gemini CLI 改用雲端 AI 服務的 API Key（`ApiKeyLaunch`：各自的設定資料夾、環境變數、要拿掉或設成空值的變數、設定檔與連線頁的文字） |
 | `BigBlueFish.Control/` | 共用的 MCP 通訊協定與工具定義 |
 | `BigBlueFish.Mcp/` | stdio 橋接程式 |
 | `BigBlueFish.HermesBridge/` | Hermes 對話橋接程式（`net10.0` 給 macOS／Linux，`net10.0-windows` 給 Windows） |
@@ -76,7 +76,7 @@ DOTNET_ROOT=~/.dotnet "/tmp/bbf-tests/$name/$name" [參數]
 | `MacLogicVerification` | 推論裝置名稱、只有相容動畫時的動畫規則、登入 shell 的 PATH（慢速、卡住的 shell）、前景視窗規則、終端機登入指令稿 | `[儲存庫根目錄]` |
 | `MacSystemVerification` | 這台 Mac 的閒置時間、睡眠也計時的時鐘、電池、鎖定與前景程式讀數 | `--finder`：實際詢問 Finder（可能跳出「自動化」權限詢問） |
 | `McpProtocolVerification` | 真正的 stdio 橋接程式與通訊協定、依平台的工具清單（Linux 15 個，Windows 與 macOS 17 個）、唯讀設定與金鑰被拒絕的原因（包括雲端 AI 服務的欄位） | 輸出資料夾裡 `BigBlueFish.Mcp` 的路徑 |
-| `AgentVerification` | ACP 連線、對話恢復、工作區、輸入框附件（`resource_link`、圖片區塊與兩種退回）；Claude Code 改用 Claude API Key（`LaunchVerification.cs`：環境變數只給選定的 Harness、拿掉訂閱的權杖、換設定時重新啟動、沒有 Key 不啟動、Key 不進記錄與對話檔、兩種登入的對話分開恢復） | 工作資料夾（可省略） |
+| `AgentVerification` | ACP 連線、對話恢復、工作區、輸入框附件（`resource_link`、圖片區塊與兩種退回）；Claude Code、Codex CLI、Gemini CLI 改用 API Key（`LaunchVerification.cs`：環境變數只給選定的 Harness、拿掉原本登入的權杖與轉址變數、Gemini CLI 的變數設成空值、Codex CLI 的 `config.toml` 與 Gemini CLI 的 `settings.json`、換設定時重新啟動、沒有 Key 不啟動、Key 被拒絕時顯示處理方式、Key 不進記錄與對話檔、兩種登入的對話分開恢復） | 工作資料夾（可省略） |
 | `AnimationVerification` | 動作權重、日期與農曆節日規則 | `[動畫資料夾]`（預設從儲存庫根目錄找） |
 | `OcrLayoutVerification` | OCR 文字依版面整理 | 無 |
 
@@ -104,7 +104,7 @@ Python 測試（Python 3.9 以上）：
 | `BigBlueFish.Windows/Companion/CompanionRegions.cs` | 地區層級、繁體顯示名稱與定位 |
 | `BigBlueFish.Windows/Companion/CompanionWeather.cs` | 天氣請求、天氣代號的中文對照、中央氣象署鄉鎮預報和依地點快取 |
 | `BigBlueFish.Windows/Companion/CompanionBrain.cs` | 模型啟動、推論、遠端模型、雲端 AI 服務的分支（`UseCloudModel`、測試、每天上限與暫停）、電池策略和提示詞 |
-| `BigBlueFish.Windows/Companion/CompanionCloud.cs` | 雲端 AI 服務：Claude（Anthropic 官方 C# SDK）、ChatGPT（Chat Completions）與 Gemini（generateContent）的請求與串流、模型清單與預選、每句費用估計、錯誤的中文訊息、暫停規則（`CloudPause`）與每天用量（`CloudUsage`、`cloud-usage.json`）。官方端點寫在 `CompanionCloud.Providers`，`CloudGuard` 只讓請求送往這些端點；`RedirectForTests` 只給測試把端點換成本機伺服器，App 沒有任何設定或環境變數能改端點。Mac、Linux 專案和 `RemoteModelVerification` 以連結編譯這個檔案 |
+| `BigBlueFish.Windows/Companion/CompanionCloud.cs` | 雲端 AI 服務：Claude API（Anthropic 官方 C# SDK）、OpenAI API（Chat Completions）與 Gemini API（generateContent）的請求與串流、模型清單與預選、每句費用估計、錯誤的中文訊息、暫停規則（`CloudPause`）與每天用量（`CloudUsage`、`cloud-usage.json`）。官方端點寫在 `CompanionCloud.Providers`，`CloudGuard` 只讓請求送往這些端點；`RedirectForTests` 只給測試把端點換成本機伺服器，App 沒有任何設定或環境變數能改端點。Mac、Linux 專案和 `RemoteModelVerification` 以連結編譯這個檔案 |
 | `BigBlueFish.Windows/Companion/CompanionTraditional.cs` | 氣泡文字的台灣繁體轉換 |
 | `BigBlueFish.Windows/Companion/CompanionSpeech.cs` | Windows 所有模型回覆的逐字顯示、Unicode 字元邊界、取代和取消 |
 | `BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs` | 貼邊、獨立氣泡視窗和 DPI 換算 |

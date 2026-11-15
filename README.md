@@ -36,7 +36,7 @@
 
 1. 打開 DMG，把「藍色大肥魚」（無MCP版是「藍色大肥魚無MCP版」）拖到「應用程式」檔案夾，再從「應用程式」開啟。執行所需的 .NET、動畫解碼元件和本機推論程式都包在 App 裡，不必另外安裝。
 2. App 只有臨時（ad-hoc）簽章，沒有經過 Apple 公證，第一次打開時 macOS 會擋下來。請先試著打開一次，再到「系統設定 › 隱私權與安全性」，在下方找到藍色大肥魚的提示並按「強制打開」，然後依系統提示確認。
-3. 第一次啟動時會出現安裝模型的視窗，可以選擇 Hugging Face（推薦）、中國大陸鏡像（ModelScope）、手動安裝已經下載好的 GGUF 檔案，或先以無模型模式啟動；也可以按「改用雲端 AI 服務」，用自己的 Claude、ChatGPT 或 Gemini API Key 讓魚魚說話（見[雲端 AI 服務](#雲端-ai-服務claudechatgptgemini)）。
+3. 第一次啟動時會出現安裝模型的視窗，可以選擇 Hugging Face（推薦）、中國大陸鏡像（ModelScope）、手動安裝已經下載好的 GGUF 檔案，或先以無模型模式啟動；也可以按「改用雲端 AI 服務」，用自己的 Claude、OpenAI 或 Gemini API Key 讓魚魚說話（見[雲端 AI 服務](#雲端-ai-服務claudeopenaigemini)）。
 4. 依需要允許下列權限（都在「系統設定 › 隱私權與安全性」）：
 
 | 權限 | 用途 | 哪個版本 |
@@ -59,8 +59,9 @@
 - **台灣繁體中文**：設定、選單、提示視窗、模型安裝與更新視窗和魚魚的說話語氣都是台灣繁體中文與台灣用語。氣泡裡的文字（本機或遠端模型的回覆、天氣、Agent 用 `say` 說的話、Hermes 的回答）顯示前都會用 [OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 的字典把簡體字轉成台灣繁體，已經是繁體或英文的內容維持原樣。氣泡字型改用 [jf open 粉圓 2.1](https://github.com/justfont/open-huninn-font)，粉圓沒有的字與其他介面用系統的蘋方-繁（PingFang TC）。macOS 的 OCR 改成先以繁體中文辨識。106 個動作名稱同時是動畫檔名與 MCP 動作名稱，所以維持原本的簡體字；Agent 用繁體寫動作名稱也認得。
 - **臺灣鄉鎮天氣**：國家清單和原版完全相同（中國排第一，包括中國清單裡的臺灣省），只多加一個國家「臺灣 Taiwan」（22 個縣市、368 個鄉鎮市區），新安裝的預設地點是臺北市中正區。選國家「臺灣 Taiwan」並在設定中填入[中央氣象署開放資料](https://opendata.cwa.gov.tw/)的授權碼時，會使用氣象署的鄉鎮天氣預報；授權碼存在 macOS 鑰匙圈，不會寫進設定檔，也不會提供給 MCP。沒有授權碼時，改用 Open-Meteo 估計鄉鎮市區中心附近的天氣。中國清單裡的臺灣省沿用原版資料，以縣市為單位估算、使用北京時間；要看鄉鎮的天氣，請選國家「臺灣 Taiwan」。選單裡的地名一律以繁體字顯示，但只換字形、不換譯名，所以仍會看到「意大利」這類原版資料的譯名。
 - **自己的身分與資料夾**：本版的 App 是「藍色大肥魚」（`io.github.methrew.bigbluefish.tw`），資料放在 `~/Library/Application Support/bigbluefish-tw`，檢查更新只看本版的發布頁面，不會被換回原作者的版本。第一次啟動時，會從原版的資料夾**唯讀**匯入一次設定、模型選擇和 Agent 資料（模型用 APFS 複本，不多佔空間），原版的資料不會被移動或修改。本版可以和原版同時安裝，但兩者共用「同一時間只能開一隻」的鎖，所以同一時間只會有一隻魚在執行。
-- **雲端 AI 服務（本版新增）**：「模型來源」可以改選 Claude（Anthropic）、ChatGPT（OpenAI）或 Gemini（Google），用自己的 API Key 讓魚魚說話，不必在這台電腦上安裝或執行模型。貼上 API Key 會依開頭自動選好服務，「儲存並測試」只讀取模型清單確認金鑰，不花費 token；Claude 預設使用 Claude Opus 5.5，設定頁會顯示每句的大約費用。API Key 存在 macOS 鑰匙圈，MCP 與 Agent 讀不到（只有開啟下面的「Claude Code 改用 Claude API Key」時，魚魚啟動的 Claude Code 會拿到 Claude 的 Key），也不能修改模型來源與雲端設定。可以限制每天最多送出幾次請求（預設 200 次），設定頁顯示今天與本月的用量；遇到金鑰錯誤、額度用完或服務忙碌時，魚魚會暫停並在狀態列說明原因。
+- **雲端 AI 服務（本版新增）**：「模型來源」可以改選 Claude API（Anthropic）、OpenAI API 或 Gemini API（Google），用自己的 API Key 讓魚魚說話，不必在這台電腦上安裝或執行模型。貼上 API Key 會依開頭自動選好服務，「儲存並測試」只讀取模型清單確認金鑰，不花費 token；Claude 預設使用 Claude Opus 5.5，設定頁會顯示每句的大約費用。API Key 存在 macOS 鑰匙圈，MCP 與 Agent 讀不到（只有開啟下面的「Claude Code 改用 Claude API Key」、「Codex CLI 改用 OpenAI API Key」或「Gemini CLI 改用 Gemini API Key」時，魚魚啟動的那個 CLI 會拿到同一家的 Key），也不能修改模型來源與雲端設定。可以限制每天最多送出幾次請求（預設 200 次），設定頁顯示今天與本月的用量；遇到金鑰錯誤、額度用完或服務忙碌時，魚魚會暫停並在狀態列說明原因。
 - **Claude Code 改用 Claude API Key（本版新增）**：「連線 Agent」選 Claude Code 時，可以開啟「Claude Code 改用 Claude API Key（依用量計費）」，讓魚魚啟動的 Claude Code 改用雲端 AI 服務裡儲存的 Claude API Key，由 Anthropic 依用量計費；你自己開的 Claude Code 照樣使用訂閱登入。Claude Code 的用量比魚魚自己說話多很多，請先在 Claude Console 設定支出上限；想一直用比較省錢的 Sonnet 或 Haiku，請把模型寫進這個 Claude Code 專用的 `settings.json`（「模型與權限」選的只套用到目前這段對話）。詳見[連線本機 CLI Harness](docs/ACP.md#claude-code-改用-claude-api-key依用量計費)。
+- **Codex CLI、Gemini CLI 改用 API Key（本版新增）**：「連線 Agent」選 Codex CLI 時可以開啟「Codex CLI 改用 OpenAI API Key（依用量計費）」，選 Gemini CLI 時可以開啟「Gemini CLI 改用 Gemini API Key（依用量計費）」，讓魚魚啟動的那個 CLI 改用雲端 AI 服務裡儲存的 OpenAI API Key 或 Gemini API Key；你自己開的 Codex CLI、Gemini CLI 照樣使用原本的登入（例如 ChatGPT 帳號、Google 帳號）；`~/.codex` 不會被讀取或修改，`~/.gemini` 裡的登入資料和設定也不會被使用或修改（Gemini CLI 仍可能讀到 `~/.gemini/.env` 裡魚魚沒有設定的變數，以及 `~/.gemini/policies` 的沙箱規則）。魚魚替它們準備各自的設定資料夾：Codex CLI 只把 Key 放在記憶體、不交給它執行的指令；Gemini CLI 預設選用 Gemini API Key（工作區的 `.gemini/settings.json` 仍可能改變），可能從 `.env` 檔改變 API 位址或登入方式的環境變數都會設成空值。詳見[Codex CLI](docs/ACP.md#codex-cli-改用-openai-api-key依用量計費)與[Gemini CLI](docs/ACP.md#gemini-cli-改用-gemini-api-key依用量計費)的說明。
 - **從台灣版移植到 Mac 的功能**：
   - 遠端模型：改用另一台電腦上的 llama.cpp 伺服器（OpenAI 相容介面）說話；伺服器支援圖片時可以直接傳前景視窗的截圖。API Key 存在 macOS 鑰匙圈。
   - 魚魚自己的主動提醒：久坐、用餐、深夜、低電量與下雨提醒，不需要模型或 Agent。
@@ -129,24 +130,24 @@ Hugging Face 來源是 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface
 
 不想在這台電腦上執行模型時，也可以在「設定 › 模型與資訊 › 模型來源」改用遠端的 llama.cpp 伺服器，或下一節的雲端 AI 服務。「啟用模型說話」是魚魚用模型自己說話的總開關，使用遠端模型或雲端 AI 服務時也要開著。
 
-## 雲端 AI 服務（Claude、ChatGPT、Gemini）
+## 雲端 AI 服務（Claude、OpenAI、Gemini）
 
-魚魚也可以改用 Claude（Anthropic）、ChatGPT（OpenAI）或 Gemini（Google）的 API 說話，日常關心、天氣、新聞和說話測試都由所選的服務產生，這台電腦不必安裝或執行模型。需要主人自己的 API Key，費用由服務依用量向主人的帳戶收取；Claude Pro、ChatGPT Plus 這類聊天訂閱不包含 API 用量。
+魚魚也可以改用 Claude API（Anthropic）、OpenAI API 或 Gemini API（Google）說話，日常關心、天氣、新聞和說話測試都由所選的服務產生，這台電腦不必安裝或執行模型。需要主人自己的 API Key，費用由服務依用量向主人的帳戶收取；Claude Pro、ChatGPT Plus 這類聊天訂閱不包含 API 用量。
 
 快速設定：
 
-1. 到服務的網站建立 API Key：[Claude](https://platform.claude.com/settings/keys)、[ChatGPT](https://platform.openai.com/api-keys)、[Gemini](https://aistudio.google.com/apikey)。建議為魚魚另外建立一把專用的 Key，並在服務的主控台設定花費上限或預算提醒。
-2. 打開「設定 › 模型與資訊」，「模型來源」選「雲端 AI 服務（Claude、ChatGPT、Gemini）」，看完會傳送哪些內容的說明後確認。
+1. 到服務的網站建立 API Key：[Claude API](https://platform.claude.com/settings/keys)、[OpenAI API](https://platform.openai.com/api-keys)、[Gemini API](https://aistudio.google.com/apikey)。建議為魚魚另外建立一把專用的 Key，並在服務的主控台設定花費上限或預算提醒。
+2. 打開「設定 › 模型與資訊」，「模型來源」選「雲端 AI 服務（Claude、OpenAI、Gemini）」，看完會傳送哪些內容的說明後確認。
 3. 把 API Key 貼進「API Key」欄（會依開頭自動選好服務），按「儲存並測試」。測試只讀取這把 Key 能用的模型清單，不花費 token。
 4. 視需要從「模型」選單改選模型、調整「每天最多」（50、100、200、500 次或不限制，預設 200 次）。改了模型要再按一次「儲存並測試」才會生效；沒按就關掉設定視窗，魚魚會繼續用原本的模型。「每天最多」一改就會儲存，不必另外按。
 
 | 服務 | 預選的模型 | 每句大約 |
 | --- | --- | --- |
-| Claude | Claude Opus 5.5（也可以改選 Claude Sonnet 5.5、Claude Haiku 5.5） | US$0.02（Sonnet 5.5 約 US$0.01，Haiku 5.5 約 US$0.0005） |
-| ChatGPT | `gpt-6-luna` | US$0.0004 |
-| Gemini | `gemini-3.5-flash-lite` | US$0.001 |
+| Claude API | Claude Opus 5.5（也可以改選 Claude Sonnet 5.5、Claude Haiku 5.5） | US$0.02（Sonnet 5.5 約 US$0.01，Haiku 5.5 約 US$0.0005） |
+| OpenAI API | `gpt-6-luna` | US$0.0004 |
+| Gemini API | `gemini-3.5-flash-lite` | US$0.001 |
 
-每句的費用是依 2026 年 11 月的價格、以一句附視窗截圖的話估計的，實際以服務的帳單為準。API Key 存在 macOS 鑰匙圈，不會寫進設定檔，MCP 和 Agent 都讀不到，也不能修改模型來源、服務、模型和每天上限。前景視窗的文字（勾選「傳送前景視窗截圖」時是截圖）會傳到所選的服務；會傳送的內容、費用、暫停規則、鑰匙圈與疑難排解，見 [macOS 說明](docs/MACOS.md#雲端-ai-服務)。
+每句的費用是依 2026 年 11 月的價格、以一句附視窗截圖的話估計的，實際以服務的帳單為準。API Key 存在 macOS 鑰匙圈，不會寫進設定檔，MCP 和 Agent 都讀不到（只有開啟「Claude Code 改用 Claude API Key」、「Codex CLI 改用 OpenAI API Key」或「Gemini CLI 改用 Gemini API Key」時，魚魚啟動的那個 CLI 會拿到同一家的 Key），也不能修改模型來源、服務、模型和每天上限。前景視窗的文字（勾選「傳送前景視窗截圖」時是截圖）會傳到所選的服務；會傳送的內容、費用、暫停規則、鑰匙圈與疑難排解，見 [macOS 說明](docs/MACOS.md#雲端-ai-服務)。
 
 ## 透過 ACP 連線桌面 Agent
 
@@ -247,7 +248,7 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET �
 - 文字辨識：macOS 使用系統的 Apple Vision，Windows 使用系統提供的 Windows.Media.Ocr，Linux 使用 Tesseract；
 - 氣泡字型：jf open 粉圓 2.1（SIL Open Font License 1.1），取代原版的「乐米小奶泡体」；本版不散布原版字型；
 - 繁簡轉換：[OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 字典（Apache-2.0）；
-- 雲端 AI 服務：Claude 透過 Anthropic 官方的 C# SDK（[anthropic-sdk-csharp](https://github.com/anthropics/anthropic-sdk-csharp) 13.8.0，Apache-2.0，改授權前合併的部分仍適用 MIT）與它使用的 Microsoft.Extensions.AI.Abstractions 10.5.1（MIT）；Claude、ChatGPT、Gemini 的服務由使用者以自己的帳戶與 API Key 連線，適用各服務自己的條款，本程式沒有經過 Anthropic、OpenAI 或 Google 推薦或背書；
+- 雲端 AI 服務：Claude 透過 Anthropic 官方的 C# SDK（[anthropic-sdk-csharp](https://github.com/anthropics/anthropic-sdk-csharp) 13.8.0，Apache-2.0，改授權前合併的部分仍適用 MIT）與它使用的 Microsoft.Extensions.AI.Abstractions 10.5.1（MIT）；Claude API、OpenAI API、Gemini API 由使用者以自己的帳戶與 API Key 連線，適用各服務自己的條款，本程式沒有經過 Anthropic、OpenAI 或 Google 推薦或背書；
 - 天氣資料：[Open-Meteo](https://open-meteo.com/)，CC BY 4.0；臺灣鄉鎮天氣預報：中央氣象署開放資料，依政府資料開放授權條款第 1 版使用，中央氣象署並未推薦或背書本程式；科技新聞：[IT之家 RSS](https://www.ithome.com/rss/)；
 - 行政區資料：[AreaCity-JsSpider-StatsGov](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov)，MIT 授權，只內嵌層級與近似中心座標；美國州郡、全球城市與國名分別來自美國人口普查局 Gazetteer、GeoNames 與 Unicode CLDR；臺灣鄉鎮市區中心依內政部國土測繪中心的鄉（鎮、市、區）界線計算，依政府資料開放授權條款第 1 版使用。
 

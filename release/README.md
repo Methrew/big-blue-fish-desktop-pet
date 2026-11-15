@@ -18,7 +18,7 @@
 - **台灣繁體中文**：設定、選單、提示視窗、模型安裝與更新視窗、Agent 技能與人設、文件都改成台灣繁體中文與台灣用語。氣泡文字顯示前會用 OpenCC 1.4.2 的字典轉成台灣繁體，氣泡字型改用 jf open 粉圓 2.1，介面用蘋方-繁。macOS 的 OCR 先以繁體中文辨識，英文行另外重新辨識。Agent 用繁體寫動作名稱也認得。
 - **臺灣鄉鎮天氣**：國家清單和原版相同（包括中國清單裡的臺灣省），另外多一個國家「臺灣 Taiwan」（22 個縣市、368 個鄉鎮市區），預設地點是臺北市中正區。填入中央氣象署授權碼時使用氣象署的鄉鎮天氣預報，授權碼存在 macOS 鑰匙圈；沒有授權碼時改用 Open-Meteo 估計。地名以繁體字顯示。
 - **自己的身分**：App 名稱「藍色大肥魚」、Bundle ID `io.github.methrew.bigbluefish.tw`、資料夾 `~/Library/Application Support/bigbluefish-tw`，檢查更新只看本版的發布頁面。第一次啟動時會從原版的資料夾唯讀匯入一次設定、模型選擇和 Agent 資料（模型用 APFS 複本）。可以和原版同時安裝，但同一時間只會執行一隻魚。
-- **雲端 AI 服務（本版新增）**：「模型來源」可以改選 Claude（Anthropic）、ChatGPT（OpenAI）或 Gemini（Google），用自己的 API Key 讓魚魚說話，不必安裝本機模型。API Key 存在 macOS 鑰匙圈，MCP 與 Agent 讀不到；可以限制每天最多送出幾次請求（預設 200 次），費用由服務依用量向你的帳戶收取。
+- **雲端 AI 服務（本版新增）**：「模型來源」可以改選 Claude API（Anthropic）、OpenAI API 或 Gemini API（Google），用自己的 API Key 讓魚魚說話，不必安裝本機模型。API Key 存在 macOS 鑰匙圈，MCP 與 Agent 讀不到（只有開啟「Claude Code 改用 Claude API Key」、「Codex CLI 改用 OpenAI API Key」或「Gemini CLI 改用 Gemini API Key」時，魚魚啟動的那個 CLI 會拿到同一家的 Key）；可以限制每天最多送出幾次請求（預設 200 次），費用由服務依用量向你的帳戶收取。
 - **從台灣版移植到 Mac**：遠端 llama.cpp 模型（API Key 存在鑰匙圈）、魚魚自己的主動提醒（久坐、用餐、深夜、低電量、下雨）、`get_context` 與 `user_returned`、`find_on_screen` 與 `walk_to`、Hermes 對話橋接（標準版 App 內附）、外部 MCP 介面，以及輸入框附件（以 ACP 的 `resource_link` 交給 Agent）。
 - **Mac 版的改進**：App 只內含實際播放的相容動畫，從約 1.0 GiB 縮小到約 0.2 GiB；修正讀不到真正閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵跟著切換桌面空間、不搶走鍵盤焦點；點選與拖曳的動作開頭預先解碼；第一次偵測 GPU 時能用 Metal；從 Finder 開啟時也找得到 npm 或 Homebrew 安裝的 Agent CLI。
 - 支援的 21 款 CLI Harness（包括 Claude Code）和原版相同。

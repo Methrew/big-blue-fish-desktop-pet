@@ -75,6 +75,7 @@ public sealed class App : Application
 internal static class SingleInstance
 {
     static Mutex? sessionLock, userLock;
+    static bool ownsSession, ownsUser;
 
     // Before the data folder is touched. The name is the original's, which takes it per login session as well, so this
     // edition, its Safe edition and the original never run together in one session; the second lock is the same name per
@@ -83,13 +84,21 @@ internal static class SingleInstance
     internal static bool Claim()
     {
         string name = "BigBlueFish.Linux." + Environment.UserName;
-        sessionLock = new Mutex(true, name, out bool first);
-        if (App.Args.Contains("--test-mode")) return first;
-        userLock = new Mutex(true, name, new NamedWaitHandleOptions { CurrentUserOnly = true, CurrentSessionOnly = false }, out bool firstForUser);
-        return first && firstForUser;
+        sessionLock = new Mutex(true, name, out ownsSession);
+        if (App.Args.Contains("--test-mode")) return ownsSession;
+        userLock = new Mutex(true, name, new NamedWaitHandleOptions { CurrentUserOnly = true, CurrentSessionOnly = false }, out ownsUser);
+        return ownsSession && ownsUser;
     }
 
-    internal static void Release() { sessionLock?.Dispose(); userLock?.Dispose(); }
+    // On the thread that claimed them (the main thread, Avalonia's UI thread): a lock this copy took while the other was
+    // held is let go at once, so the notice it shows never blocks the next start.
+    internal static void Release()
+    {
+        if (ownsSession) try { sessionLock!.ReleaseMutex(); } catch (ApplicationException) { }
+        if (ownsUser) try { userLock!.ReleaseMutex(); } catch (ApplicationException) { }
+        ownsSession = ownsUser = false;
+        sessionLock?.Dispose(); userLock?.Dispose();
+    }
 
     // A second copy the user opened says why nothing else appears (the app has no Dock icon); one the login item or a
     // test started just ends.

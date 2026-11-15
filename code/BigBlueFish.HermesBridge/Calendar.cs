@@ -85,7 +85,7 @@ internal sealed partial class Calendar(string hermesHome)
 
     private async Task<IReadOnlyList<CalendarEvent>?> ReadAsync(DateTimeOffset from, DateTimeOffset to, CancellationToken token)
     {
-        string python = Setting(PythonVariable) ?? Path.Combine(hermesHome, "hermes-agent", "venv", "Scripts", "python.exe");
+        string python = Setting(PythonVariable) ?? HermesPython(hermesHome);
         string script = Setting(ScriptVariable) ?? Path.Combine(hermesHome, "skills", "productivity", "google-calendar", "scripts", "list_events.py");
         // setup.py saves the token here once the user has authorized; only its presence is looked at.
         if (!File.Exists(Path.Combine(hermesHome, "google_token.json")))
@@ -219,6 +219,42 @@ internal sealed partial class Calendar(string hermesHome)
     private static string Iso(DateTimeOffset time) => time.ToLocalTime().ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
 
     private static string? Setting(string name) => Environment.GetEnvironmentVariable(name) is { Length: > 0 } value ? value : null;
+
+    // The Python of Hermes' own virtual environment, which has the Google client libraries the skill imports. On Windows
+    // it is hermes-agent\venv\Scripts\python.exe. Elsewhere Hermes' documentation only says the environment is under
+    // ~/.hermes, so the usual folders are tried, then the environment the hermes command itself runs in (the folder its
+    // link points into, or the Python its first line names). The first guess is returned when nothing is found, so the
+    // message names a path.
+    internal static string HermesPython(string hermesHome)
+    {
+        if (OperatingSystem.IsWindows()) return Path.Combine(hermesHome, "hermes-agent", "venv", "Scripts", "python.exe");
+        var candidates = new List<string>();
+        foreach (var environment in new[] { "venv", ".venv" })
+            foreach (var name in new[] { "python", "python3" })
+                candidates.Add(Path.Combine(hermesHome, "hermes-agent", environment, "bin", name));
+        if (HermesCommand(hermesHome) is { } command)
+        {
+            try
+            {
+                // ~/.local/bin/hermes is usually a link to <venv>/bin/hermes, a script whose first line is #!<venv>/bin/python.
+                var target = File.ResolveLinkTarget(command, returnFinalTarget: true)?.FullName ?? command;
+                if (Path.GetDirectoryName(target) is { } folder) candidates.AddRange([Path.Combine(folder, "python"), Path.Combine(folder, "python3")]);
+                using var reader = new StreamReader(target);
+                if (reader.ReadLine() is { } first && first.StartsWith("#!", StringComparison.Ordinal) && first[2..].Trim() is { Length: > 0 } interpreter
+                    && !interpreter.Contains(' ') && Path.IsPathRooted(interpreter)) candidates.Add(interpreter);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        }
+        return candidates.FirstOrDefault(File.Exists) ?? candidates[0];
+    }
+
+    // The hermes command: in HERMES_HOME/bin, ~/.local/bin, or anywhere on PATH.
+    private static string? HermesCommand(string hermesHome)
+    {
+        var folders = new List<string> { Path.Combine(hermesHome, "bin"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local", "bin") };
+        folders.AddRange((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries));
+        return folders.Where(Path.IsPathRooted).Select(folder => Path.Combine(folder, "hermes")).FirstOrDefault(File.Exists);
+    }
 
     // A traceback's last line says what went wrong; it never carries event contents.
     private static string LastLine(string text) =>

@@ -1,7 +1,10 @@
 // Chat bridge for the taiwan-edition fork: text typed into the pet's double-click box goes to the
 // Hermes Agent API server, and Hermes' answer comes back as the pet's speech bubble. The pet side is
-// the stdio MCP bridge (BigBlueFish.Mcp.exe); the Hermes side is its local OpenAI-compatible API.
+// the stdio MCP bridge (BigBlueFish.Mcp, .exe on Windows); the Hermes side is its local OpenAI-compatible API.
+// It runs on Windows, macOS and Linux; only the places it looks in and the image shrinking differ.
+using System.Runtime.InteropServices;
 using System.Text;
+using BigBlueFish.Windows;
 
 namespace BigBlueFish.HermesBridge;
 
@@ -12,20 +15,27 @@ internal sealed record BridgeOptions(string McpCommand, Uri HermesUrl, string Ap
 internal static class Program
 {
     private const string KeyVariable = "BIGBLUEFISH_HERMES_KEY";
+    private static readonly string McpFile = OperatingSystem.IsWindows() ? "BigBlueFish.Mcp.exe" : "BigBlueFish.Mcp";
+    private const string Usage = "用法：BigBlueFish.HermesBridge [--mcp BigBlueFish.Mcp 路徑] [--hermes-url http://127.0.0.1:8642] [--state 對話紀錄檔] [--ask 測試訊息] [--attach 附件路徑（可重複）] [--brief daily|welcome:<分鐘>]";
 
     private static async Task<int> Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
+        if (args is ["--help"] or ["-h"]) { Console.WriteLine(Usage); return 0; }
         BridgeOptions options;
         try { options = ReadOptions(args); }
         catch (ArgumentException error)
         {
             Log.Write(error.Message);
-            Console.WriteLine("用法：BigBlueFish.HermesBridge [--mcp BigBlueFish.Mcp.exe 路徑] [--hermes-url http://127.0.0.1:8642] [--state 對話紀錄檔] [--ask 測試訊息] [--attach 附件路徑（可重複）] [--brief daily|welcome:<分鐘>]");
+            Console.WriteLine(Usage);
             return 2;
         }
         using var stop = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; stop.Cancel(); };
+        // Closing the terminal window (SIGHUP) or launchd/systemd stopping it (SIGTERM) winds down the same way as Ctrl+C.
+        using var hangup = OperatingSystem.IsWindows() ? null : PosixSignalRegistration.Create(PosixSignal.SIGHUP, Stop);
+        using var terminate = OperatingSystem.IsWindows() ? null : PosixSignalRegistration.Create(PosixSignal.SIGTERM, Stop);
+        void Stop(PosixSignalContext context) { context.Cancel = true; stop.Cancel(); }
         try
         {
             var bridge = new Bridge(options);
@@ -79,15 +89,17 @@ internal static class Program
         }
         // Files alone are a message too, as when the user sends them without typing.
         if (attachments.Count > 0) ask ??= "";
-        if (string.IsNullOrWhiteSpace(mcp)) mcp = FindMcpBridge() ?? throw new ArgumentException("找不到 BigBlueFish.Mcp.exe，請用 --mcp 指定它的路徑。");
-        if (!File.Exists(mcp)) throw new ArgumentException("BigBlueFish.Mcp.exe 不存在：" + mcp);
+        if (string.IsNullOrWhiteSpace(mcp)) mcp = FindMcpBridge() ?? throw new ArgumentException($"找不到 {McpFile}，請用 --mcp 指定它的路徑。");
+        if (!File.Exists(mcp)) throw new ArgumentException($"{McpFile} 不存在：" + mcp);
         var hermesUrl = CheckHermesUrl(url);
-        string home = Environment.GetEnvironmentVariable("HERMES_HOME")
-            ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "hermes");
+        // Hermes keeps its data in %LOCALAPPDATA%\hermes on Windows and in ~/.hermes on macOS and Linux.
+        string home = Environment.GetEnvironmentVariable("HERMES_HOME") is { Length: > 0 } given ? given
+            : OperatingSystem.IsWindows() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "hermes")
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".hermes");
         var fromEnvironment = Environment.GetEnvironmentVariable(KeyVariable);
         string key = (string.IsNullOrWhiteSpace(fromEnvironment) ? ReadHermesKey(home) : fromEnvironment.Trim())
             ?? throw new ArgumentException($"找不到 Hermes 的 API_SERVER_KEY：請在 Hermes 的 .env 設定，或用 {KeyVariable} 環境變數提供。");
-        state = Path.GetFullPath(state ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BigBlueFish", "hermes-bridge.json"));
+        state = Path.GetFullPath(state ?? Path.Combine(DataFolder(), "hermes-bridge.json"));
         home = Path.GetFullPath(home);
         return new(Path.GetFullPath(mcp), hermesUrl, key, state, home, Path.Combine(home, "logs", "agent.log"), ask, attachments, brief);
     }
@@ -104,17 +116,38 @@ internal static class Program
         return new Uri(parsed.GetLeftPart(UriPartial.Path).TrimEnd('/') + "/");
     }
 
-    // Only fixed places: the bridge's own folder, this checkout's pet build output, and an installed pet.
+    // Where the bridge keeps hermes-bridge.json: next to the pet's own data on macOS and Linux (BIGBLUEFISH_DATA moves both),
+    // %LOCALAPPDATA%\BigBlueFish on Windows as before.
+    private static string DataFolder()
+    {
+        string profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (OperatingSystem.IsWindows()) return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "BigBlueFish");
+        if (Environment.GetEnvironmentVariable("BIGBLUEFISH_DATA") is { Length: > 0 } data) return data;
+        if (OperatingSystem.IsMacOS()) return Path.Combine(profile, "Library", "Application Support", CompanionEdition.MacDataFolder);
+        return Path.Combine(Environment.GetEnvironmentVariable("XDG_DATA_HOME") is { Length: > 0 } xdg ? xdg : Path.Combine(profile, ".local", "share"), "bigbluefish");
+    }
+
+    // Only fixed places: the bridge's own folder (inside the macOS app it sits next to BigBlueFish.Mcp), this checkout's
+    // pet build output, and an installed pet. The original edition's names come last, for a pet installed before the rename.
     private static string? FindMcpBridge()
     {
-        string checkout = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..",
-            "BigBlueFish.Windows", "bin", "x64", "Release", "net10.0-windows10.0.26100.0", "BigBlueFish.Mcp.exe"));
-        string[] candidates =
-        [
-            Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp.exe"),
-            checkout,
-            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "蓝色大肥鱼", "BigBlueFish.Mcp.exe")
-        ];
+        // bin/Release/<framework>/ of this project, four levels below code/.
+        string code = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ".."));
+        var candidates = new List<string> { Path.Combine(AppContext.BaseDirectory, McpFile) };
+        if (OperatingSystem.IsWindows())
+        {
+            candidates.Add(Path.Combine(code, "BigBlueFish.Windows", "bin", "x64", "Release", "net10.0-windows10.0.26100.0", McpFile));
+            string programs = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+            candidates.AddRange([Path.Combine(programs, CompanionEdition.DisplayName, McpFile), Path.Combine(programs, "蓝色大肥鱼", McpFile)]);
+        }
+        else if (OperatingSystem.IsMacOS())
+        {
+            // tools/build-macos.sh puts the app in release/; Finder installs go to /Applications or ~/Applications.
+            string[] folders = [Path.Combine(code, "..", "release"), "/Applications", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Applications")];
+            foreach (var name in new[] { CompanionEdition.DisplayName, "蓝色大肥鱼" })
+                candidates.AddRange(folders.Select(folder => Path.GetFullPath(Path.Combine(folder, name + ".app", "Contents", "MacOS", McpFile))));
+        }
+        else candidates.Add(Path.Combine("/opt", "bigbluefish", McpFile));
         return candidates.FirstOrDefault(File.Exists);
     }
 

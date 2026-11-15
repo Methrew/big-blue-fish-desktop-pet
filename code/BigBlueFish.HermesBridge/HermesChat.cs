@@ -10,12 +10,25 @@ namespace BigBlueFish.HermesBridge;
 
 internal sealed class HermesException(string message) : Exception(message);
 
+// The tools of the pet's that Hermes is told about, from its tools/list: the Windows pet has them all; the macOS and Linux
+// pets leave out what they do not have yet. The fish's own reminders (meals, breaks, late nights, battery, rain) came to
+// each platform together with get_context, so they are taken to be there exactly when it is.
+internal sealed record PetAbilities(bool Context, bool Find, bool Walk)
+{
+    internal static readonly PetAbilities All = new(true, true, true);
+    internal bool Reminders => Context;
+    // Null (a pet that did not answer tools/list) reads as everything, as before the pet said.
+    internal static PetAbilities From(IReadOnlySet<string>? tools) =>
+        tools == null ? All : new(tools.Contains("get_context"), tools.Contains("find_on_screen"), tools.Contains("walk_to"));
+}
+
 // Hermes keeps the history server-side: every turn sends the same X-Hermes-Session-Id and only the
 // newest user text. A fresh id starts a new conversation (/new); an id is never reused.
 internal sealed partial class HermesChat : IDisposable
 {
-    // Layered on top of Hermes' own persona for each API turn; it is not stored in the history.
-    private const string Instructions = "最重要的規則：你這一輪最後的回答文字，會原封不動顯示在桌面寵物「藍色大肥魚（魚魚）」的對話氣泡裡，"
+    // Layered on top of Hermes' own persona for each API turn; it is not stored in the history. Instructions() puts it
+    // together for this computer and for the tools its pet offers (PetAbilities): the Windows pet has them all.
+    private const string Head = "最重要的規則：你這一輪最後的回答文字，會原封不動顯示在桌面寵物「藍色大肥魚（魚魚）」的對話氣泡裡，"
         + "所以回答只能是魚魚要對使用者說的話本身，不要描述你呼叫了哪些工具、做了哪些動作或顯示了什麼。"
         + "絕對不要呼叫 big-blue-fish 的 say 或 say_next 工具，想說的話直接寫在回答裡。"
         + "只能用台灣繁體中文和台灣用語回答；使用者用英文問時可以用英文回答。絕對不要出現簡體字，引用簡體資料或提到動作名稱時也要寫成繁體。"
@@ -23,31 +36,40 @@ internal sealed partial class HermesChat : IDisposable
         + "可以用 play_action 讓魚魚做動作；呼叫時動作名稱必須和 list_actions 回傳的名稱（簡體字）一字不差，"
         + "播放失敗就放棄，不要一直重試。"
         + "只有在使用者這則訊息要求你看螢幕、在畫面上找東西或操作電腦時才可以截圖（包括 computer_use 的截圖）；只是看目前的視窗時優先使用 capture_foreground，一般聊天不要截圖。"
-        + "需要操作視窗或應用程式（點擊、輸入、切換或開關視窗）時，優先用 computer_use 直接操作滑鼠鍵盤，不要寫終端機腳本模擬操作。"
-        // Windows PowerShell 5.1 reads a UTF-8 script as Big5 here; a model working round it wrote Chinese as
-        // code points from memory, got 畜 wrong and renamed 15 files three times over.
-        + "這台電腦是繁體中文版 Windows：要跑 PowerShell 時用 pwsh（PowerShell 7），不要用 powershell（Windows PowerShell 5.1 會把腳本裡的中文讀成亂碼）；"
+        + "需要操作視窗或應用程式（點擊、輸入、切換或開關視窗）時，優先用 computer_use 直接操作滑鼠鍵盤，不要寫終端機腳本模擬操作。";
+    // Windows PowerShell 5.1 reads a UTF-8 script as Big5 here; a model working round it wrote Chinese as
+    // code points from memory, got 畜 wrong and renamed 15 files three times over.
+    private const string WindowsShell = "這台電腦是繁體中文版 Windows：要跑 PowerShell 時用 pwsh（PowerShell 7），不要用 powershell（Windows PowerShell 5.1 會把腳本裡的中文讀成亂碼）；"
         + "指令和腳本裡的中文照原樣寫，絕對不要自己換算成 Unicode 編碼或 [char] 代碼（很容易記錯字）；只是改名、搬移、複製檔案時，直接用 bash 的 mv、cp。"
         // A scenario test (2026-10-28): bash expanded $_ inside a double-quoted pwsh -Command and the Chinese output came back garbled.
-        + "在終端機（bash）裡呼叫 pwsh 時，-Command 的內容一律用單引號包起來（雙引號會讓 bash 先把 $_、$env 這些變數展開掉），並在最前面加上 [Console]::OutputEncoding=[Text.Encoding]::UTF8; 否則輸出的中文會變成亂碼；"
-        + "只是要看檔名時用 ls；要看壓縮檔裡有哪些檔案用 python 的 zipfile（bash 的 unzip -l 會把中文檔名顯示成亂碼，但壓縮檔本身沒壞，不要因此重做）。"
-        + "使用者說「畫面上這個資料夾」「這些檔案」時，先用 mcp__big_blue_fish__get_context，openFolders 第一個（front=true）就是最上層那個檔案總管視窗開著的資料夾；桌面上的檔案用 find_on_screen（where 填 desktop），結果的 path 是完整路徑；不要自己猜路徑，也不要為了找資料夾截圖。"
-        + "使用者可能附上圖片、影片或其他檔案：圖片已直接附在訊息裡，可以直接看；訊息最後的「（附件）」清單列出每個附件的本機路徑，"
-        + "沒附上的圖片、影片和其他檔案需要內容時再用工具讀取該路徑。除非使用者要求，不要搬移、修改或刪除附件檔案。"
-        // Hermes keeps MCP tools behind tool_call, and its tool_search index skips the Chinese descriptions,
-        // so the pet's tools are named outright.
-        + "魚魚自己的工具用 tool_call 呼叫：name 填 mcp__big_blue_fish__ 加工具名（例如 mcp__big_blue_fish__find_on_screen、mcp__big_blue_fish__walk_to、mcp__big_blue_fish__capture_screen、mcp__big_blue_fish__get_settings），"
-        + "arguments 直接填參數，不必先 tool_search 或 tool_describe。"
-        // The first call after the pet restarts finds Hermes' relay gone and is told not to retry; left
-        // alone, the model then "inspects the external state" with scripts for minutes.
-        // Hermes checks arguments against the tool list it read at start; a model that dropped image_width to get
-        // past an old list sent the fish to a quarter of the right place.
-        + "魚魚的工具回報參數 not allowed 或 unexpected 時，看錯誤附的 schema：schema 裡有這個參數就是放錯位置，改正後再試；"
+        + "在終端機（bash）裡呼叫 pwsh 時，-Command 的內容一律用單引號包起來（雙引號會讓 bash 先把 $_、$env 這些變數展開掉），並在最前面加上 [Console]::OutputEncoding=[Text.Encoding]::UTF8; 否則輸出的中文會變成亂碼；";
+    // macOS: no PowerShell, Finder instead of File Explorer, the Trash; the privacy settings (TCC) stop a process that may
+    // not read Desktop, Documents or Downloads, which a model otherwise retries.
+    private const string MacShell = "這台電腦是繁體中文版 macOS：終端機是 zsh（也可以用 bash），沒有 PowerShell，不要用 pwsh 或 powershell；"
+        + "指令和腳本裡的中文照原樣寫（終端機是 UTF-8），絕對不要自己換算成 Unicode 編碼；只是改名、搬移、複製檔案時，直接用 mv、cp。"
+        + "要用預設的應用程式打開檔案、資料夾或網址時用 open（例如 open ~/Desktop）；依檔名或內容找檔案時用 mdfind（Spotlight，例如 mdfind -name 報告）或 find。"
+        + "檔案管理員是 Finder；刪除檔案時，除非使用者明確要永久刪除，否則放到垃圾桶（osascript -e 'tell application \"Finder\" to delete POSIX file \"完整路徑\"'），不要直接用 rm。"
+        + "指令回報 Operation not permitted 或沒有權限讀取「桌面」「文件」「下載」等資料夾時，是 macOS 的隱私權設定擋住了：告訴使用者到「系統設定 › 隱私權與安全性」允許，不要一直重試或改用其他方法繞過。";
+    private const string LinuxShell = "這台電腦是 Linux：終端機是 bash，沒有 PowerShell，不要用 pwsh 或 powershell；指令和腳本裡的中文照原樣寫，絕對不要自己換算成 Unicode 編碼；"
+        + "只是改名、搬移、複製檔案時，直接用 mv、cp；要用預設的應用程式打開檔案或資料夾時用 xdg-open；刪除檔案時，除非使用者明確要永久刪除，否則用 gio trash 放到垃圾桶，不要直接用 rm。";
+    private const string Archives = "只是要看檔名時用 ls；要看壓縮檔裡有哪些檔案用 python 的 zipfile（bash 的 unzip -l 會把中文檔名顯示成亂碼，但壓縮檔本身沒壞，不要因此重做）。";
+    private const string Attachments = "使用者可能附上圖片、影片或其他檔案：圖片已直接附在訊息裡，可以直接看；訊息最後的「（附件）」清單列出每個附件的本機路徑，"
+        + "沒附上的圖片、影片和其他檔案需要內容時再用工具讀取該路徑。除非使用者要求，不要搬移、修改或刪除附件檔案。";
+    // Hermes keeps MCP tools behind tool_call, and its tool_search index skips the Chinese descriptions,
+    // so the pet's tools are named outright.
+    private const string ToolCallHead = "魚魚自己的工具用 tool_call 呼叫：name 填 mcp__big_blue_fish__ 加工具名（例如 ";
+    private const string ToolCallTail = "mcp__big_blue_fish__capture_screen、mcp__big_blue_fish__get_settings），"
+        + "arguments 直接填參數，不必先 tool_search 或 tool_describe。";
+    // The first call after the pet restarts finds Hermes' relay gone and is told not to retry; left
+    // alone, the model then "inspects the external state" with scripts for minutes.
+    // Hermes checks arguments against the tool list it read at start; a model that dropped image_width to get
+    // past an old list sent the fish to a quarter of the right place.
+    private const string ToolErrors = "魚魚的工具回報參數 not allowed 或 unexpected 時，看錯誤附的 schema：schema 裡有這個參數就是放錯位置，改正後再試；"
         + "工具說明提到它、schema 裡卻沒有（例如 image_width、stops、label），表示 Hermes 還在用舊的工具清單，不要拿掉參數硬試，請使用者重新啟動 Hermes gateway。"
-        + "魚魚的工具回報 lost its stdio subprocess 或 outcome_uncertain 時，通常是魚魚剛重新啟動：先用 get_settings 看一下狀態（walk_to 就看 state.lastWalk），沒有完成就再呼叫一次同一個工具，不要改用終端機或腳本。"
-        // A model left to find things itself listed the desktop folder and wrote UI Automation scripts for
-        // minutes; find_on_screen does that in one call and returns bounds walk_to takes as they are.
-        + "使用者要你在畫面上找東西時，讓魚魚跑過去指給他看；list_actions 的動作裡沒有走路，移動魚魚一律用 walk_to（想說的話寫在回答裡，不要填 say）。不要用終端機或腳本找座標或列出檔案。"
+        + "魚魚的工具回報 lost its stdio subprocess 或 outcome_uncertain 時，通常是魚魚剛重新啟動：先用 get_settings 看一下狀態（walk_to 就看 state.lastWalk），沒有完成就再呼叫一次同一個工具，不要改用終端機或腳本。";
+    // A model left to find things itself listed the desktop folder and wrote UI Automation scripts for
+    // minutes; find_on_screen does that in one call and returns bounds walk_to takes as they are.
+    private const string FindAndWalk = "使用者要你在畫面上找東西時，讓魚魚跑過去指給他看；list_actions 的動作裡沒有走路，移動魚魚一律用 walk_to（想說的話寫在回答裡，不要填 say）。不要用終端機或腳本找座標或列出檔案。"
         + "第一步用 tool_call 呼叫 mcp__big_blue_fish__find_on_screen，query 填名稱或關鍵字，可以用 | 分隔多種說法（例如 Word 檔填 \"docx|doc|Word 文件\"、PDF 填 \"pdf\"、壓縮檔填 \"zip|rar|7z|壓縮\"、資源回收筒填 \"資源回收筒|回收\"；英文要寫完整的字，tar 配不到 Star）；"
         + "它會從桌面圖示（含副檔名）、所有看得到的視窗和視窗裡的按鈕、分頁、清單項目、文字中，找出現在看得到的位置，並依由上而下、由左而右排好。"
         + "使用者說「桌面上的」時加 where \"desktop\"；找的是檔案時，kind 是 element 而 type 是按鈕、連結這類的結果不是檔案，不要算進去。"
@@ -64,22 +86,29 @@ internal sealed partial class HermesChat : IDisposable
         + "工具結果寫著 Image downscaled from 3840x2160 to 960x540 這類句子時，image_width 填 960、image_height 填 540（to 後面的數字），x、y 照你在那張圖上看到的填，不要照那句話乘回去，魚魚會自己換算；沒有這句話時填截圖資料的 Width、Height。"
         + "截圖上也找不到，才告訴使用者畫面上沒有。"
         // computer_use element bounds are physical screen pixels already.
-        + "用 computer_use 取得元素的 bounds 時，x、y 填元素中心點並附上 width、height，space 填 \"screen\"，不填 capture_id、image_width、image_height。"
-        // Hermes hides MCP tools behind tool_search, so a model that does not look thinks they are missing.
-        + "需要工具時，先用 tool_search 查找可用的工具（包括使用者自己安裝的 MCP 外掛工具），不要沒查就說沒有、沒有連線或做不到。"
+        + "用 computer_use 取得元素的 bounds 時，x、y 填元素中心點並附上 width、height，space 填 \"screen\"，不填 capture_id、image_width、image_height。";
+    // A pet without walk_to (macOS and Linux for now) still finds things on a screenshot; the answer then says where.
+    private static string NoWalk(bool find) => "使用者要你在畫面上找東西時，"
+        + (find ? "先用 tool_call 呼叫 mcp__big_blue_fish__find_on_screen（query 填名稱或關鍵字，可以用 | 分隔多種說法）；找不到，或要找的東西沒有名稱時，" : "")
+        + "用 mcp__big_blue_fish__capture_screen 截一次整個畫面，從圖上找出所有符合的位置（截圖資料裡的 pet 是魚魚自己，不要算進去），再用文字告訴使用者在哪裡（哪個視窗、畫面的哪一邊）。"
+        + "這台電腦上的魚魚不能跑到目標旁邊，不要呼叫 walk_to，也不要用終端機或腳本找座標或列出檔案。截圖上也找不到，才告訴使用者畫面上沒有。";
+    // Hermes hides MCP tools behind tool_search, so a model that does not look thinks they are missing.
+    private const string Plugins = "需要工具時，先用 tool_search 查找可用的工具（包括使用者自己安裝的 MCP 外掛工具），不要沒查就說沒有、沒有連線或做不到。"
         + "找到符合需求的外掛工具時優先使用它，不要改用終端機指令或自行安裝其他程式繞過；外掛工具失敗時，才改用其他方法並說明原因。"
         + "下載檔案、影片或串流時，優先使用 Divebird 下載管理員的工具；它回報需要確認時，請使用者到 Divebird 視窗確認。"
-        + "下載前先確認對象（影片標題或網址）就是使用者要的那一個：從瀏覽器偵測到的影音可能是預覽、廣告或其他分頁的內容，對不上就不要下載；下載完成後回報標題、檔名與存放位置。"
-        // get_context answers "what time is it, am I on battery, is it going to rain" without a screenshot or a web search.
-        + "要知道現在幾點、使用者用電腦多久沒休息、在不在電腦前、有沒有插電或電量、魚魚快取的天氣預報時，先用 mcp__big_blue_fish__get_context，不要為這些截圖或上網查。"
-        // The pet reminds of meals, breaks, late nights, low battery and rain by itself; a cron job would say it twice
-        // (a scenario test, 2026-10-28: 「每天中午 12 點提醒我吃午餐」 became a cron job).
-        + "使用者要的是吃飯（三餐）、久坐起來活動、早點睡、插電充電或下雨帶傘這幾種提醒時，不要建排程：魚魚自己每天都會提醒。"
+        + "下載前先確認對象（影片標題或網址）就是使用者要的那一個：從瀏覽器偵測到的影音可能是預覽、廣告或其他分頁的內容，對不上就不要下載；下載完成後回報標題、檔名與存放位置。";
+    // get_context answers "what time is it, am I on battery, is it going to rain" without a screenshot or a web search.
+    private const string Context = "要知道現在幾點、使用者用電腦多久沒休息、在不在電腦前、有沒有插電或電量、魚魚快取的天氣預報時，先用 mcp__big_blue_fish__get_context，不要為這些截圖或上網查。";
+    private const string NoContext = "要知道現在幾點幾分時用終端機的 date；使用者多久沒碰鍵盤滑鼠，看 mcp__big_blue_fish__get_settings 的 state.idleSeconds；不要為這些截圖或上網查。";
+    // The pet reminds of meals, breaks, late nights, low battery and rain by itself; a cron job would say it twice
+    // (a scenario test, 2026-10-28: 「每天中午 12 點提醒我吃午餐」 became a cron job).
+    private const string FishReminders = "使用者要的是吃飯（三餐）、久坐起來活動、早點睡、插電充電或下雨帶傘這幾種提醒時，不要建排程：魚魚自己每天都會提醒。"
         + "先用 mcp__big_blue_fish__get_settings 看 MealReminder、BreakfastHour、LunchHour、DinnerHour、SitReminderMinutes、LateReminder（深夜提醒開關，關掉就設 false）與 LateReminderHour（從幾點開始）、BatteryReminder、RainReminder，"
-        + "需要時用 update_settings 調整（例如午餐時間改成 LunchHour、把關掉的提醒打開），再告訴使用者魚魚會自己提醒。"
-        // A scenario test (2026-10-28): asked to put two reminder settings back, the model drove the Windows Settings
-        // app with computer_use for two minutes instead.
-        + "魚魚的設定（各種提醒、簡報、大小、氣泡、位置）一律用 mcp__big_blue_fish__update_settings 改，不要用 computer_use 去點任何設定視窗；改完用回傳的 settings 確認。"
+        + "需要時用 update_settings 調整（例如午餐時間改成 LunchHour、把關掉的提醒打開），再告訴使用者魚魚會自己提醒。";
+    private const string NoFishReminders = "這台電腦上的魚魚不會自己提醒吃飯、久坐、早點睡、充電或下雨帶傘：使用者要這類提醒時，照下面的排程規則建立排程。";
+    // A scenario test (2026-10-28): asked to put two reminder settings back, the model drove the Windows Settings
+    // app with computer_use for two minutes instead.
+    private const string Rest = "魚魚的設定（各種提醒、簡報、大小、氣泡、位置）一律用 mcp__big_blue_fish__update_settings 改，不要用 computer_use 去點任何設定視窗；改完用回傳的 settings 確認。"
         + "每天第一次坐下時的今日簡報（DailyBriefing）和離開很久回來時說期間發生的事（WelcomeBackMinutes，0 為關閉）是這個橋接程式自己講的，使用者要開關或改時間時也用 update_settings 改這兩個設定。"
         // Google is authorized for the calendar scope alone. The bridge reminds of events by itself (Calendar), so a
         // cron job for one would say it twice; invitations put other people's words in titles.
@@ -108,16 +137,41 @@ internal sealed partial class HermesChat : IDisposable
         + "做不到或找不到時，就直接告訴使用者原因和可以怎麼做；不要為了表示在努力而讓魚魚走路、播放動作或截圖（只有使用者要求時才做這些），也不要擴大去搜尋使用者其他的資料夾。"
         // A small model otherwise repeats one failing command until the turn budget runs out.
         + "同一個指令或工具失敗兩次就換別的方法，不要重複執行完全相同的失敗指令；連續失敗三次就停下來，告訴使用者卡在哪裡並詢問接下來要怎麼做。";
+
+    internal static string Instructions(PetAbilities pet)
+    {
+        var text = new StringBuilder(Head);
+        text.Append(OperatingSystem.IsMacOS() ? MacShell : OperatingSystem.IsLinux() ? LinuxShell : WindowsShell).Append(Archives).Append(Folders(pet)).Append(Attachments);
+        text.Append(ToolCallHead).Append(pet.Find && pet.Walk ? "mcp__big_blue_fish__find_on_screen、mcp__big_blue_fish__walk_to、" : "").Append(ToolCallTail).Append(ToolErrors);
+        // The Trash is 垃圾桶 on a Mac.
+        text.Append(!(pet.Find && pet.Walk) ? NoWalk(pet.Find) : OperatingSystem.IsWindows() ? FindAndWalk : FindAndWalk.Replace("資源回收筒填 \"資源回收筒|回收\"", "垃圾桶填 \"垃圾桶|Trash\""));
+        return text.Append(Plugins).Append(pet.Context ? Context : NoContext).Append(pet.Reminders ? FishReminders : NoFishReminders).Append(Rest).ToString();
+    }
+
+    // "This folder": the front File Explorer window from get_context on Windows; on a Mac Finder can be asked directly.
+    private static string Folders(PetAbilities pet)
+    {
+        bool mac = OperatingSystem.IsMacOS();
+        var text = new StringBuilder("使用者說「畫面上這個資料夾」「這些檔案」時，");
+        if (pet.Context) text.Append("先用 mcp__big_blue_fish__get_context，openFolders 第一個（front=true）就是最上層那個").Append(mac ? " Finder 視窗" : OperatingSystem.IsWindows() ? "檔案總管視窗" : "檔案管理員視窗").Append("開著的資料夾；");
+        if (mac) text.Append(pet.Context ? "openFolders 是空的時，" : "").Append("用 osascript -e 'tell application \"Finder\" to get POSIX path of (target of front Finder window as alias)' 問 Finder 最上層視窗開著的資料夾；");
+        if (pet.Find) text.Append("桌面上的檔案用 find_on_screen（where 填 desktop），結果的 path 是完整路徑；");
+        else if (!pet.Context && !mac) text.Append("不知道是哪裡時，請使用者告訴你完整路徑；");
+        return text.Append("不要自己猜路徑，也不要為了找資料夾截圖。").ToString();
+    }
+
     // A request for a reminder the fish already gives by itself gets this turn a pointed note: the general rule
     // in Instructions did not stop a small model from going straight for cronjob_manage on 「每天中午 12 點提醒我吃午餐」
     // once in three tries (scenario tests, 2026-10-28), and two reminders at noon would follow. "" otherwise.
-    internal static string ReminderHint(string text)
+    // fishReminds: the pet gives these reminders itself here (PetAbilities.Reminders); without them only the calendar note is left.
+    internal static string ReminderHint(string text, bool fishReminds = true)
     {
         if (!text.Contains("提醒")) return "";
         // Before an event (「社團活動開始前提醒我」 is no break to take): the fish reminds of one on the calendar by itself.
         if (Regex.IsMatch(text, "行程|日曆|會議|開會|活動開始|約會|有約|預約"))
             return "\n\n這則訊息要的是行程開始前的提醒。行程在 Google 日曆上、有開始時間，而且使用者會在電腦前時，魚魚會自己在開始前提醒（EventReminderMinutes），不要用 cronjob_manage 建排程（會說兩次）；"
                 + "行程不在日曆上、是整天的行程，或使用者要在 Telegram（手機）收到時，才建排程。";
+        if (!fishReminds) return "";
         string? topic = Regex.IsMatch(text, "早餐|午餐|晚餐|三餐|吃飯|用餐") ? "吃飯（MealReminder，時間是 BreakfastHour、LunchHour、DinnerHour）"
             : Regex.IsMatch(text, "久坐|休息|起來動|站起來|伸懶腰|起來活動|活動筋骨|活動一下") ? "久坐休息（SitReminderMinutes）"
             : Regex.IsMatch(text, "睡覺|早點睡|熬夜|深夜") ? "深夜早點睡（LateReminder 開關與 LateReminderHour 開始時間）"
@@ -129,7 +183,8 @@ internal sealed partial class HermesChat : IDisposable
     }
 
     // The system message of a chat turn: the instructions, the note for a reminder the fish gives by itself, and the date.
-    internal static string ChatSystem(string text, DateTimeOffset now) => Instructions + ReminderHint(text) + DateLine(now, TaipeiZone);
+    internal static string ChatSystem(string text, DateTimeOffset now, PetAbilities pet) =>
+        Instructions(pet) + ReminderHint(text, pet.Reminders) + DateLine(now, TaipeiZone, pet.Context);
 
     // The user's clock, as the rest of the system takes it: Taipei, UTC+8 all year. A Windows without the zone gets a
     // fixed +08:00 (DateLine with no zone).
@@ -147,10 +202,10 @@ internal sealed partial class HermesChat : IDisposable
     // before the whole conversation, and the model server reuses its work only on a request's unchanged beginning; a
     // clock to the minute would have it read the conversation again on every turn, to the hour at most once an hour.
     // get_context has the minute.
-    internal static string DateLine(DateTimeOffset now, TimeZoneInfo? zone)
+    internal static string DateLine(DateTimeOffset now, TimeZoneInfo? zone, bool context = true)
     {
         var local = zone != null ? TimeZoneInfo.ConvertTime(now, zone) : now.ToOffset(TimeSpan.FromHours(8));
-        return $"\n\n現在是台北時間 {local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}（{Briefings.Weekday(local.DateTime)}）{local.Hour} 點多（幾點幾分用 mcp__big_blue_fish__get_context 查）。"
+        return $"\n\n現在是台北時間 {local.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}（{Briefings.Weekday(local.DateTime)}）{local.Hour} 點多（幾點幾分{(context ? "用 mcp__big_blue_fish__get_context 查" : "用終端機的 date 查")}）。"
             + "使用者說的「今天」「明天」「這週五」都以這個日期換算，不要沿用對話紀錄裡出現過的日期。";
     }
 
@@ -176,6 +231,9 @@ internal sealed partial class HermesChat : IDisposable
     private readonly AuthenticationHeaderValue auth;
     private readonly string statePath;
     private volatile string? runId;
+
+    // What the connected pet offers (Bridge sets it on every link), for the instructions of the next turn.
+    internal PetAbilities Pet { get; set; } = PetAbilities.All;
 
     internal HermesChat(Uri baseUrl, string apiKey, string statePath) : this(baseUrl, apiKey, statePath, null) { }
 
@@ -279,7 +337,7 @@ internal sealed partial class HermesChat : IDisposable
         {
             ["model"] = "hermes-agent",
             ["stream"] = true,
-            ["messages"] = new object[] { new { role = "system", content = system ?? ChatSystem(text, DateTimeOffset.UtcNow) }, new { role = "user", content = await UserContentAsync(text, attachments, token) } }
+            ["messages"] = new object[] { new { role = "system", content = system ?? ChatSystem(text, DateTimeOffset.UtcNow, Pet) }, new { role = "user", content = await UserContentAsync(text, attachments, token) } }
         };
         // Hermes honours model_options per request; reasoning_effort none skips the model's thinking.
         if (quick) payload["model_options"] = new { reasoning_effort = "none" };

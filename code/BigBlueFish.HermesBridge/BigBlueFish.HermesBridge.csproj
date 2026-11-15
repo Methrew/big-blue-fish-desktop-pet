@@ -1,9 +1,16 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Windows-only: WPF imaging (WIC) shrinks images that do not fit Hermes' request limit. -->
-  <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>BigBlueFish.HermesBridge</AssemblyName>
+  <!-- net10.0 runs on macOS and Linux (build with -f net10.0 -r osx-arm64 or linux-x64, see run-hermes-bridge.sh); the Windows
+       build adds net10.0-windows, whose WPF imaging (WIC) shrinks images that do not fit Hermes' request limit (ImageShrink). -->
+  <PropertyGroup><OutputType>Exe</OutputType><TargetFrameworks>net10.0</TargetFrameworks><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>BigBlueFish.HermesBridge</AssemblyName>
     <!-- Run as dotnet BigBlueFish.HermesBridge.dll (run-hermes-bridge.ps1): Windows Defender's machine-learning scan took the
-         unsigned apphost.exe a build patches for this console app for a trojan (Trojan:Win32/Bearfoos.B!ml, 2026-10-28). -->
+         unsigned apphost.exe a build patches for this console app for a trojan (Trojan:Win32/Bearfoos.B!ml, 2026-10-28).
+         The macOS .app gets a self-contained apphost of its own (tools/build-macos.sh passes UseAppHost=true). -->
     <UseAppHost>false</UseAppHost></PropertyGroup>
+  <!-- Only the Windows RID restores the WPF target: there is no Windows Desktop runtime for osx-arm64 or linux-x64. -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == '' Or $(RuntimeIdentifier.StartsWith('win'))"><TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks><EnableWindowsTargeting>true</EnableWindowsTargeting></PropertyGroup>
+  <PropertyGroup Condition="'$(TargetFramework)' == 'net10.0-windows'"><UseWPF>true</UseWPF></PropertyGroup>
   <!-- WPF projects leave System.IO and System.Net.Http out of the implicit usings. -->
   <ItemGroup><Using Include="System.IO" /><Using Include="System.Net.Http" /></ItemGroup>
+  <!-- The edition's names (the macOS data folder and app) come from the pet's own constants. -->
+  <ItemGroup><Compile Include="../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="Shared/CompanionEdition.cs" /></ItemGroup>
 </Project>

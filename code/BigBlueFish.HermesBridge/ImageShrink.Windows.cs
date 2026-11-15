@@ -1,3 +1,4 @@
+#if WINDOWS
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
@@ -5,6 +6,7 @@ namespace BigBlueFish.HermesBridge;
 
 // Re-encodes an image as JPEG, smaller step by step, until it fits a byte budget. WPF imaging (WIC) objects
 // belong to the thread that made them, so each image gets a short-lived STA thread of its own.
+// ImageShrink.Unix.cs is the macOS and Linux counterpart.
 internal static class ImageShrink
 {
     // Long edge in pixels (0 = as it is) and JPEG quality, tried in order.
@@ -52,3 +54,4 @@ internal static class ImageShrink
         return null;
     }
 }
+#endif

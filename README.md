@@ -36,7 +36,7 @@
 
 1. 打開 DMG，把「藍色大肥魚」（無MCP版是「藍色大肥魚無MCP版」）拖到「應用程式」檔案夾，再從「應用程式」開啟。執行所需的 .NET、動畫解碼元件和本機推論程式都包在 App 裡，不必另外安裝。
 2. App 只有臨時（ad-hoc）簽章，沒有經過 Apple 公證，第一次打開時 macOS 會擋下來。請先試著打開一次，再到「系統設定 › 隱私權與安全性」，在下方找到藍色大肥魚的提示並按「強制打開」，然後依系統提示確認。
-3. 第一次啟動時會出現安裝模型的視窗，可以選擇 Hugging Face（推薦）、中國大陸鏡像（ModelScope）、手動安裝已經下載好的 GGUF 檔案，或先以無模型模式啟動。
+3. 第一次啟動時會出現安裝模型的視窗，可以選擇 Hugging Face（推薦）、中國大陸鏡像（ModelScope）、手動安裝已經下載好的 GGUF 檔案，或先以無模型模式啟動；也可以按「改用雲端 AI 服務」，用自己的 Claude、ChatGPT 或 Gemini API Key 讓魚魚說話（見[雲端 AI 服務](#雲端-ai-服務claudechatgptgemini)）。
 4. 依需要允許下列權限（都在「系統設定 › 隱私權與安全性」）：
 
 | 權限 | 用途 | 哪個版本 |
@@ -59,6 +59,7 @@
 - **台灣繁體中文**：設定、選單、提示視窗、模型安裝與更新視窗和魚魚的說話語氣都是台灣繁體中文與台灣用語。氣泡裡的文字（本機或遠端模型的回覆、天氣、Agent 用 `say` 說的話、Hermes 的回答）顯示前都會用 [OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 的字典把簡體字轉成台灣繁體，已經是繁體或英文的內容維持原樣。氣泡字型改用 [jf open 粉圓 2.1](https://github.com/justfont/open-huninn-font)，粉圓沒有的字與其他介面用系統的蘋方-繁（PingFang TC）。macOS 的 OCR 改成先以繁體中文辨識。106 個動作名稱同時是動畫檔名與 MCP 動作名稱，所以維持原本的簡體字；Agent 用繁體寫動作名稱也認得。
 - **臺灣鄉鎮天氣**：國家清單和原版完全相同（中國排第一，包括中國清單裡的臺灣省），只多加一個國家「臺灣 Taiwan」（22 個縣市、368 個鄉鎮市區），新安裝的預設地點是臺北市中正區。選國家「臺灣 Taiwan」並在設定中填入[中央氣象署開放資料](https://opendata.cwa.gov.tw/)的授權碼時，會使用氣象署的鄉鎮天氣預報；授權碼存在 macOS 鑰匙圈，不會寫進設定檔，也不會提供給 MCP。沒有授權碼時，改用 Open-Meteo 估計鄉鎮市區中心附近的天氣。中國清單裡的臺灣省沿用原版資料，以縣市為單位估算、使用北京時間；要看鄉鎮的天氣，請選國家「臺灣 Taiwan」。選單裡的地名一律以繁體字顯示，但只換字形、不換譯名，所以仍會看到「意大利」這類原版資料的譯名。
 - **自己的身分與資料夾**：本版的 App 是「藍色大肥魚」（`io.github.methrew.bigbluefish.tw`），資料放在 `~/Library/Application Support/bigbluefish-tw`，檢查更新只看本版的發布頁面，不會被換回原作者的版本。第一次啟動時，會從原版的資料夾**唯讀**匯入一次設定、模型選擇和 Agent 資料（模型用 APFS 複本，不多佔空間），原版的資料不會被移動或修改。本版可以和原版同時安裝，但兩者共用「同一時間只能開一隻」的鎖，所以同一時間只會有一隻魚在執行。
+- **雲端 AI 服務（本版新增）**：「模型來源」可以改選 Claude（Anthropic）、ChatGPT（OpenAI）或 Gemini（Google），用自己的 API Key 讓魚魚說話，不必在這台電腦上安裝或執行模型。貼上 API Key 會依開頭自動選好服務，「儲存並測試」只讀取模型清單確認金鑰，不花費 token；Claude 預設使用 Claude Opus 5.5，設定頁會顯示每句的大約費用。API Key 存在 macOS 鑰匙圈，MCP 與 Agent 讀不到，也不能修改模型來源與雲端設定。可以限制每天最多送出幾次請求（預設 200 次），設定頁顯示今天與本月的用量；遇到金鑰錯誤、額度用完或服務忙碌時，魚魚會暫停並在狀態列說明原因。
 - **從台灣版移植到 Mac 的功能**：
   - 遠端模型：改用另一台電腦上的 llama.cpp 伺服器（OpenAI 相容介面）說話；伺服器支援圖片時可以直接傳前景視窗的截圖。API Key 存在 macOS 鑰匙圈。
   - 魚魚自己的主動提醒：久坐、用餐、深夜、低電量與下雨提醒，不需要模型或 Agent。
@@ -89,7 +90,7 @@
 
 主人可以選擇世界各地作為天氣地點，也可以選臺灣的鄉鎮市區。魚魚每小時會悄悄更新一次天氣，播報時結合氣溫、體感、濕度、風力、最高最低溫和降雨機率，用鯨魚娘的口吻講給主人聽；右鍵選單裡的「天氣」可以隨時讓她播報。她也會從 IT之家瀏覽最新的科技新聞，挑一則講清楚重點，再加上一小句自己的感想，並用台灣繁體中文轉述。
 
-內建模型每次只產生一段單獨的回覆，沒有對話歷史，也不保留記憶。使用本機模型時，讀到的螢幕內容只在這台電腦上交給模型，不會上傳到雲端，也不會存到磁碟；改用遠端模型時，前景視窗的文字或截圖會傳送到主人自己填寫的伺服器，詳見 [macOS 說明](docs/MACOS.md#遠端模型)。
+內建模型每次只產生一段單獨的回覆，沒有對話歷史，也不保留記憶。使用本機模型時，讀到的螢幕內容只在這台電腦上交給模型，不會上傳到雲端，也不會存到磁碟；改用遠端模型時，前景視窗的文字或截圖會傳送到主人自己填寫的伺服器，詳見 [macOS 說明](docs/MACOS.md#遠端模型)；改用雲端 AI 服務時，同樣的內容會傳送到主人選的 Anthropic、OpenAI 或 Google，詳見 [macOS 說明](docs/MACOS.md#雲端-ai-服務)。
 
 筆電拔掉電源時，魚魚可以自動暫停模型並把模型移出記憶體，幫主人照顧續航；其他程式全螢幕時，她會自動躲起來，結束後再回到桌面。這些行為都可以在設定中依自己的習慣調整。
 
@@ -125,7 +126,26 @@ Hugging Face 來源是 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface
 
 模型會依目前裝置可用的顯示記憶體自動調整計算緩衝區，並由 llama.cpp 自動分配模型層，顯示記憶體較小的裝置也能順利載入；GPU 初始化失敗時，魚魚會自動改用 CPU 相容模式，並在設定中顯示實際的推論裝置。
 
-不想在這台電腦上執行模型時，也可以在「設定 › 模型與資訊 › 模型來源」改用遠端的 llama.cpp 伺服器。「啟用模型說話」是魚魚用模型自己說話的總開關，使用遠端模型時也要開著。
+不想在這台電腦上執行模型時，也可以在「設定 › 模型與資訊 › 模型來源」改用遠端的 llama.cpp 伺服器，或下一節的雲端 AI 服務。「啟用模型說話」是魚魚用模型自己說話的總開關，使用遠端模型或雲端 AI 服務時也要開著。
+
+## 雲端 AI 服務（Claude、ChatGPT、Gemini）
+
+魚魚也可以改用 Claude（Anthropic）、ChatGPT（OpenAI）或 Gemini（Google）的 API 說話，日常關心、天氣、新聞和說話測試都由所選的服務產生，這台電腦不必安裝或執行模型。需要主人自己的 API Key，費用由服務依用量向主人的帳戶收取；Claude Pro、ChatGPT Plus 這類聊天訂閱不包含 API 用量。
+
+快速設定：
+
+1. 到服務的網站建立 API Key：[Claude](https://platform.claude.com/settings/keys)、[ChatGPT](https://platform.openai.com/api-keys)、[Gemini](https://aistudio.google.com/apikey)。建議為魚魚另外建立一把專用的 Key，並在服務的主控台設定花費上限或預算提醒。
+2. 打開「設定 › 模型與資訊」，「模型來源」選「雲端 AI 服務（Claude、ChatGPT、Gemini）」，看完會傳送哪些內容的說明後確認。
+3. 把 API Key 貼進「API Key」欄（會依開頭自動選好服務），按「儲存並測試」。測試只讀取這把 Key 能用的模型清單，不花費 token。
+4. 視需要從「模型」選單改選模型、調整「每天最多」（50、100、200、500 次或不限制，預設 200 次）。改了模型要再按一次「儲存並測試」才會生效；沒按就關掉設定視窗，魚魚會繼續用原本的模型。「每天最多」一改就會儲存，不必另外按。
+
+| 服務 | 預選的模型 | 每句大約 |
+| --- | --- | --- |
+| Claude | Claude Opus 5.5（也可以改選 Claude Sonnet 5.5、Claude Haiku 5.5） | US$0.02（Sonnet 5.5 約 US$0.01，Haiku 5.5 約 US$0.0005） |
+| ChatGPT | `gpt-6-luna` | US$0.0004 |
+| Gemini | `gemini-3.5-flash-lite` | US$0.001 |
+
+每句的費用是依 2026 年 11 月的價格、以一句附視窗截圖的話估計的，實際以服務的帳單為準。API Key 存在 macOS 鑰匙圈，不會寫進設定檔，MCP 和 Agent 都讀不到，也不能修改模型來源、服務、模型和每天上限。前景視窗的文字（勾選「傳送前景視窗截圖」時是截圖）會傳到所選的服務；會傳送的內容、費用、暫停規則、鑰匙圈與疑難排解，見 [macOS 說明](docs/MACOS.md#雲端-ai-服務)。
 
 ## 透過 ACP 連線桌面 Agent
 
@@ -178,7 +198,7 @@ Claude Code、Codex CLI 和 Pi 需要經過 ACP 轉接器連線。電腦上還�
 
 ## 無MCP版
 
-為了徹底消除 Agent 連線可能帶來的隱私風險，本版也提供無MCP版（App 名稱是「藍色大肥魚無MCP版」；原作者的 README 稱它為「無ACP版」）。無MCP版在編譯時就移除了 Agent 連線、MCP 介面與內部控制服務、MCP 橋接程式、Hermes 橋接程式、雙擊輸入框和相關的設定頁面，只保留魚魚自己的陪伴功能（包括遠端模型、臺灣鄉鎮天氣和主動提醒），檢查更新時也只會找無MCP版。DMG 的檔名帶有 `Safe` 字樣，下載方式和標準版相同。
+為了徹底消除 Agent 連線可能帶來的隱私風險，本版也提供無MCP版（App 名稱是「藍色大肥魚無MCP版」；原作者的 README 稱它為「無ACP版」）。無MCP版在編譯時就移除了 Agent 連線、MCP 介面與內部控制服務、MCP 橋接程式、Hermes 橋接程式、雙擊輸入框和相關的設定頁面，只保留魚魚自己的陪伴功能（包括遠端模型、雲端 AI 服務、臺灣鄉鎮天氣和主動提醒），檢查更新時也只會找無MCP版。DMG 的檔名帶有 `Safe` 字樣，下載方式和標準版相同。
 
 在 macOS 上，無MCP版和標準版共用同一個資料夾與鑰匙圈項目，但登入項目和系統權限各自分開。開過無MCP版之後，標準版的 Agent 與 MCP 相關開關會維持原樣，不會被無MCP版關掉。
 
@@ -226,6 +246,7 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET �
 - 文字辨識：macOS 使用系統的 Apple Vision，Windows 使用系統提供的 Windows.Media.Ocr，Linux 使用 Tesseract；
 - 氣泡字型：jf open 粉圓 2.1（SIL Open Font License 1.1），取代原版的「乐米小奶泡体」；本版不散布原版字型；
 - 繁簡轉換：[OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 字典（Apache-2.0）；
+- 雲端 AI 服務：Claude 透過 Anthropic 官方的 C# SDK（[anthropic-sdk-csharp](https://github.com/anthropics/anthropic-sdk-csharp) 13.8.0，Apache-2.0，改授權前合併的部分仍適用 MIT）與它使用的 Microsoft.Extensions.AI.Abstractions 10.5.1（MIT）；Claude、ChatGPT、Gemini 的服務由使用者以自己的帳戶與 API Key 連線，適用各服務自己的條款，本程式沒有經過 Anthropic、OpenAI 或 Google 推薦或背書；
 - 天氣資料：[Open-Meteo](https://open-meteo.com/)，CC BY 4.0；臺灣鄉鎮天氣預報：中央氣象署開放資料，依政府資料開放授權條款第 1 版使用，中央氣象署並未推薦或背書本程式；科技新聞：[IT之家 RSS](https://www.ithome.com/rss/)；
 - 行政區資料：[AreaCity-JsSpider-StatsGov](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov)，MIT 授權，只內嵌層級與近似中心座標；美國州郡、全球城市與國名分別來自美國人口普查局 Gazetteer、GeoNames 與 Unicode CLDR；臺灣鄉鎮市區中心依內政部國土測繪中心的鄉（鎮、市、區）界線計算，依政府資料開放授權條款第 1 版使用。
 

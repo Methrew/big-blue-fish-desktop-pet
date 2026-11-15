@@ -13,7 +13,7 @@ MCP 的連線設定、工具欄位、動作與文字排程、事件的接收及�
 | --- | --- |
 | `BigBlueFish.Mac/` | macOS 版 App。編譯 `BigBlueFish.Linux/` 的 Avalonia 原始碼，並連結 `BigBlueFish.Windows/Companion/` 裡共用的 `*.cs`，定義 `COMPANION_MAC`；以 `MacCapture.cs` 取代 `LinuxCapture.cs`。另有 `mac-ocr.swift`（Apple Vision OCR）、`mac-screen.swift`（`find_on_screen` 用的視窗清單與輔助使用讀取）、資料匯入（`MacDataImport.cs`）、登入項目（`MacLoginItem.cs`）、鑰匙圈（`MacKeychain.cs`、`MacSecrets.cs`）、系統讀數（`MacSystem.cs`）與畫面搜尋（`MacScreenSearch.cs`） |
 | `BigBlueFish.Linux/` | Avalonia 桌寵，Linux 版直接使用，macOS 版也編譯同一份 |
-| `BigBlueFish.Windows/` | WPF 的 Windows 版；`Companion/` 裡有各平台共用的邏輯，例如 `CompanionEdition.cs`（本版的名稱、識別碼與發布來源）、`CompanionTraditional.cs`（OpenCC 繁體轉換）、`CompanionActionNames.cs`（繁體動作名稱）、`CompanionBrain.cs`、`CompanionWeather.cs`、`CompanionRegions.cs`、`CompanionReminders.cs`、`CompanionScreenMatching.cs`、`CompanionAttachmentRules.cs` |
+| `BigBlueFish.Windows/` | WPF 的 Windows 版；`Companion/` 裡有各平台共用的邏輯，例如 `CompanionEdition.cs`（本版的名稱、識別碼與發布來源）、`CompanionTraditional.cs`（OpenCC 繁體轉換）、`CompanionActionNames.cs`（繁體動作名稱）、`CompanionBrain.cs`、`CompanionCloud.cs`（雲端 AI 服務）、`CompanionWeather.cs`、`CompanionRegions.cs`、`CompanionReminders.cs`、`CompanionScreenMatching.cs`、`CompanionAttachmentRules.cs` |
 | `BigBlueFish.Agent/` | ACP 用戶端、Harness 清單、工作區、技能與人設（`Skills/`） |
 | `BigBlueFish.Control/` | 共用的 MCP 通訊協定與工具定義 |
 | `BigBlueFish.Mcp/` | stdio 橋接程式 |
@@ -45,6 +45,7 @@ $DOTNET build code/BigBlueFish.Mac/BigBlueFish.Mac.csproj -c Release -r osx-arm6
 
 - 不同目標的建置會共用 `bin/` 資料夾，建置不同版本或平台時請用 `-o` 指定各自的輸出資料夾，或加上 `--no-incremental`。
 - 鎖定檔：Mac 專案的標準版用 `packages.lock.json`，無MCP版用 `packages.safe.lock.json`；`BigBlueFish.Control`、`BigBlueFish.Mcp`、`BigBlueFish.Agent`、`BigBlueFish.Diagnostics` 與 `BigBlueFish.HermesBridge` 依 RID 分開，使用 `obj/<rid>/` 與 `packages.<rid>.lock.json`。
+- Mac、Linux、Windows 三個 App 專案和 `tests/RemoteModelVerification` 都參考 Anthropic 官方的 C# SDK（NuGet `Anthropic` 13.8.0，雲端 AI 服務的 Claude 用）。改版本時，要一起重新產生這些專案（Windows 另有 `packages.vision.lock.json`）與編譯 Windows 版的測試專案的鎖定檔，`-p:RestoreLockedMode=true` 的建置才會成功；新的套件也要寫進[第三方聲明](THIRD-PARTY.md)。
 - 橋接程式在 Mac 上要用 `-f net10.0 -r osx-arm64` 編譯，否則產生的 dll 無法在 Apple Silicon 的 dotnet 上載入。
 - `--test-mode` 的魚魚會讀取資料夾裡的 `test-command.txt`（一次一個指令，執行完寫出內容相同的 `test-done.txt`，出錯時另外寫出 `test-error.txt`）並寫出 `test-status.json` 等狀態檔，可用的指令分散在 `BigBlueFish.Linux/` 的 `LinuxTestCommands.cs`、`LinuxBubbleText.cs`、`LinuxProactive.cs` 與 `LinuxWalk.cs`（例如 `bubble <文字>`、`stream <文字>`、`walk:x,y`、`find:查詢文字`、`reminder-clock:…`、`open-input`、`attach <路徑>`）。用測試模式時請搭配 `BIGBLUEFISH_DATA` 指定暫存資料夾；魚魚同一時間只能執行一隻（原版也算），測試前請先關閉正在執行的魚魚。
   - 檢查畫面用的指令（`LinuxTestCommands.cs`）：`settings-page <導覽按鈕文字>`、`settings-size <寬>x<高>`、`settings-scroll <位置|end>`、`render-settings-full [檔名.png]`（目前設定頁從頭到尾，不受捲動範圍限制）、`list-windows`（寫出 `windows.json`）、`render-window <標題的一部分> <檔名.png>`、`texts <標題的一部分> <檔名.json>`（視窗顯示的文字，不必 OCR）、`close-window <標題的一部分>`、`render-bubble`、`open-menu` 與 `render-menu`、`click <按鈕或核取方塊的文字>`、`select <目前顯示的選項>=<新選項>`、`type <提示文字>=<內容>`、`install-model`、`check-updates [網址]`（網址代替 GitHub 的最新版本 API，可以測試發現新版本的對話框）。圖片以兩倍解析度存在資料夾裡，`render`、`render-settings` 等也可以在後面指定檔名；開啟對話框的指令不會等對話框關閉，接著可以用 `render-window` 或 `click` 處理它。`type` 只能填測試用的值：在設定頁儲存的授權碼和 API Key 會寫進這台 Mac 真正的鑰匙圈。
@@ -61,19 +62,20 @@ DOTNET_ROOT=~/.dotnet "/tmp/bbf-tests/$name/$name" [參數]
 ```
 
 - `-p:NuGetLockFilePath=obj/packages.osx-arm64.lock.json` 讓這次還原把鎖定檔寫到 `obj/`，不會改動儲存庫裡為 win-x64 記錄的鎖定檔。
+- `RemoteModelVerification` 的 osx-arm64 與 win-x64 鎖定檔（`packages.osx-arm64.lock.json`、`packages.win-x64.lock.json`）在儲存庫裡，建置它時改用 `-p:RestoreLockedMode=true`、不加 `NuGetLockFilePath`，就會照記錄的版本還原 Anthropic SDK 等套件。
 - .NET 安裝在 `~/.dotnet`、不在 PATH 上時，執行輸出的程式要設定 `DOTNET_ROOT=~/.dotnet`；也可以改用 `$DOTNET "/tmp/bbf-tests/$name/$name.dll"`，但 `MacEditionVerification` 必須執行同名程式本身，因為它會在模擬的 App 裡再啟動自己。
 
 | 專案 | 檢查內容 | 參數 |
 | --- | --- | --- |
 | `TraditionalTextVerification` | 氣泡的繁體轉換（8591 筆語料）、台灣用語修正與串流顯示 | 無 |
-| `WeatherRegionVerification` | 地區清單、繁體地名、MCP 地點代碼、儲存的地點、macOS 鑰匙圈流程（用假的 `security`，不動到真正的鑰匙圈）與天氣快取 | `live`：實際連線 Open-Meteo 與中央氣象署 |
-| `RemoteModelVerification` | 遠端模型：API Key、圖片支援判斷、連線測試訊息、只截前景視窗、拒收圖片時改送 OCR 文字（用假的 OpenAI 相容伺服器） | `live <網址> [API Key] [模型名稱]`：對真的伺服器測試 |
+| `WeatherRegionVerification` | 地區清單、繁體地名、MCP 地點代碼、儲存的地點、macOS 鑰匙圈流程（中央氣象署授權碼、遠端模型與三個雲端 AI 服務的 API Key；用假的 `security`，不動到真正的鑰匙圈）、`Cloud` 模型來源的設定正規化與天氣快取 | `live`：實際連線 Open-Meteo 與中央氣象署 |
+| `RemoteModelVerification` | 遠端模型：API Key、圖片支援判斷、連線測試訊息、只截前景視窗、拒收圖片時改送 OCR 文字（用假的 OpenAI 相容伺服器）。雲端 AI 服務（`CloudVerification.cs`）：用三個本機的假 Claude、OpenAI、Gemini 伺服器，檢查模型清單、分頁與預選、請求內容（金鑰的標頭、人設、圖片、思考強度與備援，沒有 llama.cpp 欄位與取樣參數）、思考設定被拒時的重試、各種錯誤的中文訊息與暫停時間、婉拒與串流中斷、拒收截圖改送文字、每天上限與 `cloud-usage.json`，以及記錄主控台裡沒有金鑰或服務回覆的原文 | `live <網址> [API Key] [模型名稱]`：對真的伺服器測試遠端模型；雲端 AI 服務只用假的伺服器，不會連線真正的 API |
 | `ReminderVerification` | 主動提醒（模擬多種日子，含睡眠計時） | 無 |
 | `ScreenMatchingVerification` | `find_on_screen` 與 `walk_to` 的名稱比對規則、假的畫面 | `BigBlueFish.MacScreen` 的路徑：另外讀這台 Mac 的真實畫面並檢查 JSON 格式 |
 | `MacEditionVerification` | 版本比較、資產檔名、從原版匯入、登入項目（都在暫存資料夾裡） | `[工作資料夾] [--safe-app <無MCP版建置資料夾>]` |
 | `MacLogicVerification` | 推論裝置名稱、只有相容動畫時的動畫規則、登入 shell 的 PATH（慢速、卡住的 shell）、前景視窗規則、終端機登入指令稿 | `[儲存庫根目錄]` |
 | `MacSystemVerification` | 這台 Mac 的閒置時間、睡眠也計時的時鐘、電池、鎖定與前景程式讀數 | `--finder`：實際詢問 Finder（可能跳出「自動化」權限詢問） |
-| `McpProtocolVerification` | 真正的 stdio 橋接程式與通訊協定、依平台的工具清單（Linux 15 個，Windows 與 macOS 17 個） | 輸出資料夾裡 `BigBlueFish.Mcp` 的路徑 |
+| `McpProtocolVerification` | 真正的 stdio 橋接程式與通訊協定、依平台的工具清單（Linux 15 個，Windows 與 macOS 17 個）、唯讀設定與金鑰被拒絕的原因（包括雲端 AI 服務的欄位） | 輸出資料夾裡 `BigBlueFish.Mcp` 的路徑 |
 | `AgentVerification` | ACP 連線、對話恢復、工作區、輸入框附件（`resource_link`、圖片區塊與兩種退回） | 無 |
 | `AnimationVerification` | 動作權重、日期與農曆節日規則 | `[動畫資料夾]`（預設從儲存庫根目錄找） |
 | `OcrLayoutVerification` | OCR 文字依版面整理 | 無 |
@@ -94,14 +96,15 @@ Python 測試（Python 3.9 以上）：
 | --- | --- |
 | `BigBlueFish.Windows/Companion/CompanionEdition.cs` | 本版的名稱、Bundle ID、資料夾、發布來源與致謝；建置腳本透過 `tools/Get-EditionIdentity.py` 讀取 |
 | `BigBlueFish.Linux/LinuxPetWindow.cs`、`LinuxSettings.cs` | macOS 與 Linux 的生命週期、動畫、設定頁 |
-| `BigBlueFish.Linux/LinuxModelSettings.cs`、`LinuxWeatherSettings.cs`、`LinuxProactive.cs` | 遠端模型、天氣地點與中央氣象署授權碼、主動提醒的設定頁與邏輯 |
+| `BigBlueFish.Linux/LinuxModelSettings.cs`、`LinuxWeatherSettings.cs`、`LinuxProactive.cs` | 遠端模型與雲端 AI 服務、天氣地點與中央氣象署授權碼、主動提醒的設定頁與邏輯；`ApplyModelSource()` 把儲存的模型來源交給 `CompanionBrain` |
 | `BigBlueFish.Linux/LinuxMaintenance.cs` | 安裝模型、「關於與更新」頁與檢查更新 |
 | `BigBlueFish.Windows/Companion/CompanionWindow.cs` | Windows 的生命週期、拖曳、動畫、設定和電源事件 |
 | `BigBlueFish.Windows/Companion/CompanionMenus.cs` | Windows 的右鍵選單、地點選擇和手動天氣播報 |
 | `BigBlueFish.Windows/Companion/CompanionPreferences.cs` | 設定的預設值、驗證和不可分割的儲存 |
 | `BigBlueFish.Windows/Companion/CompanionRegions.cs` | 地區層級、繁體顯示名稱與定位 |
 | `BigBlueFish.Windows/Companion/CompanionWeather.cs` | 天氣請求、天氣代號的中文對照、中央氣象署鄉鎮預報和依地點快取 |
-| `BigBlueFish.Windows/Companion/CompanionBrain.cs` | 模型啟動、推論、遠端模型、電池策略和提示詞 |
+| `BigBlueFish.Windows/Companion/CompanionBrain.cs` | 模型啟動、推論、遠端模型、雲端 AI 服務的分支（`UseCloudModel`、測試、每天上限與暫停）、電池策略和提示詞 |
+| `BigBlueFish.Windows/Companion/CompanionCloud.cs` | 雲端 AI 服務：Claude（Anthropic 官方 C# SDK）、ChatGPT（Chat Completions）與 Gemini（generateContent）的請求與串流、模型清單與預選、每句費用估計、錯誤的中文訊息、暫停規則（`CloudPause`）與每天用量（`CloudUsage`、`cloud-usage.json`）。官方端點寫在 `CompanionCloud.Providers`，`CloudGuard` 只讓請求送往這些端點；`RedirectForTests` 只給測試把端點換成本機伺服器，App 沒有任何設定或環境變數能改端點。Mac、Linux 專案和 `RemoteModelVerification` 以連結編譯這個檔案 |
 | `BigBlueFish.Windows/Companion/CompanionTraditional.cs` | 氣泡文字的台灣繁體轉換 |
 | `BigBlueFish.Windows/Companion/CompanionSpeech.cs` | Windows 所有模型回覆的逐字顯示、Unicode 字元邊界、取代和取消 |
 | `BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs` | 貼邊、獨立氣泡視窗和 DPI 換算 |

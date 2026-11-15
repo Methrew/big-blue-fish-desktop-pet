@@ -66,6 +66,7 @@ Check(CompanionTraditional.Convert("我已經讓魚魚跳了「轻快摇摆舞�
 // Fork fixes for OpenCC data that reads wrong in Taiwan.
 Check(CompanionTraditional.Convert("我们的士兵很勇敢") == "我們的士兵很勇敢", "的士兵 is not a taxi");
 Check(!CompanionTraditional.Convert("你们去过台北的士林夜市吗？").Contains("計程車"), "士林 survives after 的");
+Check(CompanionTraditional.Convert("今天局部多云，局部地区有雨") == "今天局部多雲，局部地區有雨", "局部 stays 局部, not 區域性");
 Check(CompanionTraditional.Convert("主人，我们一起干杯吧！") == "主人，我們一起乾杯吧！", "一起干杯 toasts with 乾");
 // Streamed snapshots that need converting hold back their unfinished last run of Chinese.
 Check(CompanionTraditional.ConvertPartial("好的，我把房间打扫干") == "好的，", "unfinished Simplified run waits");

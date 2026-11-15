@@ -23,9 +23,9 @@ internal sealed class CompanionTraditional
     // Not an STCharacters key, but TWVariants writes it as 著.
     private const string ExtraTriggers = "着";
     // Fork fixes for OpenCC 1.4.2 data that reads wrong in Taiwan: maximum matching took 一起干 (幹)
-    // before 干杯, and TWPhrases' 的士 (taxi) turned 的士兵, 的士氣 and 的士林 into 計程車.
+    // before 干杯, TWPhrases' 的士 (taxi) turned 的士兵, 的士氣 and 的士林 into 計程車, and its 局部 turned 局部多雲 into 區域性多雲.
     private static readonly Dictionary<string, string[]> PhraseFixes = new(StringComparer.Ordinal) { ["一起干杯"] = ["一起乾杯"] };
-    private const string DroppedTaiwanPhrase = "的士";
+    private static readonly string[] DroppedTaiwanPhrases = ["的士", "局部"];
     private const string ResourcePrefix = "BigBlueFish.Windows.assets.opencc.";
     private static readonly Lazy<CompanionTraditional?> shared = new(Load);
 
@@ -74,7 +74,7 @@ internal sealed class CompanionTraditional
         // OpenCC segments with the union of both; STPhrases wins on equal keys.
         stPhrases.AddMissing(Read(open, "STPhrases_GeneratedFromRegionalPhrases.txt"));
         var taiwanPhrases = new Table(Read(open, "TWPhrases.txt"));
-        taiwanPhrases.Remove(DroppedTaiwanPhrase);
+        foreach (var phrase in DroppedTaiwanPhrases) taiwanPhrases.Remove(phrase);
         twGroup = [taiwanPhrases, new Table(Read(open, "TWVariantsPhrases.txt")), new Table(Read(open, "TWVariants.txt"))];
         twLength = twGroup.Max(table => table.Length);
 

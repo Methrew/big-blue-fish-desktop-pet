@@ -32,33 +32,43 @@ var instructions = response.GetProperty("result").GetProperty("instructions").Ge
 Check(instructions.Contains("user_message"), "Handshake explains input event handling");
 Check(instructions.Contains("user_returned"), "Handshake names the user_returned event");
 Check(instructions.Contains("say") && instructions.Contains("get_operation_guide"), "Handshake explains tool-only speech and the operation guide");
-Check(instructions.Contains("attachments") && instructions.Contains("space=capture") && instructions.Contains("台灣繁體中文"), "Handshake covers attachments, walk_to coordinates and Taiwan Traditional output");
+// Linux has no reader of the screen, so neither find_on_screen nor walk_to nor their coordinates are offered there.
+bool screenTools = !OperatingSystem.IsLinux();
+Check(instructions.Contains("attachments") && instructions.Contains("space=capture") == screenTools && instructions.Contains("台灣繁體中文"), "Handshake covers attachments, walk_to coordinates and Taiwan Traditional output");
 await process.StandardInput.WriteLineAsync("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
 response = await Request(2, "tools/list");
 var tools = response.GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
-Check(tools.Length == 17, "Seventeen tools: the fourteen of the Agent connection plus get_context, walk_to and find_on_screen");
+Check(tools.Length == (screenTools ? 17 : 15), "Seventeen tools: the fourteen of the Agent connection plus get_context, walk_to and find_on_screen (Linux without the last two)");
 foreach (var tool in tools) Check(tool.GetProperty("inputSchema").GetProperty("type").GetString() == "object", "Object schema");
 var toolNames = tools.Select(t => t.GetProperty("name").GetString()).ToList();
 Check(new[] { "get_settings", "get_context", "update_settings", "list_actions", "capture_foreground", "capture_screen", "play_action", "interrupt_action", "walk_to", "find_on_screen",
-    "say", "say_next", "request_local_speech", "get_operation_guide", "get_wakeups", "schedule_wakeup", "cancel_wakeup" }.SequenceEqual(toolNames), "Merged tool list in its documented order");
+    "say", "say_next", "request_local_speech", "get_operation_guide", "get_wakeups", "schedule_wakeup", "cancel_wakeup" }.Where(n => screenTools || n is not ("walk_to" or "find_on_screen")).SequenceEqual(toolNames),
+    "Merged tool list in its documented order");
 var wakeup = tools.Single(t => t.GetProperty("name").GetString() == "schedule_wakeup").GetProperty("inputSchema");
 Check(wakeup.GetProperty("required").EnumerateArray().Select(v => v.GetString()).SequenceEqual(new[] { "purpose", "delay_seconds" })
     && wakeup.GetProperty("properties").GetProperty("repeat_seconds").GetProperty("type").EnumerateArray().Any(t => t.GetString() == "null"), "schedule_wakeup needs a purpose and a delay and may repeat");
-Check(toolNames.IndexOf("walk_to") == toolNames.IndexOf("interrupt_action") + 1, "walk_to listed right after interrupt_action");
-var walkSchema = tools.Single(t => t.GetProperty("name").GetString() == "walk_to").GetProperty("inputSchema");
-var walkProperties = walkSchema.GetProperty("properties");
-Check(walkSchema.GetProperty("required").GetArrayLength() == 0 && !walkSchema.GetProperty("additionalProperties").GetBoolean()
-    && walkProperties.GetProperty("space").GetProperty("enum").EnumerateArray().Select(v => v.GetString()).SequenceEqual(new[] { "screen", "capture" })
-    && new[] { "x", "y", "width", "height", "capture_id", "image_width", "image_height", "desktop_item", "side", "arrive_action", "say", "wait", "stops", "pause_seconds" }.All(p => walkProperties.TryGetProperty(p, out _)),
-    "walk_to documents screen and capture coordinates, desktop items, stops and its options");
-var stopItems = walkProperties.GetProperty("stops").GetProperty("items");
-Check(walkProperties.GetProperty("stops").GetProperty("maxItems").GetInt32() == 20 && !stopItems.GetProperty("additionalProperties").GetBoolean()
-    && new[] { "x", "y", "width", "height", "desktop_item", "label" }.All(p => stopItems.GetProperty("properties").TryGetProperty(p, out _)), "walk_to stops take a target and a label each");
-var find = tools.Single(t => t.GetProperty("name").GetString() == "find_on_screen");
-Check(toolNames.IndexOf("find_on_screen") == toolNames.IndexOf("walk_to") + 1 && find.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(v => v.GetString()).SequenceEqual(new[] { "query" })
-    && find.GetProperty("inputSchema").GetProperty("properties").GetProperty("where").GetProperty("enum").GetArrayLength() == 3
-    && find.GetProperty("description").GetString()!.Contains("walk_to") && find.GetProperty("description").GetString()!.Contains("openFolder"),
-    "find_on_screen follows walk_to, needs a query, hands its matches to walk_to and names Explorer folders");
+if (screenTools)
+{
+    Check(toolNames.IndexOf("walk_to") == toolNames.IndexOf("interrupt_action") + 1, "walk_to listed right after interrupt_action");
+    var walkSchema = tools.Single(t => t.GetProperty("name").GetString() == "walk_to").GetProperty("inputSchema");
+    var walkProperties = walkSchema.GetProperty("properties");
+    Check(walkSchema.GetProperty("required").GetArrayLength() == 0 && !walkSchema.GetProperty("additionalProperties").GetBoolean()
+        && walkProperties.GetProperty("space").GetProperty("enum").EnumerateArray().Select(v => v.GetString()).SequenceEqual(new[] { "screen", "capture" })
+        && new[] { "x", "y", "width", "height", "capture_id", "image_width", "image_height", "desktop_item", "side", "arrive_action", "say", "wait", "stops", "pause_seconds" }.All(p => walkProperties.TryGetProperty(p, out _)),
+        "walk_to documents screen and capture coordinates, desktop items, stops and its options");
+    var stopItems = walkProperties.GetProperty("stops").GetProperty("items");
+    Check(walkProperties.GetProperty("stops").GetProperty("maxItems").GetInt32() == 20 && !stopItems.GetProperty("additionalProperties").GetBoolean()
+        && new[] { "x", "y", "width", "height", "desktop_item", "label" }.All(p => stopItems.GetProperty("properties").TryGetProperty(p, out _)), "walk_to stops take a target and a label each");
+    var find = tools.Single(t => t.GetProperty("name").GetString() == "find_on_screen");
+    Check(toolNames.IndexOf("find_on_screen") == toolNames.IndexOf("walk_to") + 1 && find.GetProperty("inputSchema").GetProperty("required").EnumerateArray().Select(v => v.GetString()).SequenceEqual(new[] { "query" })
+        && find.GetProperty("inputSchema").GetProperty("properties").GetProperty("where").GetProperty("enum").GetArrayLength() == 3
+        && find.GetProperty("description").GetString()!.Contains("walk_to") && find.GetProperty("description").GetString()!.Contains("openFolder"),
+        "find_on_screen follows walk_to, needs a query, hands its matches to walk_to and names Explorer folders");
+    // macOS reads the screen through Accessibility and gives global points.
+    if (OperatingSystem.IsMacOS())
+        Check(find.GetProperty("description").GetString()!.Contains("輔助使用") && walkProperties.GetProperty("space").GetProperty("description").GetString()!.Contains("macOS全域座標點")
+            && instructions.Contains("全域座標點"), "macOS describes its Accessibility permission and global points");
+}
 var context = tools.Single(t => t.GetProperty("name").GetString() == "get_context");
 Check(toolNames.IndexOf("get_context") == toolNames.IndexOf("get_settings") + 1 && context.GetProperty("inputSchema").GetProperty("properties").EnumerateObject().Count() == 0
     && new[] { "summary", "idleSeconds", "activeMinutes", "fullscreen", "batteryPercent", "foreground", "weather", "openFolders", "lastReminder", "SitReminderMinutes" }.All(context.GetProperty("description").GetString()!.Contains),
@@ -67,7 +77,7 @@ Check(ControlTools.PrivacyWarning.Contains("閒置時間") && ControlTools.Priva
 Check(ControlTools.McpPrivacyWarning.Contains("閒置時間") && ControlTools.McpPrivacyWarning.Contains("視窗標題") && ControlTools.McpPrivacyWarning.Contains("MCP 介面"),
     "The MCP interface consent mentions the same usage state");
 foreach (var capture in new[] { "capture_foreground", "capture_screen" })
-    Check(tools.Single(t => t.GetProperty("name").GetString() == capture).GetProperty("description").GetString()!.Contains("captureId"), capture + " describes its coordinate metadata");
+    Check(tools.Single(t => t.GetProperty("name").GetString() == capture).GetProperty("description").GetString()!.Contains("captureId") == screenTools, capture + " describes its coordinate metadata where walk_to takes it");
 // ControlServer checks only tool names, so walk_to's optional arguments are validated by these helpers.
 var sample = JsonSerializer.SerializeToElement(new { x = 12.5, wait = false, space = "capture", word = "text", big = 1e9, empty = (string?)null });
 Check(ControlTools.OptionalNumber(sample, "x", -10, 100) == 12.5 && ControlTools.OptionalNumber(sample, "y", 0, 1) == null && ControlTools.OptionalNumber(sample, "empty", 0, 1) == null

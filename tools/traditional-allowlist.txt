@@ -41,3 +41,8 @@ code/tests/AgentVerification/WorkspaceVerification.cs	另一个工作区	non-ASC
 code/tests/AgentVerification/WorkspaceVerification.cs	项目.txt	non-ASCII file name used as test input
 code/tests/AgentVerification/WorkspaceVerification.cs	不支持图片输入	Simplified Agent error message the refusal check must recognise
 code/tests/AgentVerification/Program.cs	允许一次	permission option of the fixture Agent, as an external Agent may name it
+code/tests/AgentVerification/LiveProbe.cs	读取	permission titles come from external Agents, which may write Simplified
+code/tests/AgentVerification/LiveProbe.cs	【鱼鱼说话要求】	speech-brief start marker, as CompanionBrain writes it
+code/tests/AgentVerification/LiveProbe.cs	【说话要求结束】	speech-brief end marker, as CompanionBrain writes it
+code/tests/HermesScenarioVerification/scenarios.py	'蓝色大肥鱼'	the original edition's app, searched for its bundled bridge
+code/tests/HermesScenarioVerification/scenarios.py	{"通過" if ok else "沒過"}	通過 means a scenario passed here, not 'via'

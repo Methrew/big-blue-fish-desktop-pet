@@ -19,8 +19,8 @@ static class LiveProbe
         }, pipe);
         host = new AgentCoordinator(root, bridge, pipe, (permission, token) => {
             // Test workspace reads only. No blanket approval of shell execution or external writes.
-            bool read = permission.Kind == "read" || permission.Title.Contains("read", StringComparison.OrdinalIgnoreCase) || permission.Title.Contains("读取") || permission.Title.Contains("get_operation_guide") || permission.Title.Contains("say")
-                || permission.Title.Contains("\"text\"") && permission.Title.Contains("鱼鱼连上啦");
+            bool read = permission.Kind == "read" || permission.Title.Contains("read", StringComparison.OrdinalIgnoreCase) || permission.Title.Contains("读取") || permission.Title.Contains("讀取") || permission.Title.Contains("get_operation_guide") || permission.Title.Contains("say")
+                || permission.Title.Contains("\"text\"") && permission.Title.Contains("魚魚連上啦");
             string? choice = read ? permission.Options.FirstOrDefault(x => x.Kind == "allow_once")?.Id : null;
             Console.WriteLine("PERMISSION " + permission.Title + ": " + (choice ?? "cancelled"));
             AtomicText.Write(Path.Combine(root, "last-permission.json"), permission.Detail);
@@ -67,7 +67,7 @@ static class LiveProbe
                 Console.WriteLine("CONFIG selectors verified=" + controls.Length);
             }
             if (!prompt) { Console.WriteLine("RESULT ACP session handshake verified; generation not tested."); return Finish(0, "ACP session handshake only"); }
-            host.SendUser("这是蓝色大肥鱼联调测试。请使用big-blue-fish技能，读取操作说明和人设，仅调用say工具显示一句“主人，鱼鱼连上啦~”，然后结束本轮。");
+            host.SendUser("這是藍色大肥魚的連線測試。請使用big-blue-fish技能，讀取操作說明和人設，只呼叫say工具顯示一句「主人，魚魚連上啦~」，然後結束本輪。");
             limit = DateTime.UtcNow.AddMinutes(3);
             while (DateTime.UtcNow < limit && said == 0 && !host.Status.Contains("失敗") && !host.Status.StartsWith("需要登入") && !host.Detail.StartsWith("本輪")) await Task.Delay(100);
             if (said == 0) { Console.WriteLine("RESULT no say tool call; real reply path not verified. guide calls=" + guide); return Finish(4, "No say tool call"); }
@@ -80,9 +80,9 @@ static class LiveProbe
                     observedAllowImages = allowImages;
                     Console.WriteLine($"SPEECH_BRIEF kind={kind} allowImages={allowImages} supportsImages={host.SupportsImages}");
                     return Task.FromResult(allowImages
-                        ? new AgentSpeechBrief("【鱼鱼说话要求】用温柔简短的中文说一句关心主人的话，只调用一次say。【说话要求结束】\n【本轮屏幕资料】现在是测试时刻，主人正在阅读技术文档。【屏幕资料结束】",
+                        ? new AgentSpeechBrief("【鱼鱼说话要求】用溫柔簡短的中文說一句關心主人的話，只呼叫一次say。【说话要求结束】\n【本輪螢幕資料】現在是測試時刻，主人正在閱讀技術文件。【螢幕資料結束】",
                             new("image/png", "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB9sAAAAASUVORK5CYII="), "image")
-                        : new AgentSpeechBrief("【鱼鱼说话要求】用温柔简短的中文说一句关心主人的话，只调用一次say。【说话要求结束】\n【本轮屏幕资料】现在是测试时刻，前台窗口：VS Code — 正在查看蓝色大肥鱼项目代码。【屏幕资料结束】\n当前 Agent 未启用图片输入，已改用本地文字识别提供前台内容。",
+                        : new AgentSpeechBrief("【鱼鱼说话要求】用溫柔簡短的中文說一句關心主人的話，只呼叫一次say。【说话要求结束】\n【本輪螢幕資料】現在是測試時刻，前景視窗：VS Code — 正在看藍色大肥魚專案的程式碼。【螢幕資料結束】\n目前的 Agent 未啟用圖片輸入，已改用本機文字辨識提供前景內容。",
                             null, "ocr"));
                 };
                 host.Configure(id, new(true, true, true));
@@ -93,10 +93,10 @@ static class LiveProbe
                 var origBrief = host.SpeechBrief;
                 host.SpeechBrief = async (k, a, t) => { briefCalled = true; return await origBrief!(k, a, t); };
                 host.Wakeups.Clear();
-                host.Wakeups.Schedule(id, host.SessionId, "定时关心主人", 30, null, null, DateTimeOffset.Now.AddMinutes(-1));
+                host.Wakeups.Schedule(id, host.SessionId, "定時關心主人", 30, null, null, DateTimeOffset.Now.AddMinutes(-1));
                 host.Tick(DateTimeOffset.Now, true);
                 limit = DateTime.UtcNow.AddMinutes(3);
-                while (DateTime.UtcNow < limit && !briefCalled && !host.Status.Contains("失败")) await Task.Delay(100);
+                while (DateTime.UtcNow < limit && !briefCalled && !host.Status.Contains("失敗")) await Task.Delay(100);
                 while (DateTime.UtcNow < limit && host.Busy) await Task.Delay(100);
                 if (said <= beforeWake || observedAllowImages != host.SupportsImages)
                 { Console.WriteLine($"RESULT wakeup failed; said={said} before={beforeWake} allowImages={observedAllowImages}"); return Finish(5, "Wakeup care failed"); }

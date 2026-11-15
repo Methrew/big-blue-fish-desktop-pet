@@ -53,7 +53,7 @@ public static class ControlTools
           "BreakfastHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的早餐小時。"},
           "LunchHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的午餐小時。"},
           "DinnerHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的晚餐小時。"},
-          "Left":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗左座標：Windows邏輯單位，Linux螢幕畫素；Linux擷取整數。null不重置位置。"},
+          "Left":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗左座標：Windows邏輯單位，Linux螢幕畫素；Linux只取整數。null不重設位置。"},
           "Top":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗上座標，與Left相同的平臺語意；最終座標受螢幕工作區約束。"},
           "LastBrushDate":{"type":["string","null"],"pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}$","description":"有效本地日期yyyy-MM-dd或null，用於每日刷牙動作去重；通常無需修改。"},
           "StartupEnabled":{"type":"boolean","description":"目前使用者的開機時啟動設定（macOS為登入時自動開啟）。"},
@@ -84,7 +84,7 @@ public static class ControlTools
         Tool("update_settings", "按欄位修改設定並嘗試儲存；省略欄位保留，空物件也會走套用設定流程。先驗證整份修改，欄位或使用者確認失敗時不套用。不會開啟或啟用設定視窗。Windows按相關欄位停止模型或重排計時；Linux每次套用都會停止模型並重排計時。修改前先讀狀態；逾時、取消或IO錯誤後先讀回，勿盲目重試。啟用PuppetMode須等待真實使用者確認；本工具不能修改McpEnabled、AgentEnabled、AgentHarnessId與遠端模型設定。", SettingsInput, ["settings"]),
         Tool("list_actions", "列出106個動作的精確action名稱、pool、基礎weight與名義duration_seconds。複製action原文傳給動作工具；分類和權重是自主排程後設資料，Disabled動作也可外部指定。名義時長不是完成通知。", "{}"),
         Tool("capture_foreground", "按大肥魚現有前景視窗選擇規則截圖，回傳記憶體中的 PNG 影像。會把螢幕內容交給 MCP 連線者。" + CaptureMetadata, """{"max_dimension":{"type":"integer","minimum":256,"maximum":16384,"default":2560}}"""),
-        Tool("capture_screen", "擷取整個虛擬桌面，包含所有顯示器，回傳記憶體中的 PNG 影像。會把全螢幕內容交給 MCP 連線者。" + CaptureMetadata, """{"max_dimension":{"type":"integer","minimum":256,"maximum":16384,"default":4096}}"""),
+        Tool("capture_screen", (OperatingSystem.IsMacOS() ? "擷取主螢幕的整個畫面（macOS 只截主螢幕，不含其他顯示器）" : "擷取整個虛擬桌面，包含所有顯示器") + "，回傳記憶體中的 PNG 影像。會把全螢幕內容交給 MCP 連線者。" + CaptureMetadata, """{"max_dimension":{"type":"integer","minimum":256,"maximum":16384,"default":4096}}"""),
         Tool("play_action", "將指定動作加入最多100項的FIFO佇列；重複動作不去重。目前片段結束、未隱藏且未拖曳時取下一項。呼叫成功只表示已加入佇列，不表示正在播放或完成；正常點選仍可打斷，獨佔控制請用提線木偶模式。action填list_actions的名稱（名稱是簡體字，寫成繁體也認得）；名稱不對時錯誤訊息會列出最接近的名稱。", """{"action":{"type":"string","minLength":1,"maxLength":200}}""", ["action"]),
         Tool("interrupt_action", "立即切換到指定動作，清除尚未播放的全部外部動作並取消移動安排。不會自動顯示被隱藏的角色。提線木偶模式下播完回到固定待機；普通模式恢復自主排程。成功僅表示已發起播放，不是播放完成。", """{"action":{"type":"string","minLength":1,"maxLength":200}}""", ["action"]),
         Tool("walk_to", "讓魚魚小步快跑到螢幕上的目標旁邊並停在那裡，不會自動跑回原位。目標用中心點x、y（可加width、height）或desktop_item指定，find_on_screen的結果可原樣填入；stops可一次依序跑過多個目標（見stops）。魚魚站在目標左右側（放不下時改到下方或上方），身體不遮住目標，抵達時面向它。水平移動以奔跑為主、垂直移動以漂浮踏步為主；速度約每秒1.5個身長，最長約8秒。開始移動時會收起雙擊輸入框；抵達後位置會儲存，之後的自主動作以新位置為準，再開的輸入框也避開目標；行走中的play_action等抵達後再播。行走中get_settings的state.animationPhase為WalkStart、WalkLoop或WalkStop，state.walk為進度（否則為null），state.lastWalk為最近一次的結果。使用者拖曳或點選、interrupt_action、新的walk_to、隱藏、關閉桌寵、開啟設定或修改位置與大小都會讓魚魚停在當下位置，cancelled說明原因（drag、click、interrupt、replaced、hidden、exit、settings等）。不會自動顯示被隱藏的角色；目標不在任何顯示器上會回錯誤。回傳的from、to、Left、Top與get_settings的Left、Top同為" + (OperatingSystem.IsMacOS() ? "視窗位置" : "邏輯單位") + "，target與petBounds為" + ScreenUnits + "。有stops時每站抵達後氣泡顯示「第幾個（共幾個）：label」，停pause_seconds秒再跑下一站，任何一站被打斷就整趟停在當下位置；回傳stops、reached（抵達的站數）、arrived、cancelled、note（被使用者打斷時該怎麼做）與每站的legs，行走中get_settings的state.tour為進度。", """
@@ -114,7 +114,8 @@ public static class ControlTools
             {"query":{"type":"string","minLength":1,"maxLength":200,"description":"名稱裡要包含的文字，不分大小寫；用|分隔多種說法，例如\"docx|doc|Word 文件\"或\"資源回收筒|回收\"。英文字母要從字的開頭到字的結尾整段對上（tar不會配到Star，doc不會配到Docker或docx），數字要從數字的開頭對上，中文任何位置都算。桌面圖示的檔名（含副檔名）與檔案總管的檔案類型也會比對。"},
              "where":{"type":"string","enum":["all","desktop","windows"],"default":"all","description":"all：桌面圖示與所有看得到的視窗；desktop：只找桌面圖示；windows：只找視窗標題與視窗裡的元素。"},
              "limit":{"type":"integer","minimum":1,"maximum":50,"default":20,"description":"最多列出幾筆。"}}
-            """, ["query"]),
+            """.Replace("資源回收筒|回收", OperatingSystem.IsWindows() ? "資源回收筒|回收" : "垃圾桶|Trash")
+            .Replace("與檔案總管的檔案類型也會比對。", OperatingSystem.IsMacOS() ? "也會比對，檔案夾也可以用「資料夾」或folder找到。" : "與檔案總管的檔案類型也會比對。"), ["query"]),
         Tool("say", "立即按約28個組合字元/秒顯示傳入text原文（台灣版會先把其中的簡體字轉成繁體），替換目前氣泡並取消目前本機生成；不呼叫模型，不改寫內容、朗讀或解析Markdown。不能全為空白，執行時最多4000個UTF-16單元。無需本機模型或插電；不自動恢復隱藏角色，不清除say_next待說原文。displayed=true表示進入顯示流程，並非使用者已看見或文字已顯示完畢。", """{"text":{"type":"string","minLength":1,"maxLength":4000},"transient":{"type":"boolean","default":false,"description":"true表示這是進度或一時的提示（例如「正在上網搜尋…」），只顯示在氣泡，不寫進輸入框的聊天記錄；省略為false。"}}""", ["text"]),
         Tool("say_next", "僅儲存一條待說原文，新呼叫覆蓋舊呼叫。下次滿足正常說話倒數計時、可見、未拖曳、未開設定/安裝視窗、鍵盤滑鼠閒置8–600秒等條件時顯示；不要求本機模型可用。pending=true只表示已儲存，不保證何時顯示。提線木偶模式暫停該節奏，此時要立即說話請用say；說話測試不會用掉它；MCP介面與內建Agent連線都關閉或桌寵關閉時清除，單純中斷連線仍保留。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
         Tool("request_local_speech", "立即呼叫魚魚自己的模型（本機模型或設定的遠端模型）讀取目前情境並產生日常關心，沿用正常的載入與逐字顯示流程。適用於Agent決定時機、魚魚自己的模型編寫要說的話；需要AgentDailySpeech=false且模型可用，隱藏、忙碌或供電暫停時回傳錯誤。無需傳入文字。", "{}"),

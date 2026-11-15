@@ -182,7 +182,7 @@ public sealed class ControlServer : IDisposable
                 case "logging/setLevel":
                     string[] levels = ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"];
                     var level = args.TryGetProperty("level", out var l) ? Array.IndexOf(levels, l.GetString()) : -1;
-                    if (level < 0) Error(id, -32602, "未知記錄級別。"); else { logLevel = level; Result(id, new { }); }
+                    if (level < 0) Error(id, -32602, "未知的記錄層級。"); else { logLevel = level; Result(id, new { }); }
                     break;
                 case "tools/call":
                     _ = Call(id.Clone(), args.Clone()); break;

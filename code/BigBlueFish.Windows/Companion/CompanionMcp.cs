@@ -158,6 +158,7 @@ public partial class MainWindow
             if (!HarnessCatalog.All.Any(x => x.Id == preferences.AgentHarnessId)) preferences.AgentHarnessId = "codex";
             agent.LocalSpeechRequested = token => Dispatcher.InvokeAsync(() => RequestAgentLocalSpeech(token)).Task.Unwrap();
             agent.SpeechBrief = (kind, allowImages, token) => Dispatcher.InvokeAsync(() => BuildAgentSpeechBrief(kind, allowImages, token)).Task.Unwrap();
+            agent.AttachmentImage = McpAttachmentPicture;
         }
         ConfigureAgent();
         if (AgentDailyActive) brain.Stop();
@@ -582,23 +583,19 @@ public partial class MainWindow
         void Send()
         {
             if (!CanSend()) return;
-            var (attachments, paths) = tray.Peek(out int missing);
+            var attachments = tray.Peek(out int missing);
             if (attachments.Length == 0 && string.IsNullOrWhiteSpace(text.Text)) { tray.Clear(); status.Text = "附件已不存在，沒有傳送。"; return; }
             bool toInterface = McpChatAvailable;
-            if (!toInterface && agent is { Connected: true } link)
-            {
-                // The ACP turn names the files by their local paths; the Agent opens them with the user's own permissions.
-                string message = paths.Length == 0 ? text.Text
-                    : (string.IsNullOrWhiteSpace(text.Text) ? "" : text.Text + "\n\n") + "附件（本機路徑）：\n" + string.Join("\n", paths);
-                if (message.Length > 4000) { status.Text = "文字加上附件路徑超過 4000 字，請縮短內容或減少附件。"; return; }
-                // A refused message stays in the box with its attachments.
-                if (!link.SendUser(message)) { status.Text = string.IsNullOrEmpty(link.Detail) ? link.Status : link.Detail; return; }
-            }
+            // The ACP turn gets the files as resource_link blocks and their local paths in the event; the Agent opens them with
+            // the user's own permissions. The 4000-character limit is the text's alone.
+            // A refused message stays in the box with its attachments.
+            if (!toInterface && agent is { Connected: true } link && !link.SendUser(text.Text, attachments))
+            { status.Text = string.IsNullOrEmpty(link.Detail) ? link.Status : link.Detail; return; }
             // Without attachments the event stays exactly { text }, as older clients expect.
             PublishMcpInteraction("user_message", attachments.Length == 0 ? new { text = text.Text } : new { text = text.Text, attachments }, toInterface);
             // The chat history keeps what the owner typed, and names the files sent with it.
-            chatLog.Add(true, paths.Length == 0 ? text.Text
-                : (string.IsNullOrWhiteSpace(text.Text) ? "" : text.Text.TrimEnd() + "\n") + "附件：" + string.Join("、", paths.Select(p => Path.GetFileName(p))));
+            chatLog.Add(true, attachments.Length == 0 ? text.Text
+                : (string.IsNullOrWhiteSpace(text.Text) ? "" : text.Text.TrimEnd() + "\n") + "附件：" + string.Join("、", attachments.Select(a => a.Name)));
             tray.Clear(); text.Clear();
             string target = toInterface ? "MCP 介面" : "Agent";
             status.Text = attachments.Length == 0 ? $"已傳送給 {target}" : $"已傳送給 {target}（含 {attachments.Length} 個附件）";

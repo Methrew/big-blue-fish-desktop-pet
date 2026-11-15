@@ -254,7 +254,7 @@ internal sealed partial class LinuxPetWindow
     object TourReport(WalkTour trip, bool started = false) => new {
         stops = trip.Count, reached = trip.Reached, arrived = !started && trip.Cancelled == null && trip.Reached == trip.Count, cancelled = trip.Cancelled, started,
         note = trip.Cancelled switch {
-            "click" or "drag" => "使用者點了或拖了魚魚，表示要牠停下來：不要再跑剩下的，直接回答跑到第幾個、還剩哪些。",
+            "click" or "drag" => "使用者點了或拖了魚魚，表示要她停下來：不要再跑剩下的，直接回答跑到第幾個、還剩哪些。",
             "hidden" => "魚魚被藏起來了（使用者隱藏，或有程式全螢幕）：不要改魚魚的設定繞過，直接回答跑到第幾個、還剩哪些。",
             _ => null },
         legs = trip.Legs.ToArray(), Left = Position.X, Top = Position.Y, petBounds = PetPointBounds() };

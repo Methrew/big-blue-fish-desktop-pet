@@ -15,7 +15,7 @@ internal sealed partial class LinuxPetWindow
         panel.Children.Add(Paragraph($"這次執行的疑難排解記錄，保留最近 {DiagnosticLog.Capacity} 筆。記錄操作、狀態、耗時和錯誤碼；不包含截圖、OCR、聊天或提示詞的內容，資料夾路徑已匿名化。"));
         var follow = new CheckBox { Content = "自動捲動", IsChecked = true, VerticalAlignment = VerticalAlignment.Center };
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        toolbar.Children.Add(ActionButton("另存為 TXT…", async () => {
+        toolbar.Children.Add(ActionButton("儲存成 TXT…", async () => {
             if (settings == null) return;
             try
             {

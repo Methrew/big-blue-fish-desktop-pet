@@ -16,7 +16,7 @@ public partial class MainWindow
         panel.Children.Add(new TextBlock { Text = $"這次執行的疑難排解記錄，保留最近 {DiagnosticLog.Capacity} 筆。記錄操作、狀態、耗時和錯誤碼；不包含截圖、OCR、聊天或提示詞的內容，資料夾路徑已匿名化。", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.SlateGray });
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 8) };
         var follow = new CheckBox { Content = "自動捲動", IsChecked = true, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(16, 0, 0, 0) };
-        var save = new Button { Content = "另存為 TXT…", Padding = new Thickness(14, 7, 14, 7) };
+        var save = new Button { Content = "儲存成 TXT…", Padding = new Thickness(14, 7, 14, 7) };
         toolbar.Children.Add(save); toolbar.Children.Add(follow); panel.Children.Add(toolbar);
         var count = new TextBlock { Foreground = Brushes.SlateGray, Margin = new Thickness(0, 0, 0, 8) }; panel.Children.Add(count);
         var console = new TextBox { Name = "LogConsoleText", IsReadOnly = true, AcceptsReturn = true, AcceptsTab = true,

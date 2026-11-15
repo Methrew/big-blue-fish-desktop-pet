@@ -61,7 +61,7 @@ internal sealed partial class LinuxPetWindow
         else if (found.Matches.Count > ManyMatches)
             result["note"] = $"符合的有 {found.Matches.Count} 個，全部跑一遍要好幾分鐘。先告訴使用者總數和幾個名稱，問要跑哪些，等使用者回答再跑。";
         else if (found.Matches.Count == 0 && found.CoveredIcons > 0)
-            result["note"] = $"有 {found.CoveredIcons} 個符合的桌面圖示被視窗擋住，現在看不到。告訴使用者，請他先顯示桌面（例如按 F11，筆電可能要按 fn＋F11，或在觸控板上用拇指和三指張開）再找一次；不要改用截圖找。";
+            result["note"] = $"有 {found.CoveredIcons} 個符合的桌面圖示被視窗擋住，現在看不到。告訴使用者，請他先顯示桌面（例如按 F11，筆電可能要按 fn＋F11，或在觸控式軌跡板上用拇指和三指張開）再找一次；不要改用截圖找。";
         else if (found.Matches.Count == 0 && found.CoveredInWindows > 0)
             result["note"] = $"有 {found.CoveredInWindows} 個符合的項目被前面的視窗擋住，現在看不到。告訴使用者是被擋住了，不要改用截圖找。";
         else if (found.Unfinished.Count > 0)

@@ -26,8 +26,8 @@ public partial class MainWindow
     private System.Windows.Threading.DispatcherTimer? animationRetry;
     private static string WelcomeText(DateTime now)
     {
-        string period = now.Hour switch { >= 5 and < 11 => "早上", >= 11 and < 14 => "中午", >= 14 and < 18 => "下午", _ => "晚上" };
-        return $"主人{period}好，魚魚給主人請安啦~";
+        string greeting = now.Hour switch { >= 5 and < 11 => "早安", >= 11 and < 18 => "午安", _ => "晚安" };
+        return $"主人{greeting}，魚魚給主人請安啦~";
     }
     private const string FarewellText = "主人再見~魚魚喜歡主人喔";
     private void ShowGreetingNotice(string text)

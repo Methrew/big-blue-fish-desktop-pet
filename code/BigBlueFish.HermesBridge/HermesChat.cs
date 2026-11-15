@@ -33,7 +33,7 @@ internal sealed partial class HermesChat : IDisposable
         + "絕對不要呼叫 big-blue-fish 的 say 或 say_next 工具，想說的話直接寫在回答裡。"
         + "只能用台灣繁體中文和台灣用語回答；使用者用英文問時可以用英文回答。絕對不要出現簡體字，引用簡體資料或提到動作名稱時也要寫成繁體。"
         + "不要使用 Markdown 標記、程式碼區塊或表格；盡量簡短（約 150 字內），內容很長時先講重點。"
-        + "可以用 play_action 讓魚魚做動作；呼叫時動作名稱必須和 list_actions 回傳的名稱一字不差（原文是簡體字，寫成繁體也認得），"
+        + "可以用 play_action 讓魚魚做動作；呼叫時動作名稱請照 list_actions 回傳的名稱填寫（原文是簡體字，逐字寫成繁體也認得），"
         + "播放失敗就放棄，不要一直重試。"
         + "只有在使用者這則訊息要求你看螢幕、在畫面上找東西或操作電腦時才可以截圖（包括 computer_use 的截圖）；只是看目前的視窗時優先使用 capture_foreground，一般聊天不要截圖。"
         + "需要操作視窗或應用程式（點選、輸入、切換或開關視窗）時，優先用 computer_use 直接操作滑鼠鍵盤，不要寫終端機腳本模擬操作。";
@@ -93,7 +93,7 @@ internal sealed partial class HermesChat : IDisposable
         + "用 mcp__big_blue_fish__capture_screen 截一次整個畫面，從圖上找出所有符合的位置（截圖資料裡的 pet 是魚魚自己，不要算進去），再用文字告訴使用者在哪裡（哪個視窗、畫面的哪一邊）。"
         + "這台電腦上的魚魚不能跑到目標旁邊，不要呼叫 walk_to，也不要用終端機或腳本找座標或列出檔案。截圖上也找不到，才告訴使用者畫面上沒有。";
     // Hermes hides MCP tools behind tool_search, so a model that does not look thinks they are missing.
-    private const string Plugins = "需要工具時，先用 tool_search 查找可用的工具（包括使用者自己安裝的 MCP 外掛工具），不要沒查就說沒有、沒有連線或做不到。"
+    private const string Plugins = "需要工具時，先用 tool_search 尋找可用的工具（包括使用者自己安裝的 MCP 外掛工具），不要沒查就說沒有、沒有連線或做不到。"
         + "找到符合需求的外掛工具時優先使用它，不要改用終端機指令或自行安裝其他程式繞過；外掛工具失敗時，才改用其他方法並說明原因。"
         + "下載檔案、影片或串流時，優先使用 Divebird 下載管理員的工具；它回報需要確認時，請使用者到 Divebird 視窗確認。"
         + "下載前先確認要下載的目標（影片標題或網址）就是使用者要的那一個：從瀏覽器偵測到的影音可能是預覽、廣告或其他分頁的內容，對不上就不要下載；下載完成後回報標題、檔名與存放位置。";

@@ -27,7 +27,7 @@ public partial class MainWindow
     {
         panel.Children.Add(new TextBlock { Text = "工作區", FontWeight = FontWeights.SemiBold, Margin = new(0, 20, 0, 6) });
         var path = ModernUI.Text(""); path.TextWrapping = TextWrapping.Wrap; panel.Children.Add(path);
-        panel.Children.Add(ModernUI.Text("檔案由各 Harness 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的要求。"));
+        panel.Children.Add(ModernUI.Text("檔案由各 Harness 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的請求。"));
         var buttons = new WrapPanel(); panel.Children.Add(buttons); bool operating = false;
         async Task Run(Func<Task> action)
         {

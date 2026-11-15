@@ -31,4 +31,4 @@ $manifest=foreach($name in $names){
         sha256=(Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()}
 }
 $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $Destination 'visual-cpp-runtime.json') -Encoding UTF8
-Write-Host "已在應用程式內配置 Visual C++ x64 CRT：$SourceDirectory"
+Write-Host "已把 Visual C++ x64 CRT 放進應用程式：$SourceDirectory"

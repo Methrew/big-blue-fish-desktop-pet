@@ -26,7 +26,7 @@ internal static class UpdateService
         request.Headers.Accept.ParseAdd("application/vnd.github+json");
         using var response = await http.SendAsync(request, token);
         // No release published yet: only a manual check reports it, automatic checks stay silent.
-        if (response.StatusCode == HttpStatusCode.NotFound) throw new IOException(BigBlueFish.Windows.CompanionEdition.DisplayName + "目前還沒有發布任何正式版本，之後再來看看。");
+        if (response.StatusCode == HttpStatusCode.NotFound) throw new IOException("本版目前還沒有發布任何正式版本，之後再來看看。");
         response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
         var release = json.RootElement;
@@ -56,7 +56,7 @@ internal static class UpdateService
             using var checksumResponse = await http.SendAsync(checksumRequest, token); checksumResponse.EnsureSuccessStatusCode();
             var line = await checksumResponse.Content.ReadAsStringAsync(token);
             hash = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-            if (!Regex.IsMatch(hash, "^[a-fA-F0-9]{64}$")) throw new InvalidDataException("更新檔案校驗資訊無效。");
+            if (!Regex.IsMatch(hash, "^[a-fA-F0-9]{64}$")) throw new InvalidDataException("更新檔案驗證資訊無效。");
         }
         return new AvailableUpdate(version, name, installer.GetProperty("browser_download_url").GetString()!, hash.ToLowerInvariant(),
             release.GetProperty("body").GetString() ?? "");

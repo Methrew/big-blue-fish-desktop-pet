@@ -23,7 +23,7 @@ internal sealed partial class LinuxPetWindow
     Action BuildAgentWorkspaceSettings(StackPanel panel)
     {
         panel.Children.Add(Paragraph("工作區")); var path = Paragraph(""); panel.Children.Add(path);
-        panel.Children.Add(Paragraph("檔案由各 Harness 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的要求。"));
+        panel.Children.Add(Paragraph("檔案由各 Harness 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的請求。"));
         var buttons = new WrapPanel(); panel.Children.Add(buttons); bool operating = false;
         async Task Run(Func<Task> action)
         {
@@ -49,7 +49,7 @@ internal sealed partial class LinuxPetWindow
             var current = agent; var selected = await SelectAgentFolder(settings, "選擇現有的工作區", current.Workspaces.Current);
             if (selected != null) await Run(() => current.OpenWorkspace(selected));
         }));
-        buttons.Children.Add(ActionButton("開啟資料夾", () => {
+        buttons.Children.Add(ActionButton("檢視資料夾", () => {
             try { if (agent != null) { agent.Workspaces.EnsureCurrent(); OpenUrl(agent.Workspaces.Current); } }
             catch (Exception error) { AgentError("無法開啟資料夾", error); }
         }));

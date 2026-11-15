@@ -265,8 +265,8 @@ internal static partial class Program
             var start=Stopwatch.StartNew();
             var welcome=(string)Invoke(w,"WelcomeText",DateTime.Now)!;
             Check(((TextBlock)Read(w,"bubbleText")).Text==welcome,"welcome appears immediately with model disabled");
-            foreach(var sample in new[]{(Hour:5,Period:"早上"),(Hour:10,Period:"早上"),(Hour:11,Period:"中午"),(Hour:13,Period:"中午"),(Hour:14,Period:"下午"),(Hour:17,Period:"下午"),(Hour:18,Period:"晚上"),(Hour:0,Period:"晚上")})
-                Check((string)Invoke(w,"WelcomeText",new DateTime(2026,10,14,sample.Hour,0,0))! == $"主人{sample.Period}好，魚魚給主人請安啦~","system time greeting boundary "+sample.Hour);
+            foreach(var sample in new[]{(Hour:5,Greeting:"早安"),(Hour:10,Greeting:"早安"),(Hour:11,Greeting:"午安"),(Hour:13,Greeting:"午安"),(Hour:14,Greeting:"午安"),(Hour:17,Greeting:"午安"),(Hour:18,Greeting:"晚安"),(Hour:0,Greeting:"晚安")})
+                Check((string)Invoke(w,"WelcomeText",new DateTime(2026,10,14,sample.Hour,0,0))! == $"主人{sample.Greeting}，魚魚給主人請安啦~","system time greeting boundary "+sample.Hour);
             Wait(()=>(string)Read(w,"animationPhase")!="Startup",9,"startup greeting completes at faster speed");
             Check(start.Elapsed.TotalSeconds>=6.4&&start.Elapsed.TotalSeconds<8,"full startup bow lasts about 6.7 seconds");
             Check(((Border)Read(w,"bubble")).Visibility!=Visibility.Visible,"welcome closes with bow, independent of 2 minute bubble setting");

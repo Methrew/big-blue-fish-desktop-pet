@@ -40,7 +40,7 @@ internal static partial class ToolStatus
         string? detail = Short(preview);
         return tool switch
         {
-            "tool_search" => "正在查找可用的工具",
+            "tool_search" => "正在尋找可用的工具",
             "tool_describe" => "正在看工具的用法",
             "tool_call" => "正在使用外掛工具",
             "web_search" => With("正在上網搜尋", detail),

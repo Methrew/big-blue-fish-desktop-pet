@@ -17,7 +17,7 @@ try:
  time.sleep(5)
  (data/'test-command.txt').write_text('speech-test');time.sleep(2)
  notice=state()
- assert notice['bubbleVisible'] and notice['text']=='主人，目前設定為筆電使用電池時暫停本機模型，可以到設定裡調整喔。' and notice['modelPid'] is None,notice
+ assert notice['bubbleVisible'] and notice['text']=='主人，目前設定為筆電拔掉電源時暫停本機模型，可以在設定裡調整喔。' and notice['modelPid'] is None,notice
  print('PASS: real speech-test shows persistent battery notice and starts no inference',flush=True)
 finally:
  (data/'test-command.txt').write_text('exit')

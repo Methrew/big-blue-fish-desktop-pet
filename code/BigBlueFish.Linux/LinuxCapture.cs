@@ -119,7 +119,7 @@ internal static partial class CompanionNative
         lock (gate)
         {
             if (display == IntPtr.Zero) throw new IOException("目前桌面未提供讀取畫面用的 X11 連線。");
-            if (Wayland) throw new IOException("目前是 Wayland 桌面，讀取畫面需要桌面 portal 授權。");
+            if (Wayland) throw new IOException("目前是 Wayland 桌面，讀取畫面需要桌面入口（portal）授權。");
             if (XGetWindowAttributes(display, Root, out var screen) == 0) throw new IOException("無法讀取桌面尺寸。");
             int x = 0, y = 0, width = screen.width, height = screen.height, windowX = 0, windowY = 0;
             bool application = !full && !IsDesktopWindow(handle);

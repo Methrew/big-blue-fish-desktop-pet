@@ -171,6 +171,6 @@ public static class DiagnosticLog
         DiagnosticEvent.AgentRequest => "向 Agent 提交事件", DiagnosticEvent.AgentMaterials => "準備或送交 Agent 資料", DiagnosticEvent.AgentReply => "Agent 本輪處理結束",
         DiagnosticEvent.AgentCancelled => "Agent 要求已取消", DiagnosticEvent.AgentFailed => "Agent 要求失敗", DiagnosticEvent.AgentPermission => "Agent 要求權限或驗證",
         DiagnosticEvent.AgentConfiguration => "調整 Agent 工作階段設定", DiagnosticEvent.AgentWorkspace => "Agent 工作區狀態變化", DiagnosticEvent.McpTool => "收到 MCP 工具呼叫",
-        DiagnosticEvent.LogExported => "疑難排解記錄已另存為 TXT", DiagnosticEvent.LogExportFailed => "疑難排解記錄儲存失敗", _ => code.ToString()
+        DiagnosticEvent.LogExported => "疑難排解記錄已儲存成 TXT", DiagnosticEvent.LogExportFailed => "疑難排解記錄儲存失敗", _ => code.ToString()
     };
 }

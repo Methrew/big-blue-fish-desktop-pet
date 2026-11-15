@@ -205,8 +205,8 @@ internal sealed partial class LinuxPetWindow : Window
     }
     void Welcome()
     {
-        string period = DateTime.Now.Hour switch { >= 5 and < 11 => "早上", >= 11 and < 14 => "中午", >= 14 and < 18 => "下午", _ => "晚上" };
-        ShowText($"主人{period}好，魚魚給主人請安啦~", false, true);
+        string greeting = DateTime.Now.Hour switch { >= 5 and < 11 => "早安", >= 11 and < 18 => "午安", _ => "晚安" };
+        ShowText($"主人{greeting}，魚魚給主人請安啦~", false, true);
         greetingNoticeActive = true;
     }
     void EndWelcome() { if (greetingNoticeActive) bubbleWindow.Hide(); greetingNoticeActive = false; }
@@ -298,7 +298,7 @@ internal sealed partial class LinuxPetWindow : Window
         if (Puppet && !agentTriggered || generating || closed || phase == "Exit" || modelInstalling) { DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, state: "blocked"); return; }
         if (!brain.ModelAvailable) { await InstallModel(); return; }
         if (!Preferences.ModelEnabled) { ShowText("主人，請先在設定裡開啟「啟用模型說話」喔～", false); return; }
-        if (!brain.CanRunOnCurrentPower) { ShowText("主人，目前設定為筆電使用電池時暫停本機模型，可以到設定裡調整喔。", false); return; }
+        if (!brain.CanRunOnCurrentPower) { ShowText("主人，目前設定為筆電拔掉電源時暫停本機模型，可以在設定裡調整喔。", false); return; }
         generating = true; long version = ++speechVersion; streamed = false; loading.IsVisible = true;
         try
         {

@@ -139,7 +139,7 @@ internal sealed class CompanionWeather : IDisposable
 
     internal static string Description(int code) => code switch
     {
-        0 => "晴朗", 1 => "大部晴朗", 2 => "局部多雲", 3 => "陰天",
+        0 => "晴朗", 1 => "大致晴朗", 2 => "局部多雲", 3 => "陰天",
         45 or 48 => "有霧", 51 or 53 or 55 => "毛毛雨", 56 or 57 => "凍毛毛雨",
         61 => "小雨", 63 => "中雨", 65 => "大雨", 66 or 67 => "凍雨",
         71 => "小雪", 73 => "中雪", 75 => "大雪", 77 => "雪粒",

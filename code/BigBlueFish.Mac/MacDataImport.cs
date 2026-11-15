@@ -55,7 +55,7 @@ internal static class MacDataImport
                 modelsReady = Clone(models, Path.Combine(staging, "models"));
                 note.AppendLine(modelsReady ? "- 模型（models/）：已用 APFS 複本複製，不會額外佔用磁碟空間。"
                     : "- 模型（models/）：沒有複製。無法建立 APFS 複本（可能位在不同的磁碟），為了不佔用好幾 GB 的空間就略過了。"
-                      + "想沿用原版的模型，可以在設定的模型頁面安裝模型時選「手動安裝」，再選擇 " + models + " 裡的 .gguf 檔案。");
+                      + "想沿用原版的模型，可以在「設定 › 模型與資訊」安裝模型時選「手動安裝」，再選擇 " + models + " 裡的 .gguf 檔案。");
             }
             // The model choice only comes along with the models it names; otherwise the first launch offers to install one.
             if (File.Exists(Path.Combine(source, "model-selection.json")) && !IsLink(Path.Combine(source, "model-selection.json")))

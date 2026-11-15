@@ -50,7 +50,7 @@ public sealed class AcpConnection : IAsyncDisposable
     public async Task Initialize(CancellationToken token)
     {
         var result = await Request("initialize", new { protocolVersion = 1,
-            clientInfo = new { name = "big-blue-fish", title = "蓝色大肥鱼", version = typeof(AcpConnection).Assembly.GetName().Version!.ToString(3) },
+            clientInfo = new { name = "big-blue-fish", title = BigBlueFish.Windows.CompanionEdition.DisplayName, version = typeof(AcpConnection).Assembly.GetName().Version!.ToString(3) },
             clientCapabilities = new { fs = new { readTextFile = false, writeTextFile = false }, terminal = false, auth = new { terminal = terminalAuthentication },
                 session = new { configOptions = new { boolean = new { } } } } }, token, TimeSpan.FromSeconds(45));
         if (!result.TryGetProperty("protocolVersion", out var version) || version.GetInt32() != 1)
@@ -251,7 +251,9 @@ public sealed class AcpException : IOException
     }
     public bool ImageContentRejected => !AuthenticationRequired &&
         (ProtocolMessage.Contains("image", StringComparison.OrdinalIgnoreCase)
-        || ProtocolMessage.Contains("图片", StringComparison.Ordinal) || ProtocolMessage.Contains("图像", StringComparison.Ordinal));
+        || ProtocolMessage.Contains("图片", StringComparison.Ordinal) || ProtocolMessage.Contains("图像", StringComparison.Ordinal)
+        || ProtocolMessage.Contains("圖片", StringComparison.Ordinal) || ProtocolMessage.Contains("圖像", StringComparison.Ordinal)
+        || ProtocolMessage.Contains("影像", StringComparison.Ordinal));
     public bool SessionMissing => !AuthenticationRequired && (Code == -32002 || ProtocolMessage.Contains("session", StringComparison.OrdinalIgnoreCase)
         && (ProtocolMessage.Contains("not found", StringComparison.OrdinalIgnoreCase) || ProtocolMessage.Contains("unknown", StringComparison.OrdinalIgnoreCase)
             || ProtocolMessage.Contains("does not exist", StringComparison.OrdinalIgnoreCase) || ProtocolMessage.Contains("expired", StringComparison.OrdinalIgnoreCase)

@@ -107,7 +107,7 @@ public sealed class AgentCoordinator : IDisposable
     }
     public bool DailyCare() => mode.Enabled && mode.DailyCare && !mode.Puppet && Enqueue("daily_care", new { purpose = "日常說話的時間到了，請依目前的情境關心主人。" });
     public bool ManualSpeech(bool weather, string weatherContext = "") => mode.Enabled && mode.DailyCare && !changingWorkspace
-        && Enqueue(weather ? "weather_request" : "speech_test", new { purpose = weather ? "主人手動要求天氣播報，請依提供的天氣資料組織要說的話，並呼叫 say 顯示。" : "主人手動觸發一次吐字測試，請依目前的情境自然地關心主人，並呼叫 say 顯示。", weatherContext });
+        && Enqueue(weather ? "weather_request" : "speech_test", new { purpose = weather ? "主人手動要求天氣播報，請依提供的天氣資料組織要說的話，並呼叫 say 顯示。" : "主人手動觸發一次說話測試，請依目前的情境自然地關心主人，並呼叫 say 顯示。", weatherContext });
     public bool Interaction(string kind, object data) => mode.Enabled && Enqueue(kind, data);
     public bool Reconnect() => mode.Enabled && Enqueue("reconnect", new { });
     public bool NewConversation() => mode.Enabled && Enqueue("new_conversation", new { }, true);
@@ -228,8 +228,8 @@ public sealed class AgentCoordinator : IDisposable
                         foreach (var job in due) Wakeups.Acknowledge(job, DateTimeOffset.Now);
                         if (!mode.DailyCare)
                         {
-                            Busy = true; Report("正在請魚魚自己的模型吐字…");
-                            if (LocalSpeechRequested == null) throw new IOException("宿主尚未提供魚魚自己模型的吐字入口。");
+                            Busy = true; Report("正在請魚魚自己的模型說話…");
+                            if (LocalSpeechRequested == null) throw new IOException("宿主尚未提供讓魚魚自己的模型說話的入口。");
                             await LocalSpeechRequested(turn.Token);
                             Report("已連線 · " + HarnessCatalog.Get(harnessId).Name, "已依 Agent 的預約呼叫魚魚自己的模型。");
                             continue;

@@ -87,10 +87,14 @@ try:
     context=request('tools/call',dict(name='get_context',arguments={}))
     check(context.get('isError') and 'Linux' in context['content'][0]['text'],'get_context reports unsupported on Linux')
     check(len(content('list_actions'))==106,'same 106 production actions')
+    # The bubble converts Simplified text to Taiwan Traditional; the Agent gets back exactly what it sent.
+    said=content('say',text='主人，我们一起干杯吧！'); wait(lambda: state()['text']=='主人，我們一起乾杯吧！')
+    check(said['text']=='主人，我们一起干杯吧！','say shows Taiwan Traditional and returns the original text')
     text='主人，Linux 端收到的原文呀~ ABC 123'
     content('say',text=text); wait(lambda: state()['text']==text)
     check(state()['modelPid'] is None and state()['bubbleVisible'],'literal speech works without local model')
-    content('interrupt_action',action='点击回应-元气挥手')
+    played=content('interrupt_action',action='點擊回應-元氣揮手')
+    check(played['action']=='点击回应-元气挥手','Traditional action name plays the Simplified clip')
     content('play_action',action='吃白饭')
     wait(lambda: state()['currentAction']=='点击回应-元气挥手',3)
     wait(lambda: state()['currentAction']=='吃白饭',14)

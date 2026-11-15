@@ -6,7 +6,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="../../BigBlueFish.Windows/Companion/CompanionTraditional.cs" Link="Shared/CompanionTraditional.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionActionNames.cs" Link="Shared/CompanionActionNames.cs" />
     <EmbeddedResource Include="../../BigBlueFish.Windows/assets/opencc/*.txt" LogicalName="BigBlueFish.Windows.assets.opencc.%(Filename)%(Extension)" />
     <None Include="corpora/*.txt" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../BigBlueFish.Windows/assets/fish/animations.json" Link="animations.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

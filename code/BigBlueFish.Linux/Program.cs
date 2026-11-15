@@ -28,7 +28,7 @@ internal static class Program
 #endif
     }
     public static AppBuilder Build() => AppBuilder.Configure<App>().UsePlatformDetect()
-        .With(new X11PlatformOptions { RenderingMode = [X11RenderingMode.Software] });
+        .With(new X11PlatformOptions { RenderingMode = [X11RenderingMode.Software] }).WithTaiwanFonts();
 }
 public sealed class App : Application
 {

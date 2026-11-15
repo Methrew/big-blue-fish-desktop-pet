@@ -65,7 +65,7 @@ internal sealed partial class LinuxPetWindow : Window
         PositionChanged += (_, _) => MoveBubble();
         player.PixelsPresented += (pixels,width,height,mirror) => CompanionNative.SetInputShape(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero,pixels,width,height,Width*DesktopScaling/width,mirror);
         player.Failed += error => { DiagnosticLog.Write(DiagnosticEvent.AnimationFailed, state: "failed"); if (phase == "Exit") CloseImmediately(); };
-        bubbleText.FontFamily = new FontFamily("avares://" + typeof(App).Assembly.GetName().Name + "/Assets#jf-openhuninn-2.1");
+        bubbleText.FontFamily = LinuxFonts.Bubble; CompanionTraditional.Warm();
         bubbleText.Foreground = Hair;
         var close = new Button { Content = "×", Padding = new Thickness(3), HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top, Background = Brushes.Transparent, BorderThickness = new Thickness(0) };
         close.Click += (_, _) => { typing = false; bubbleWindow!.Hide(); };
@@ -211,6 +211,7 @@ internal sealed partial class LinuxPetWindow : Window
     void EndWelcome() { if (greetingNoticeActive) bubbleWindow.Hide(); greetingNoticeActive = false; }
     void ShowText(string text, bool external, bool immediate = false, bool fromModel = false)
     {
+        text = CompanionTraditional.Convert(text); // every bubble line is shown in Taiwan Traditional
         greetingNoticeActive = false;
         DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: external ? "agent" : fromModel ? "local" : "notice", chars: text.Length);
         fullText = text; textBoundaries = StringInfo.ParseCombiningCharacters(text); externalSpeech = external; modelReply = fromModel;
@@ -220,8 +221,9 @@ internal sealed partial class LinuxPetWindow : Window
     }
     void Partial(string text, long expectedVersion, bool agentTriggered = false)
     {
+        text = CompanionTraditional.ConvertPartial(text); if (text.Length == 0) return;
         Dispatcher.UIThread.Post(() => {
-            if (expectedVersion != speechVersion || Puppet && !agentTriggered || closed || hidden || fullscreenHidden || !Preferences.ModelEnabled || !brain.CanRunOnCurrentPower) return;
+            if (!generating || expectedVersion != speechVersion || Puppet && !agentTriggered || closed || hidden || fullscreenHidden || !Preferences.ModelEnabled || !brain.CanRunOnCurrentPower) return;
             greetingNoticeActive = false; streamed = true; fullText = text; typing = false; externalSpeech = false; modelReply = true; bubbleText.Text = text; bubbleUntil = DateTime.MaxValue;
             MoveBubble(); ShowBubble();
         });
@@ -246,7 +248,7 @@ internal sealed partial class LinuxPetWindow : Window
         bubbleText.FontSize = 17 * scale; bubbleText.Margin = new(0, 0, 24 * scale, 0); bubbleText.MaxWidth = 270 * scale;
         bubbleFrame.Padding = new(16 * scale, 16 * scale, 16 * scale, 30 * scale);
         string prefix = bubbleText.Text ?? ""; bubbleText.Text = fullText;
-        bubbleFrame.Measure(new Size(320 * scale, double.PositiveInfinity)); var size = bubbleFrame.DesiredSize; bubbleText.Text = prefix;
+        InvalidateBubbleMeasure(); bubbleFrame.Measure(new Size(320 * scale, double.PositiveInfinity)); var size = bubbleFrame.DesiredSize; bubbleText.Text = prefix;
         var area = (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea ?? new PixelRect(0, 0, 1280, 720);
         bubbleWindow.Width = Math.Min(size.Width, area.Width / DesktopScaling - 16); bubbleWindow.Height = Math.Min(size.Height, area.Height / DesktopScaling - 16);
         int width = (int)(bubbleWindow.Width * DesktopScaling), height = (int)(bubbleWindow.Height * DesktopScaling);
@@ -302,7 +304,7 @@ internal sealed partial class LinuxPetWindow : Window
             nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random));
             var text = weather ? await brain.GenerateWeather(p => Partial(p, version, agentTriggered)) : await brain.Generate(Preferences.PublicInfo, Preferences.ForegroundEnabled, lastForeground, p => Partial(p, version, agentTriggered));
             if (version != speechVersion || Puppet && !agentTriggered || hidden || fullscreenHidden || closed || !Preferences.ModelEnabled || !brain.CanRunOnCurrentPower) return;
-            if (text.Length > 0) { if (streamed) { fullText = text; bubbleText.Text = text; ResetDwell(); } else ShowText(text, false, fromModel: true); }
+            if (text.Length > 0) FinishReply(text);
             else if (streamed && !externalSpeech) bubbleWindow.Hide();
         }
         finally { generating = false; loading.IsVisible = false; }

@@ -515,7 +515,7 @@ public partial class MainWindow
         bubbleUntil = DateTime.MaxValue;
         DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: "local", chars: text.Length);
         speech.Show(text, true);
-        chatLog.Add(false, text);
+        chatLog.Add(false, speech.FullText); // the line as the bubble showed it, in Taiwan Traditional
     }
 
     // A streamed snapshot (not final) is converted to Taiwan Traditional once its last run of Chinese is complete.
@@ -539,7 +539,8 @@ public partial class MainWindow
         DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: "local", chars: text.Length);
         ShowCompanionPartial(text, agentTriggered: agentTriggered, final: true);
         ResetBubbleDeadline();
-        if (speech.FullText == text) chatLog.Add(false, text);
+        // FullText is the converted reply, so it is compared with the converted text and recorded as shown.
+        if (speech.FullText == CompanionTraditional.Convert(text)) chatLog.Add(false, speech.FullText);
     }
 
     private void BeginModelSpeech()

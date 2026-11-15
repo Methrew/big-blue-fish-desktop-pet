@@ -203,6 +203,6 @@ internal static class CompanionOcr
         bool desktop = !captured.FullScreen && CompanionNative.IsDesktopWindow(handle);
         string identity = captured.FullScreen ? CompanionCaptureFallback.ScreenIdentity : CompanionNative.ForegroundIdentity(handle);
         string context = identity + "\n" + (desktop ? "画面是壁纸与快捷方式图标，没有展开的应用正文。" : CompanionOcrLayout.Format(words, image.Width, image.Height));
-        return new(context, "zh-Hans+en-US", image.Width, image.Height, words.Count, captureTime, clock.Elapsed.TotalMilliseconds - captureTime, words.ToArray(), captured.FullScreen ? 0 : handle.ToInt64(), desktop);
+        return new(context, "zh-Hant+zh-Hans+en-US", image.Width, image.Height, words.Count, captureTime, clock.Elapsed.TotalMilliseconds - captureTime, words.ToArray(), captured.FullScreen ? 0 : handle.ToInt64(), desktop);
     }
 }

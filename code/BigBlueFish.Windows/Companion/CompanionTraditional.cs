@@ -50,6 +50,11 @@ internal sealed class CompanionTraditional
         return filter.Apply(points.Slice(0, end));
     }
 
+    // Folds Traditional-only characters back to Simplified (TSCharacters) and keeps everything else, so a name an
+    // Agent spelt character by character in Traditional (點擊回應) compares equal to its Simplified id (点击回应).
+    internal static string Fold(string text) =>
+        string.IsNullOrEmpty(text) || shared.Value is not { } filter ? text : filter.FoldText(text);
+
     // Parses the 1 MB phrase table off the UI thread before the first bubble needs it.
     internal static void Warm() => Task.Run(() => shared.Value);
 
@@ -107,6 +112,16 @@ internal sealed class CompanionTraditional
             else if (runTriggers && !runTraditional) result.Append(S2twp(run));
             else result.Append(Guided(run));
         }
+        return result.ToString();
+    }
+
+    private string FoldText(string text)
+    {
+        var points = new Points(text);
+        var result = new StringBuilder(text.Length);
+        for (int k = 0; k < points.Count; k++)
+            if (toSimplified.TryGetValue(points.At(k), out int simplified)) result.Append(char.ConvertFromUtf32(simplified));
+            else result.Append(points.Span(k, 1));
         return result.ToString();
     }
 

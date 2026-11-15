@@ -11,12 +11,13 @@ app=subprocess.Popen([str(payload/'BigBlueFish.Linux'),'--test-mode','--test-bat
 def state():return json.loads((data/'test-status.json').read_text())
 try:
  time.sleep(3);first=state()
- assert first['bubbleVisible'] and '请安' in first['text'] and first['modelPid'] is None,first
+ # The bubble shows every line through CompanionTraditional, so the expectations are its Taiwan Traditional output.
+ assert first['bubbleVisible'] and '請安' in first['text'] and first['modelPid'] is None,first
  print('PASS: battery startup welcome remains visible without model preload',flush=True)
  time.sleep(5)
  (data/'test-command.txt').write_text('speech-test');time.sleep(2)
  notice=state()
- assert notice['bubbleVisible'] and notice['text']=='主人，当前设置为笔记本离电暂停模型，可以在设置里调节哦。' and notice['modelPid'] is None,notice
+ assert notice['bubbleVisible'] and notice['text']=='主人，當前設定為筆記本離電暫停模型，可以在設定裡調節哦。' and notice['modelPid'] is None,notice
  print('PASS: real speech-test shows persistent battery notice and starts no inference',flush=True)
 finally:
  (data/'test-command.txt').write_text('exit')

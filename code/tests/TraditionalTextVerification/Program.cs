@@ -75,6 +75,28 @@ Check(CompanionTraditional.ConvertPartial("我们走吧。") == "我們走吧。
 foreach (var same in new[] { "", "Hello, world! 123", "\uD800 lone high surrogate", "lone low \uDC00", "𠮷野家👨‍👩‍👧", "台灣、干擾、皇后、公里、面對、一台電腦" })
     Check(CompanionTraditional.Convert(same) == same, "unchanged: " + same);
 
+// Lines the Linux and macOS pet shows through ShowText, which converts them like CompanionSpeech on Windows.
+Check(CompanionTraditional.Convert("主人早上好，鱼鱼给主人请安啦~") == "主人早上好，魚魚給主人請安啦~", "Linux and macOS welcome converted");
+Check(CompanionTraditional.Convert("主人再见~鱼鱼喜欢主人哦") == "主人再見~魚魚喜歡主人哦", "Linux and macOS farewell converted");
+
+// MCP play_action and interrupt_action on Linux and macOS (CompanionActionNames, shared with CompanionMcp on Windows):
+// the clip ids are Simplified file names, and an Agent writing Taiwan Traditional still reaches the same clip.
+var ids = System.Text.Json.JsonDocument.Parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "animations.json")))
+    .RootElement.EnumerateArray().Select(rule => rule.GetProperty("Id").GetString()!).ToArray();
+Check(ids.Length == 106, "106 animation ids");
+Check(ids.Select(CompanionTraditional.Convert).Distinct().Count() == ids.Length, "every clip keeps its own Traditional name");
+Check(ids.All(id => CompanionActionNames.Resolve(ids, id) == id), "Simplified ids resolve to themselves");
+Check(ids.All(id => CompanionActionNames.Resolve(ids, CompanionTraditional.Convert(id)) == id), "the Traditional name of every clip resolves to its Simplified id");
+Check(ids.All(id => CompanionActionNames.Resolve(ids, string.Concat(id.EnumerateRunes().Select(rune => CompanionTraditional.Convert(rune.ToString())))) == id),
+    "every clip spelt in Traditional character by character resolves to its Simplified id");
+Check(CompanionActionNames.Resolve(ids, "點擊回應-元氣揮手") == "点击回应-元气挥手" && CompanionActionNames.Resolve(ids, "點選回應-元氣揮手") == "点击回应-元气挥手",
+    "Traditional action name played as the Simplified clip, with either wording");
+Check(CompanionTraditional.Fold("點擊回應 ABC 𠮷") == "点击回应 ABC 𠮷" && CompanionTraditional.Fold("lone \uD800") == "lone \uD800", "Fold changes only Traditional-only characters");
+Check(CompanionActionNames.Resolve(ids, "不存在的動作") == null, "unknown action name is not guessed");
+Check(CompanionActionNames.Unknown(ids, "action", "元氣揮手").Contains("「元氣揮手」") && CompanionActionNames.Unknown(ids, "action", "元氣揮手").Contains("点击回应-元气挥手"),
+    "unknown action names the closest clips");
+Check(CompanionActionNames.Unknown(ids, "action", "被滑鼠拖拽").Contains("：被鼠标拖拽悬空反馈、"), "a part of the Taiwan wording suggests its clip first");
+
 // A full-length say (4000 UTF-16 units) must not stall the UI thread.
 var longText = string.Concat(Enumerable.Repeat("今天天气很好，我們一起去公园散步吧！Today is nice. ", 160))[..4000];
 clock.Restart();

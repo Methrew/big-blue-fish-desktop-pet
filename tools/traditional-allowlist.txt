@@ -31,3 +31,7 @@ code/run-hermes-bridge.sh	蓝色大肥鱼.app	the original edition's app, search
 
 # Test input.
 tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble text proving the packaged app shows it in Taiwan Traditional
+
+# l2-settings
+code/BigBlueFish.Linux/LinuxWeatherSettings.cs	進行公眾釋出	prescribed attribution wording of the Open Government Data License (data.gov.tw/license), quoted verbatim
+code/BigBlueFish.Windows/Companion/CompanionMenus.cs	進行公眾釋出	prescribed attribution wording of the Open Government Data License (data.gov.tw/license), quoted verbatim

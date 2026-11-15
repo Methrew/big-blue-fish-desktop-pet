@@ -279,6 +279,8 @@ try
     Check(!host.Connected && !File.Exists(host.Workspaces.SessionPath("opencode")), "cancelled login creates no false session binding");
     host.Configure("opencode", new(false, false, false));
     await Until(() => !host.Connected && server.Connections == 0, "disable closes owned ACP/MCP sessions");
+    // Claude Code on the Claude API Key: the host's launch settings for one harness's process.
+    await LaunchVerification.Run(root, fixtureExe, shimDirectory, Check, Until);
 }
 finally { host?.Dispose(); Environment.SetEnvironmentVariable("PATH", oldPath); }
 // What an Agent sends for people to read is shown in Taiwan Traditional Chinese where AgentText knows it (the texts
@@ -352,6 +354,7 @@ static class Fixture
     }
     public static async Task Run()
     {
+        LaunchVerification.Record();
         string session = ""; bool authenticated = false;
         while (await Console.In.ReadLineAsync() is string line)
         {

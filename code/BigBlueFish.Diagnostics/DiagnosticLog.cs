@@ -45,11 +45,13 @@ public static class DiagnosticLog
         + "get_operation_guide get_wakeups schedule_wakeup cancel_wakeup terminal oauth restored created "
         + "claude codex gemini dsh kimi qwen antigravity copilot cursor opencode cline codebuddy qoder trae kiro pi devin grok hermes openclaw minimax "
         // The cloud model source: its kind, its providers and the kinds of failure it reports (never a message or a key).
-        + "cloud openai no_key invalid_key forbidden billing rate_limited overloaded model_not_found bad_request refused truncated interrupted network server daily_limit").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+        + "cloud openai no_key invalid_key forbidden billing rate_limited overloaded model_not_found bad_request refused truncated interrupted network server daily_limit "
+        // The Agent's launch profile: Claude Code on the Claude API Key (never the key).
+        + "claude-api").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
     static readonly HashSet<string> actions = LoadActions();
     static readonly Dictionary<string, string> previousSettings = new();
     static readonly HashSet<string> settingNames = new(("ModelEnabled GpuEnabled PublicInfo ForegroundEnabled StopModelOnBattery HideOnFullscreen CheckUpdatesOnStartup "
-        + "AgentEnabled AgentHarnessId AgentDailySpeech PuppetMode AgentRespondToClick AgentRespondToDrag WeatherRegionCode Scale BubbleScale SpeechMinMinutes BubbleDurationIndex "
+        + "AgentEnabled AgentHarnessId AgentClaudeApiKey AgentDailySpeech PuppetMode AgentRespondToClick AgentRespondToDrag WeatherRegionCode Scale BubbleScale SpeechMinMinutes BubbleDurationIndex "
         + "AnimationIntervalSeconds BreakfastHour LunchHour DinnerHour LastBrushDate Left Top StartupEnabled "
         + "McpEnabled McpDoubleClickChat McpWakeEnabled McpWakeOnText McpWakeOnClick McpWakeOnDrag AgentWorkspaceId "
         // Taiwan edition settings, by name only: the remote and cloud API keys and the CWA authorization code are never observed.

@@ -35,6 +35,7 @@ public partial class MainWindow
     private bool HasScheduledMcpSpeech => false;
     private void InitializeMcp() { preferences.AgentEnabled = false; preferences.McpEnabled = false; preferences.PuppetMode = false; }
     private void StopMcp() { }
+    private void AgentLaunchChanged() { }
     private bool PlayQueuedMcpAction() => false;
     private void PublishMcpInteraction(string kind, object detail) { DiagnosticLog.Write(DiagnosticEvent.Interaction, kind: kind); }
     private bool ConsumeMcpSpeech() => false;
@@ -133,6 +134,19 @@ public partial class MainWindow
         agent?.Configure(preferences.AgentHarnessId, new(preferences.AgentEnabled, preferences.PuppetMode, preferences.AgentDailySpeech));
         if (!AgentDailyActive) nextWarmup = DateTime.MinValue;
     }
+    // Claude Code on the Claude API Key (AgentClaudeApiKey on the 連線 Agent page): the key the cloud AI service keeps
+    // (encrypted for this Windows account) goes into the environment of the Claude Code the fish starts, and nowhere else
+    // (BigBlueFish.Agent.ClaudeApiKeyLaunch). Without a key nothing starts; the subscription is never used in its place.
+    internal const string AgentClaudeKeyMissing = "已開啟「Claude Code 改用 Claude API Key」，但還沒有儲存 Claude API Key，所以先不啟動 Claude Code（不會改用訂閱登入）。"
+        + "請先在「設定 › 模型與供電」的雲端 AI 服務儲存 Claude API Key，或關閉這個選項。";
+    // A key is stored but this Windows account cannot decrypt it (a settings file copied from another computer or account).
+    internal const string AgentClaudeKeyUnreadable = "已開啟「Claude Code 改用 Claude API Key」，但已儲存的 Claude API Key 無法在這個 Windows 帳戶解密，所以先不啟動 Claude Code（不會改用訂閱登入）。"
+        + "請在「設定 › 模型與供電」的雲端 AI 服務重新儲存 Claude API Key，或關閉這個選項。";
+    private AgentLaunch AgentLaunchFor(string harness) => harness != ClaudeApiKeyLaunch.Harness || !preferences.AgentClaudeApiKey ? AgentLaunch.Default
+        : ClaudeApiKeyLaunch.Create(Path.Combine(Environment.CurrentDirectory, "agent"), preferences.ClaudeApiKey,
+            string.IsNullOrEmpty(preferences.ClaudeApiKeyProtected) ? AgentClaudeKeyMissing : AgentClaudeKeyUnreadable);
+    // The option or the Claude API Key may have changed: the Agent compares and starts again only when its launch differs.
+    private void AgentLaunchChanged() { if (agent != null) _ = agent.LaunchChanged(); }
     private bool agentLoading;
     private void TickAgent(DateTime now)
     {
@@ -164,6 +178,7 @@ public partial class MainWindow
             agent.LocalSpeechRequested = token => Dispatcher.InvokeAsync(() => RequestAgentLocalSpeech(token)).Task.Unwrap();
             agent.SpeechBrief = (kind, allowImages, token) => Dispatcher.InvokeAsync(() => BuildAgentSpeechBrief(kind, allowImages, token)).Task.Unwrap();
             agent.AttachmentImage = McpAttachmentPicture;
+            agent.Launch = (harness, token) => Dispatcher.InvokeAsync(() => AgentLaunchFor(harness)).Task;
         }
         ConfigureAgent();
         if (AgentDailyActive) brain.Stop();

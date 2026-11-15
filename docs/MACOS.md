@@ -195,7 +195,7 @@ RUNTIME="/Applications/藍色大肥魚.app/Contents/MacOS/runtime"
 
 - 需要你自己的 API Key，費用由服務依 token 用量向你的帳戶收取。Claude Pro、ChatGPT Plus 這類聊天訂閱方案不包含 API 用量，API 要在各服務的開發者平台另外付款或儲值。
 - 每一句話都是一次獨立的請求，不帶對話歷史，服務那邊也不會因此記得魚魚之前說過什麼。
-- 這和「連線 Agent」裡的 Claude Code、Codex CLI、Gemini CLI 是兩回事：Agent 使用它們自己的登入和設定，不會用到這裡的 API Key。
+- 這和「連線 Agent」裡的 Claude Code、Codex CLI、Gemini CLI 是兩回事：Agent 使用它們自己的登入和設定，不會用到這裡的 API Key。唯一的例外是在「連線 Agent」選 Claude Code 並開啟「Claude Code 改用 Claude API Key（依用量計費）」時，魚魚啟動的 Claude Code 會改用這裡的 Claude API Key（見「[連線 Agent 與輸入框附件](#連線-agent-與輸入框附件標準版)」）。
 
 ### 1. 取得 API Key
 
@@ -331,6 +331,7 @@ Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 S
 | Gemini 的 API Key | `io.github.methrew.bigbluefish.tw` | `GeminiApiKey` |
 
 - 標準版和無MCP版共用同一筆。`preferences.json` 只記下 `"CwaApiKeyProtected": "keychain"`、`"RemoteApiKeyProtected": "keychain"`（雲端 AI 服務是 `ClaudeApiKeyProtected`、`OpenAiApiKeyProtected`、`GeminiApiKeyProtected`）這類標記，不會有金鑰本身，所以備份或複製資料夾時，金鑰不會跟著外流。
+- Claude 的 API Key 在開啟「Claude Code 改用 Claude API Key」時，也交給魚魚啟動的 Claude Code：只放進那個程式的環境變數，不會寫進檔案；但 Claude Code 和它執行的指令可能讀得到，所以最好另外建立一把只給魚魚用的 Key。
 - MCP 的 `get_settings` 看不到這些資料，`update_settings` 也不能寫入。遠端模型的網址、模型名稱、模型來源、截圖選項，以及雲端 AI 服務的服務、各服務的模型和每天上限，可以從 `get_settings` 讀到，但 MCP 和 Agent 都不能修改。
 - 鑰匙圈項目由 Apple 內建的 `/usr/bin/security` 建立，App 更新後不會再跳出鑰匙圈授權視窗。相對地，同一個使用者帳號下的其他程式也能透過這個工具讀到它們，保護程度和 Windows 版的 DPAPI 相同。
 - 每次存取鑰匙圈最多等 5 秒。鑰匙圈鎖住時（例如只透過 SSH 登入，或啟動時鑰匙圈還沒解鎖），讀不到授權碼和 API Key：臺灣地點改用 Open-Meteo 估計，遠端模型的請求不帶 API Key，雲端 AI 服務沒有 Key 就先不說話，設定頁的金鑰欄位下方會顯示「無法讀取 macOS 鑰匙圈：」和原因。鑰匙圈裡的資料不會因此被刪除。App 會在 30 秒、2 分鐘、10 分鐘後各重讀一次，解鎖螢幕和打開設定時也會重讀；也可以按欄位下方的「重新讀取鑰匙圈」。每次讀取鎖住的鑰匙圈，macOS 可能會跳出解鎖視窗，所以不會一直重試。都讀不到時，重新啟動 App 就會再讀一次。
@@ -382,6 +383,7 @@ Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 S
 - 從 Finder 開啟 App 時，系統只給最基本的 PATH。魚魚會在背景讀取登入 shell（`$SHELL -ilc`，會讀 `.zprofile` 和 `.zshrc`）的 PATH，用來找到 npm、Homebrew 或版本管理工具安裝的 Agent CLI，最多等 5 秒；這段期間魚魚的視窗、選單列圖示和動畫都不會被耽誤，只有 Agent 連線會等 PATH 讀完。PATH 的順序沿用登入 shell 的設定；讀不到時，會補上存在的 `/opt/homebrew/bin`、`/usr/local/bin`、`~/.local/bin`、`~/.volta/bin`、`~/.bun/bin`。剛啟動的前 5 秒內打開「連線 Agent」頁時，偵測結果可能還沒包含登入 shell 的 PATH，重新切換一次頁面即可。
 - Agent 要求在終端機登入時，魚魚會打開「終端機」App。按了 Control-C 或關掉終端機視窗時，設定頁會馬上顯示登入被中斷；取消登入不會關掉「終端機」裡正在進行的登入。
 - 工作區預設在「文件」資料夾裡；從原版匯入的設定會沿用原本的工作區。
+- 選 Claude Code 時可以開啟「Claude Code 改用 Claude API Key（依用量計費）」：魚魚啟動的 Claude Code 改用「設定 › 模型與資訊」雲端 AI 服務裡的 Claude API Key（鑰匙圈的 `ClaudeApiKey`），由 Anthropic 依用量計費；你自己開的 Claude Code 照樣用訂閱登入。這個 Claude Code 使用自己的設定資料夾 `~/Library/Application Support/bigbluefish-tw/agent/claude-api`（不是 `~/.claude`），對話也和用訂閱時分開。啟動時鑰匙圈還沒讀完，會等讀到 Key 再連線；沒有 Key 就不啟動。Claude Code 的用量比魚魚自己說話多很多，請先在 Claude Console 設定支出上限；想一直用比較省錢的 Sonnet 或 Haiku，請在這個資料夾的 `settings.json` 寫入 `{"model": "sonnet"}`（或 `"haiku"`），「模型與權限」選的模型只套用到目前這段對話。詳細說明見[連線本機 CLI Harness](ACP.md#claude-code-改用-claude-api-key依用量計費)。
 
 ### 附加檔案
 

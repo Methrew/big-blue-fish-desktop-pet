@@ -40,6 +40,8 @@ internal sealed partial class LinuxPetWindow
             brain.CwaApiKey = Preferences.CwaApiKey;
             // A remote model server or a cloud AI service gets its API key only now.
             if (Preferences.UseRemoteModel || Preferences.CloudSelected) ApplyModelSource();
+            // So does Claude Code on the Claude API Key, which waits for it (the Agent restarts only when its key changed).
+            AgentLaunchChanged();
             refreshLinuxSettings?.Invoke();
             ScheduleSecretRetry();
         }), TaskScheduler.Default);

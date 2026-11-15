@@ -27,6 +27,10 @@ internal sealed class CompanionPreferences
     public bool CheckUpdatesOnStartup { get; set; } = true;
     public bool AgentEnabled { get; set; }
     public string AgentHarnessId { get; set; } = "codex";
+    // Claude Code (AgentHarnessId "claude") started by the fish runs on the Claude API Key of the cloud AI service
+    // (ClaudeApiKey), billed per use, instead of the subscription it is signed in with (BigBlueFish.Agent.ClaudeApiKeyLaunch).
+    // The user's own: MCP can read it, never change it; the key itself never appears there.
+    public bool AgentClaudeApiKey { get; set; }
     public bool AgentDailySpeech { get; set; }
     public bool AgentRespondToClick { get; set; }
     public bool AgentRespondToDrag { get; set; }

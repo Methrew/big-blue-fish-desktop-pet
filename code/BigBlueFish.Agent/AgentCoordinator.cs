@@ -6,7 +6,9 @@ using System.Threading.Channels;
 namespace BigBlueFish.Agent;
 
 public sealed record AgentMode(bool Enabled, bool Puppet, bool DailyCare);
-public sealed record AgentSession(string SessionId, string Executable, string Workspace);
+// Profile: the AgentLaunch profile the conversation was made under (empty for the Agent's own setup); a conversation is
+// resumed only under the same one, since the Agent may keep each profile's conversations apart.
+public sealed record AgentSession(string SessionId, string Executable, string Workspace, string? Profile = null);
 internal sealed record PetEvent(string Kind, object Detail, bool Fresh, long Epoch, TaskCompletionSource<bool>? Completion = null);
 
 /// <summary>One fish-owned ACP session per harness. The host clock executes reservations; the Agent chooses them.</summary>
@@ -28,6 +30,9 @@ public sealed class AgentCoordinator : IDisposable
     private bool initialCare;
     private DateTimeOffset retryAfter;
     private string? guideFingerprint;
+    // The host's launch settings the running process (or the refused start) used: compared in LaunchChanged, in memory only.
+    private string launchFingerprint = "", launchProfile = "";
+    private string? launchCredentialNote;
     private int disposed;
     private long epoch;
     private volatile bool changingWorkspace;
@@ -63,6 +68,13 @@ public sealed class AgentCoordinator : IDisposable
     /// edge and ImageBytes in size, or null to send the link alone. Without it, small PNG, JPEG, GIF and WebP files go as they are.
     /// </summary>
     public Func<AgentUserAttachment, CancellationToken, Task<AgentPromptImage?>>? AttachmentImage { get; set; }
+    /// <summary>
+    /// What the host adds to a harness's process (variables, a profile, a reason not to start), asked with the harness id
+    /// each time one starts; without it every harness starts as the Agent's own setup. See AgentLaunch.
+    /// </summary>
+    public Func<string, CancellationToken, Task<AgentLaunch>>? Launch { get; set; }
+    /// <summary>The profile of the last start (AgentLaunch.Profile): empty for the Agent's own setup.</summary>
+    public string LaunchProfile => launchProfile;
     public AgentSkillStore Skills => new(root, HarnessCatalog.Get(harnessId), Workspaces.Current);
 
     public AgentCoordinator(string root, string bridge, string pipe, Func<AgentPermission, CancellationToken, Task<string?>> permission, string? defaultWorkspace = null)
@@ -77,14 +89,7 @@ public sealed class AgentCoordinator : IDisposable
         bool reconnect = selected != harnessId || updated.Enabled != mode.Enabled;
         bool startsCare = updated.Enabled && updated.Puppet && (!mode.Puppet || updated.DailyCare != mode.DailyCare || reconnect);
         if (!updated.Enabled || !updated.Puppet) Wakeups.Clear(harnessId);
-        if (reconnect)
-        {
-            Interlocked.Increment(ref epoch);
-            connectionLifetime.Cancel(); connectionLifetime = new();
-            var previous = Interlocked.Exchange(ref connection, null); if (previous != null) _ = previous.DisposeAsync();
-            sessionId = ""; guideFingerprint = null; ExecutablePath = null; CurrentModel = "由 Agent 設定"; RestoresSessions = false; Configuration.Reset();
-            lock (gate) { while (events.Reader.TryRead(out var abandoned)) abandoned.Completion?.TrySetCanceled(); coalesced.Clear(); }
-        }
+        if (reconnect) Abandon();
         harnessId = selected; mode = updated;
         if (!updated.Enabled || !updated.Puppet) initialCare = false;
         if (startsCare) initialCare = true;
@@ -110,6 +115,41 @@ public sealed class AgentCoordinator : IDisposable
         && Enqueue(weather ? "weather_request" : "speech_test", new { purpose = weather ? "主人手動要求天氣播報，請依提供的天氣資料組織要說的話，並呼叫 say 顯示。" : "主人手動觸發一次說話測試，請依目前的情境自然地關心主人，並呼叫 say 顯示。", weatherContext });
     public bool Interaction(string kind, object data) => mode.Enabled && Enqueue(kind, data);
     public bool Reconnect() => mode.Enabled && Enqueue("reconnect", new { });
+    /// <summary>
+    /// The host's launch settings may have changed (an option, a saved key, a key read at last): they are asked again, and
+    /// when they differ from those of the running process (or of the start they refused), the current turn stops and the
+    /// harness starts again with them. Unchanged settings leave everything as it is. True when a new start was queued.
+    /// </summary>
+    public async Task<bool> LaunchChanged()
+    {
+        if (!mode.Enabled || disposed != 0 || changingWorkspace) return false;
+        string harness = harnessId; long seen = Interlocked.Read(ref epoch);
+        string? fingerprint;
+        try { fingerprint = (await AskLaunch(harness, lifetime.Token)).Fingerprint; }
+        catch (OperationCanceledException) { return false; }
+        // Settings the host cannot give now (a folder it cannot create) count as changed: the start reports why.
+        catch (Exception) { fingerprint = null; }
+        // A harness switch, a workspace change or another restart meanwhile already starts with the current settings.
+        if (fingerprint == launchFingerprint || harness != harnessId || seen != Interlocked.Read(ref epoch) || !mode.Enabled || disposed != 0 || changingWorkspace) return false;
+        DiagnosticLog.Write(DiagnosticEvent.AgentDisconnected, kind: harness, state: "changed");
+        Abandon();
+        if (mode.Puppet) initialCare = true;
+        retryAfter = DateTimeOffset.MinValue;
+        Report("正在以新的設定重新啟動 " + HarnessCatalog.Get(harness).Name + "…");
+        Enqueue("connect", new { });
+        return true;
+    }
+    // Drops the process, the conversation in use and everything queued for it, as a switch of harness does.
+    private void Abandon()
+    {
+        Interlocked.Increment(ref epoch);
+        connectionLifetime.Cancel(); connectionLifetime = new();
+        var previous = Interlocked.Exchange(ref connection, null); if (previous != null) _ = previous.DisposeAsync();
+        sessionId = ""; guideFingerprint = null; ExecutablePath = null; CurrentModel = "由 Agent 設定"; RestoresSessions = false; Configuration.Reset();
+        lock (gate) { while (events.Reader.TryRead(out var abandoned)) abandoned.Completion?.TrySetCanceled(); coalesced.Clear(); }
+    }
+    private async Task<AgentLaunch> AskLaunch(string harness, CancellationToken token)
+        => Launch == null ? AgentLaunch.Default : await Launch(harness, token).WaitAsync(token) ?? AgentLaunch.Default;
     public bool NewConversation() => mode.Enabled && Enqueue("new_conversation", new { }, true);
     public void Cancel() => activeTurn?.Cancel();
     public Task SetConfiguration(string id, string value)
@@ -129,7 +169,7 @@ public sealed class AgentCoordinator : IDisposable
             string folder = Workspaces.SessionDirectory();
             if (Directory.Exists(folder)) foreach (var record in Directory.EnumerateFiles(folder, "*.json"))
             {
-                try { var saved = JsonSerializer.Deserialize<AgentSession>(File.ReadAllText(record)); if (saved != null) Wakeups.Clear(Path.GetFileNameWithoutExtension(record), saved.SessionId); }
+                try { var saved = JsonSerializer.Deserialize<AgentSession>(File.ReadAllText(record)); if (saved != null) Wakeups.Clear(AgentWorkspaceStore.HarnessOfRecord(record), saved.SessionId); }
                 catch (Exception error) when (error is IOException or JsonException) { }
             }
             Workspaces.Clear(expected);
@@ -330,7 +370,7 @@ public sealed class AgentCoordinator : IDisposable
                                 result = await current.Request("session/prompt", new { sessionId, prompt = Prompt() }, turn.Token, TimeSpan.FromMinutes(5));
                                 break;
                             }
-                            catch (AcpException error) when (error.AuthenticationRequired && !authenticationRetried
+                            catch (AcpException error) when (error.AuthenticationRequired && !authenticationRetried && launchCredentialNote == null
                                 && Interlocked.Read(ref spoken) == Interlocked.Read(ref turnStartSpoken)
                                 && Interlocked.Read(ref toolActivity) == toolsBeforePrompt)
                             {
@@ -371,11 +411,17 @@ public sealed class AgentCoordinator : IDisposable
                 catch (OperationCanceledException) { DiagnosticLog.Write(DiagnosticEvent.AgentCancelled, kind: request.Kind); request.Completion?.TrySetCanceled(); if (authenticationPending) retryAfter = DateTimeOffset.MaxValue; if (mode.Enabled) Report("要求已取消"); }
                 catch (Exception error)
                 {
-                    DiagnosticLog.Write(DiagnosticEvent.AgentFailed, kind: request.Kind, error: error);
+                    bool unavailable = error is AgentLaunchUnavailableException;
+                    DiagnosticLog.Write(DiagnosticEvent.AgentFailed, kind: request.Kind, state: unavailable ? "blocked" : null, error: error);
                     request.Completion?.TrySetException(error);
                     bool authentication = authenticationPending || error is AgentAuthenticationCancelledException || error is AcpException acp && acp.AuthenticationRequired || error.Message.Contains("auth", StringComparison.OrdinalIgnoreCase) || error.Message.Contains("login", StringComparison.OrdinalIgnoreCase);
-                    retryAfter = authentication ? DateTimeOffset.MaxValue : DateTimeOffset.Now.AddMinutes(2);
-                    Report(authentication ? "需要登入 · " + HarnessCatalog.Get(harnessId).Name : "連線或要求失敗", error.Message);
+                    string name = HarnessCatalog.Get(harnessId).Name;
+                    // A start the host's settings refuse waits for them to change (LaunchChanged) or for 重新連線; so does a
+                    // credential the host supplies and the Agent turned down, whose note says what to do.
+                    retryAfter = authentication || unavailable ? DateTimeOffset.MaxValue : DateTimeOffset.Now.AddMinutes(2);
+                    if (unavailable) Report("尚未啟動 · " + name, error.Message);
+                    else if (authentication && launchCredentialNote != null) Report("驗證失敗 · " + name, launchCredentialNote);
+                    else Report(authentication ? "需要登入 · " + name : "連線或要求失敗", error.Message);
                 }
                 finally { authenticationPending = false; Busy = false; activeTurn = null; activeKind = ""; Changed?.Invoke(); }
             }
@@ -388,15 +434,22 @@ public sealed class AgentCoordinator : IDisposable
         await connecting.WaitAsync(token);
         try
         {
+            var harness = HarnessCatalog.Get(harnessId);
+            AgentLaunch? launch = null;
             if (fresh)
             {
+                // A new conversation replaces the one of the profile about to start, and only that one.
+                launch = await AskLaunch(harness.Id, token);
                 Wakeups.Clear(harnessId); await DropConnection();
-                string stateFile = Workspaces.SessionPath(harnessId);
+                string stateFile = Workspaces.SessionPath(harnessId, profile: launch.Profile);
                 if (File.Exists(stateFile)) File.Delete(stateFile);
                 initialCare = mode.Puppet;
             }
             if (Connected) return;
-            var harness = HarnessCatalog.Get(harnessId);
+            launch ??= await AskLaunch(harness.Id, token);
+            token.ThrowIfCancellationRequested();
+            launchFingerprint = launch.Fingerprint; launchProfile = launch.Profile; launchCredentialNote = launch.CredentialNote;
+            if (launch.Unavailable != null) throw new AgentLaunchUnavailableException(launch.Unavailable);
             var adapters = new AgentAdapterStore(root);
             string executable = adapters.FindExecutable(harness) ?? (harness.Id == "antigravity" ? "" : throw new IOException("找不到 " + harness.Name + "，請先依官方說明安裝，並確認程式在 PATH 中。"));
             if (!File.Exists(bridge)) throw new IOException("安裝套件缺少內部的 MCP 元件，請重新安裝完整的標準版。");
@@ -413,7 +466,9 @@ public sealed class AgentCoordinator : IDisposable
             if (harness.Id == "codex") start.Environment["CODEX_PATH"] = executable;
             if (harness.Id == "antigravity" && AgentAdapterStore.AntigravityHelper(command.Path) is { } helper)
                 start.Environment["ANTIGRAVITY_HARNESS_PATH"] = helper;
-            DiagnosticLog.Write(DiagnosticEvent.AgentConnecting, kind: harness.Id, directory: skills.Workspace);
+            // The host's variables go to this process only (and the processes it starts), never into a message or a file.
+            launch.Apply(start);
+            DiagnosticLog.Write(DiagnosticEvent.AgentConnecting, kind: harness.Id, state: launch.Profile.Length > 0 ? launch.Profile : null, directory: skills.Workspace);
             Report("正在啟動 " + harness.Name + "…");
             var client = CreateConnection(start);
             try
@@ -424,7 +479,9 @@ public sealed class AgentCoordinator : IDisposable
                 async Task<JsonElement> SessionRequest(string method, object parameters)
                 {
                     try { return await client.Request(method, parameters, token); }
-                    catch (AcpException error) when (error.AuthenticationRequired && !authenticationAttempted && client.AuthenticationChoices(error).Length > 0)
+                    // A credential the host supplies is never replaced by the Agent's own sign-in: the error reaches the
+                    // worker, which shows the launch's note.
+                    catch (AcpException error) when (error.AuthenticationRequired && !authenticationAttempted && launch.CredentialNote == null && client.AuthenticationChoices(error).Length > 0)
                     {
                         authenticationAttempted = true;
                         authenticationPending = true;
@@ -457,7 +514,7 @@ public sealed class AgentCoordinator : IDisposable
                     }
                 }
                 object[] servers = [new { name = "big-blue-fish", command = bridge, args = new[] { "--pipe", pipe }, env = Array.Empty<object>() }];
-                string stateFile = Workspaces.SessionPath(harnessId, skills.Workspace);
+                string stateFile = Workspaces.SessionPath(harnessId, skills.Workspace, launch.Profile);
                 AgentSession? saved = null;
                 try { saved = JsonSerializer.Deserialize<AgentSession>(File.ReadAllText(stateFile)); }
                 catch (Exception e) when (e is IOException or JsonException) { }
@@ -466,7 +523,7 @@ public sealed class AgentCoordinator : IDisposable
                     && resumeCapability.ValueKind is JsonValueKind.Object or JsonValueKind.True;
                 RestoresSessions = load || resume;
                 sessionId = "";
-                if (saved != null && string.Equals(saved.Executable, executable, AgentWorkspaceStore.PathComparison)
+                if (saved != null && (saved.Profile ?? "") == launch.Profile && string.Equals(saved.Executable, executable, AgentWorkspaceStore.PathComparison)
                     && string.Equals(saved.Workspace, skills.Workspace, AgentWorkspaceStore.PathComparison) && RestoresSessions)
                 {
                     Report("正在恢復上次的魚魚對話…");
@@ -487,7 +544,7 @@ public sealed class AgentCoordinator : IDisposable
                     token.ThrowIfCancellationRequested();
                     sessionId = result.GetProperty("sessionId").GetString() ?? throw new IOException("Agent 沒有回傳對話編號。");
                     if (sessionId.Length == 0) throw new IOException("Agent 回傳了空的對話編號。");
-                    AtomicText.Write(stateFile, JsonSerializer.Serialize(new AgentSession(sessionId, executable, skills.Workspace)));
+                    AtomicText.Write(stateFile, JsonSerializer.Serialize(new AgentSession(sessionId, executable, skills.Workspace, launch.Profile)));
                     guideFingerprint = null;
                 }
                 token.ThrowIfCancellationRequested();

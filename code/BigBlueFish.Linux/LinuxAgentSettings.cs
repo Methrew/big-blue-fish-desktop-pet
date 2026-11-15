@@ -36,6 +36,14 @@ internal sealed partial class LinuxPetWindow
         var buttons = new WrapPanel(); buttons.Children.Add(ActionButton("重新偵測", Detect));
         buttons.Children.Add(ActionButton("安裝與登入說明", () => OpenUrl(HarnessCatalog.Get(Preferences.AgentHarnessId).Website)));
         extra.Children.Add(buttons);
+        // Claude Code only: the Claude Code the fish starts runs on the cloud AI service's Claude API Key (AgentClaudeApiKey).
+        var claudeApi = new StackPanel { Spacing = 8, IsVisible = Preferences.AgentHarnessId == ClaudeApiKeyLaunch.Harness };
+        var apiKey = new CheckBox { Content = AgentClaudeApiKeyLabel, IsChecked = Preferences.AgentClaudeApiKey };
+        string claudeSettings = ClaudeApiKeyLaunch.SettingsFile(Path.Combine(Environment.CurrentDirectory, "agent"));
+        claudeApi.Children.Add(apiKey); claudeApi.Children.Add(Paragraph(AgentClaudeApiKeyDescription)); claudeApi.Children.Add(Paragraph(AgentClaudeModelHint(claudeSettings)));
+        var apiKeyState = Paragraph(""); claudeApi.Children.Add(apiKeyState);
+        claudeApi.Children.Add(ActionButton("前往雲端 AI 服務", () => showModelPage?.Invoke()));
+        extra.Children.Add(claudeApi);
         var state = Paragraph(""); extra.Children.Add(state);
         var actions = new WrapPanel();
         actions.Children.Add(ActionButton("重新連線", () => agent?.Reconnect()));
@@ -62,14 +70,35 @@ internal sealed partial class LinuxPetWindow
             refreshWorkspace(); refreshConfiguration();
             if (select.SelectedItem is ComboBoxItem { Tag: "antigravity" } selected)
                 selected.Content = "Antigravity CLI" + (adapters.FindExecutable(HarnessCatalog.Get("antigravity")) == null ? " · 連線時準備官方元件" : " · 已偵測到");
+            claudeApi.IsVisible = Preferences.AgentHarnessId == ClaudeApiKeyLaunch.Harness;
+            if (apiKey.IsEnabled) apiKey.IsChecked = Preferences.AgentClaudeApiKey;
+            apiKeyState.Text = !Preferences.AgentClaudeApiKey ? "目前使用 Claude Code 自己的登入（例如訂閱）。"
+#if COMPANION_MAC
+                : !macSecretsLoaded ? "正在讀取 macOS 鑰匙圈…"
+                // In the order AgentLaunchFor (LinuxMcp) decides: a keychain that did not answer is not a missing key.
+                : Preferences.ClaudeApiKey.Length == 0 ? SecretNote(MacKeychain.ClaudeAccount, "Claude API Key") ?? AgentClaudeKeyMissingHint
+#endif
+                : Preferences.ClaudeApiKey.Length > 0 ? "已儲存 Claude API Key，魚魚啟動的 Claude Code 會用它連線。" : AgentClaudeKeyMissingHint;
             state.Text = (agent?.Status ?? "尚未連線") + "\n" + (agent?.Detail ?? "選擇後連線，雙擊魚魚即可對話。");
-            details.Text = $"程式：{agent?.ExecutablePath}\n版本：{agent?.Version}\n模型：{agent?.CurrentModel}\n對話編號：{agent?.SessionId}\n內部工具連線：{mcpServer?.Connections ?? 0}\n點選回應：{(Preferences.AgentRespondToClick ? "開" : "關")}；拖曳回應：{(Preferences.AgentRespondToDrag ? "開" : "關")}（可由 Agent 調整）";
+            string signIn = agent?.LaunchProfile == ClaudeApiKeyLaunch.Profile ? "Claude API Key（依用量計費）" : "Agent 自己的登入";
+            details.Text = $"程式：{agent?.ExecutablePath}\n版本：{agent?.Version}\n登入：{signIn}\n模型：{agent?.CurrentModel}\n對話編號：{agent?.SessionId}\n內部工具連線：{mcpServer?.Connections ?? 0}\n點選回應：{(Preferences.AgentRespondToClick ? "開" : "關")}；拖曳回應：{(Preferences.AgentRespondToDrag ? "開" : "關")}（可由 Agent 調整）";
             wake.Text = Preferences.PuppetMode && Preferences.AgentDailySpeech ? "下一次日常關心：" + (agent?.NextWake ?? "等待 Agent 安排")
                 : Preferences.PuppetMode ? "Agent 安排日常關心的時機，由模型編寫要說的話。下一次關心：" + (agent?.NextWake ?? "等待 Agent 預約") : Preferences.AgentDailySpeech ? "魚魚決定何時關心主人，Agent 編寫關心的話。" : "魚魚按自己的節奏關心主人，日常說話使用魚魚自己的模型。";
             if (Preferences.PuppetMode && agent?.Connected != true) wake.Text += "\nAgent 未連線，魚魚保持待機；關閉第二個開關可恢復魚魚自己的安排。";
         }
         select.SelectionChanged += (_, _) => { if (!refreshing && select.SelectedItem is ComboBoxItem { Tag: string id }) { Preferences.AgentHarnessId = id; ConfigureAgent(); Save(); } };
         daily.Click += (_, _) => { Preferences.AgentDailySpeech = daily.IsChecked == true; ApplySettings(); Refresh(); };
+        apiKey.Click += async (_, _) => {
+            apiKey.IsEnabled = false;
+            try
+            {
+                bool on = apiKey.IsChecked == true;
+                if (on && !await Confirm(AgentClaudeApiKeyLabel, AgentClaudeApiKeyWarning(claudeSettings), "瞭解並開啟")) { apiKey.IsChecked = false; return; }
+                // A new Claude Code process starts with the key, or again with its own login.
+                Preferences.AgentClaudeApiKey = on; Save(); AgentLaunchChanged();
+            }
+            finally { apiKey.IsEnabled = true; Refresh(); }
+        };
         puppet.Click += async (_, _) => {
             bool on = puppet.IsChecked == true;
             if (on && !await Confirm(ControlTools.BehaviorControlTitle, ControlTools.PuppetWarning + (Preferences.McpEnabled ? "\n\n" + PuppetSharedWithMcp : ""), "瞭解並開啟")) { puppet.IsChecked = false; return; }
@@ -92,6 +121,25 @@ internal sealed partial class LinuxPetWindow
         clock.Tick += (_, _) => Refresh(); extra.DetachedFromVisualTree += (_, _) => clock.Stop(); Refresh(); clock.Start();
         BuildMcpInterfaceSettings(body);
     }
+
+    internal const string AgentClaudeApiKeyLabel = "Claude Code 改用 Claude API Key（依用量計費）";
+    const string AgentClaudeApiKeyDescription = "開啟後，魚魚啟動的 Claude Code 會改用「設定 › 模型與資訊」雲端 AI 服務裡儲存的 Claude API Key，由 Anthropic 依用量計費；"
+        + "你自己開的 Claude Code 照樣使用訂閱登入，不受影響。Claude Code 每一輪都會送出很長的上下文，用量比魚魚自己說一句話多很多，"
+        + "建議先在 Claude Console 設定支出上限。"
+        + "改用 API Key 後是另一段魚魚對話，關閉後會回到原本用訂閱登入的那段；工作區的 .claude/settings.local.json 照樣適用。";
+    // A model picked under 模型與權限 lasts for the current conversation only (claude-agent-acp's set_config_option changes
+    // the live session); settings.json in Claude Code's own folder holds one for every conversation, the first turn included.
+    static string AgentClaudeModelHint(string settingsFile) => "想一直用比較省錢的 Sonnet 或 Haiku，請在 " + settingsFile + " 寫入 {\"model\": \"sonnet\"}（或 \"haiku\"）；"
+        + "已經開啟這個選項時，寫好後按「重新連線」就會套用。這個檔案只影響魚魚用 API Key 啟動的 Claude Code，第一輪和之後每一段對話都會用這個模型。"
+        + "下方「模型與權限」選的模型只套用到目前這段對話，按「開始新對話」後會回到這個檔案指定的模型（沒有這個檔案時是 Claude Code 預設的模型）。";
+    static string AgentClaudeApiKeyWarning(string settingsFile) => "開啟後，魚魚啟動的 Claude Code 會用你在雲端 AI 服務儲存的 Claude API Key，費用由 Anthropic 依用量向這把 API Key 的帳戶收取。"
+        + "Claude Code 每一輪都會送出很長的上下文（對話、讀到的檔案、工具結果），用量比魚魚自己說一句話多很多。\n\n"
+        + "建議先到 Claude Console 替這個帳戶設定支出上限。Claude Code 會用它預設的模型；想一直用比較省錢的 Sonnet 或 Haiku，請先在 " + settingsFile
+        + " 寫入 {\"model\": \"sonnet\"}（或 \"haiku\"）再開啟，第一輪就會用它。「模型與權限」選的模型只套用到目前這段對話。\n\n"
+        + "API Key 只交給魚魚啟動的這個 Claude Code，放在它的環境變數裡，所以它和它執行的指令也可能讀得到；工作區 .claude 資料夾裡設定檔的 env 和 hooks 也會生效，"
+        + "可能把 Key 送到別的主機，所以不要把來源不明的專案當作工作區。最好另外建立一把只給魚魚用的 API Key。你自己開的 Claude Code 不受影響，照樣使用訂閱登入。";
+    const string AgentClaudeKeyMissingHint = "還沒有儲存 Claude API Key，Claude Code 會先暫停（不會改用訂閱登入）。請按「前往雲端 AI 服務」，模型來源選雲端 AI 服務、服務選 Claude，"
+        + "貼上 API Key 後按「儲存並測試」；之後魚魚自己說話要改回本機模型也可以，API Key 會留著。";
 
     // The MCP interface for programs outside the fish, such as the Hermes bridge (LinuxMcpInterface.cs), under the Agent connection.
     void BuildMcpInterfaceSettings(StackPanel body)

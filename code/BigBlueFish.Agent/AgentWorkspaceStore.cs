@@ -69,7 +69,12 @@ public sealed class AgentWorkspaceStore
         if (OperatingSystem.IsWindows()) path = path.ToUpperInvariant();
         return Path.Combine(root, "sessions", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(path))));
     }
-    public string SessionPath(string harness, string? workspace = null) => Path.Combine(SessionDirectory(workspace), HarnessCatalog.Get(harness).Id + ".json");
+    // One saved conversation per harness and launch profile (AgentLaunch.Profile): claude.json for the Agent's own setup,
+    // claude.claude-api.json for Claude Code on the Claude API Key, whose conversations Claude Code keeps in another folder.
+    public string SessionPath(string harness, string? workspace = null, string profile = "") => Path.Combine(SessionDirectory(workspace),
+        HarnessCatalog.Get(harness).Id + (profile.Length > 0 ? "." + profile : "") + ".json");
+    // The harness a saved conversation's file name belongs to (the part before the profile).
+    public static string HarnessOfRecord(string file) => Path.GetFileNameWithoutExtension(file).Split('.')[0];
     public void ValidateClear(string expected)
     {
         string path = Normalize(expected);

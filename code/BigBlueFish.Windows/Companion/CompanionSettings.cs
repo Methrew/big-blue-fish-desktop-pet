@@ -552,6 +552,8 @@ public partial class MainWindow
                     {
                         preferences.SetCloudApiKey(provider, key.Trim());
                         cloudKeyDrafts.Remove(provider);
+                        // Claude Code on the Claude API Key starts again with the new key (or stops for want of one).
+                        if (provider == CompanionCloud.Claude) AgentLaunchChanged();
                     }
                 foreach (var (provider, model) in cloudModelDrafts) preferences.SetCloudModel(provider, model);
                 cloudModelDrafts.Clear();

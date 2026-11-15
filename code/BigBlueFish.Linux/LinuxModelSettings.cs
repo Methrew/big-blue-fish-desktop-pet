@@ -391,6 +391,8 @@ internal sealed partial class LinuxPetWindow
 #endif
                     // Another key may list other models.
                     cloudListed.Remove(id);
+                    // Claude Code on the Claude API Key starts again with the new key (or stops for want of one).
+                    if (id == CompanionCloud.Claude) AgentLaunchChanged();
                 }
                 // The recommended model shown and never chosen stays unchosen (empty), so it follows the recommendation.
                 string chosen = ModelText();

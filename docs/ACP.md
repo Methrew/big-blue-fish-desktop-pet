@@ -47,9 +47,9 @@ Windows 用可以直接啟動的程式入口打開登入終端機；macOS 打開
 
 專案由使用者和 Agent 依工作整理，可以使用工作區內的子資料夾。新的對話或專案繼續使用目前的工作區。切換工作區會取消目前這一輪與還沒執行的請求，關閉原本的連線，再依目標資料夾恢復或建立對話；工作檔案會保留。檔案操作在背景執行。
 
-對話記錄依工作區的絕對路徑與 Harness 分開，存在 `agent/sessions/<工作區路徑的 SHA256>/<id>.json`，包含對話編號、程式路徑和工作資料夾。Windows 路徑的大小寫不影響綁定。新的對話透過 `session/new` 建立，同時提供工作資料夾和魚魚內部 MCP 的 stdio 設定。
+對話記錄依工作區的絕對路徑與 Harness 分開，存在 `agent/sessions/<工作區路徑的 SHA256>/<id>.json`，包含對話編號、程式路徑和工作資料夾。Claude Code 改用 Claude API Key 時，對話另外存在 `claude.claude-api.json`（見下面的「[Claude Code 改用 Claude API Key](#claude-code-改用-claude-api-key依用量計費)」）。Windows 路徑的大小寫不影響綁定。新的對話透過 `session/new` 建立，同時提供工作資料夾和魚魚內部 MCP 的 stdio 設定。
 
-重新連線時，如果程式路徑和工作資料夾都相同，會優先使用對方宣告的 `session/resume` 或 `session/load` 恢復。只有在恢復時回覆對話或資源不存在，才會建立新的對話；登入、網路、權限等錯誤會保留原本的記錄。沒有恢復能力的產品，程式重新啟動後會建立新的對話。「開始新對話」按鈕會使用新的對話編號，並清除該 Harness 的關心預約。
+重新連線時，如果程式路徑、工作資料夾和登入方式（Claude Code 自己的登入或 Claude API Key）都相同，會優先使用對方宣告的 `session/resume` 或 `session/load` 恢復。只有在恢復時回覆對話或資源不存在，才會建立新的對話；登入、網路、權限等錯誤會保留原本的記錄。沒有恢復能力的產品，程式重新啟動後會建立新的對話。「開始新對話」按鈕會使用新的對話編號，並清除該 Harness 的關心預約；只換掉目前登入方式的那段對話。
 
 對話訊息透過 `session/prompt` 送出，一輪結束後繼續使用同一個對話。請求佇列最多 32 項，一般日常事件與連線請求會合併。模型的一輪最多等 5 分鐘；取消或逾時時送出 `session/cancel`，並關閉這次自己啟動的程式，再恢復對話給之後的訊息使用。
 
@@ -62,6 +62,24 @@ Windows 用可以直接啟動的程式入口打開登入終端機；macOS 打開
 要讓 Claude Code 每次都用同一個權限模式（例如自動接受編輯，不再逐一詢問檔案編輯），把設定寫在工作區的 `.claude/settings.local.json`，例如 `{"permissions": {"defaultMode": "acceptEdits", "allow": ["Read", "Write", "Edit", "WebSearch", "WebFetch", "mcp__big-blue-fish"]}}`，再按「開始新對話」。Claude Code 不會採用工作區 `.claude/settings.json` 裡提高權限的 `defaultMode`（`acceptEdits`、`auto`、`bypassPermissions`），因為那個檔案通常會隨專案分享；「清空工作區」也會刪掉這個檔案。
 
 權限／工作模式與單項操作的核准分開處理。Agent 要求執行檔案、指令等操作時，魚魚會顯示它提供的具體內容和核准選項。切換模型、對話或工作區時，不會把一般的 ACP 回答送進氣泡。
+
+## Claude Code 改用 Claude API Key（依用量計費）
+
+選擇 Claude Code 時，「選擇 Agent」下方會多一個「Claude Code 改用 Claude API Key（依用量計費）」選項（其他 Harness 不會出現）。預設關閉：魚魚啟動的 Claude Code 和你自己開的一樣，使用 Claude Code 自己的登入（例如 Claude 訂閱）。開啟時會先跳出說明，按「瞭解並開啟」後：
+
+- 魚魚啟動的 Claude Code 改用雲端 AI 服務裡儲存的 Claude API Key（macOS 在「設定 › 模型與資訊」，存在鑰匙圈的 `ClaudeApiKey`；Windows 在「設定 › 模型與供電」，以目前的 Windows 帳戶加密；Linux 在「設定 › 模型與資訊」），和魚魚自己用 Claude 說話的是同一把。費用由 Anthropic 依用量向這把 Key 的帳戶收取，不算在訂閱方案裡。
+- 你自己在終端機或其他地方開的 Claude Code 不受影響，照樣使用訂閱登入。
+- Claude Code 每一輪都會送出很長的上下文（對話、讀到的檔案、工具結果），用量比魚魚自己說一句話多很多。建議先到 Claude Console 替這個帳戶設定支出上限。魚魚自己說話的「每天最多」只限制魚魚自己的雲端請求，管不到 Claude Code。
+- 想一直用比較省錢的模型，請在 `<資料夾>/agent/claude-api/settings.json`（macOS 為 `~/Library/Application Support/bigbluefish-tw/agent/claude-api/settings.json`，連線頁也會顯示完整路徑）寫入 `{"model": "sonnet"}`（或 `"haiku"`）。這個檔案只影響魚魚用 API Key 啟動的 Claude Code，Claude Code 一啟動就會讀它，所以第一輪（包括提線木偶模式一連線就送出的日常關心）也會用這個模型。最好在開啟選項前寫好；已經開啟時，寫好後按「重新連線」套用。「模型與權限」選的模型只套用到目前這段對話，按「開始新對話」後會回到這個檔案指定的模型，沒有這個檔案時是 Claude Code 預設的模型。
+- 還沒有儲存 Claude API Key 時，魚魚不會啟動 Claude Code，也不會改用訂閱登入；連線頁顯示「尚未啟動 · Claude Code」和要怎麼做。要先在雲端 AI 服務把「服務」選成 Claude，貼上 API Key 後按「儲存並測試」（這時模型來源會改成雲端 AI 服務）；之後魚魚自己說話要改回本機模型也可以，API Key 會留著。macOS 啟動時鑰匙圈還沒讀完，會先顯示「正在讀取 macOS 鑰匙圈裡的 Claude API Key」，讀到後自動連線；鑰匙圈讀不到時（例如登入鑰匙圈還鎖著），連線頁顯示「無法讀取 macOS 鑰匙圈」和原因，不會說 Key 沒有儲存，解鎖螢幕後會自動再讀。Windows 上如果已儲存的 Key 無法在目前的 Windows 帳戶解密（例如設定檔是從別的電腦或帳戶複製過來的），也不會啟動，連線頁會請你重新儲存 Key。
+- 開啟或關閉這個選項、在雲端 AI 服務儲存另一把 Claude API Key（或清空它）時，魚魚會結束正在進行的那一輪，重新啟動 Claude Code。設定沒有真的改變時不會重新啟動。
+- Claude Code 拒絕這把 Key（失效、被撤銷或停用）時，連線頁顯示「驗證失敗 · Claude Code」和處理方式；魚魚不會改開 Claude Code 自己的登入流程，也不會自己一直重試。確認 Key 沒問題後，按「重新連線」；換一把 Key 時，在雲端 AI 服務儲存新的 Key，魚魚就會自動重新啟動 Claude Code（再儲存同一把 Key 不會重新連線）。
+- 帳戶的額度用完或帳單有問題時，Claude Code 不會把它當成驗證失敗：連線頁顯示「連線或要求失敗」和 Claude Code 回傳的訊息（例如 `Credit balance is too low`）。請到 Claude Console 儲值或調高支出上限，再按「重新連線」，或等魚魚稍後自動再試。
+- 用 API Key 的對話和用訂閱的對話分開：Claude Code 把對話存在各自的設定資料夾，魚魚也分別記住兩段對話（`claude.json` 與 `claude.claude-api.json`）。開啟後第一次連線會開始一段新的魚魚對話，關閉後回到原本用訂閱的那段，再開啟又回到 API Key 的那段。「開始新對話」只換掉目前這一種的對話。
+
+做法：有訂閱登入的 Claude Code 會優先用訂閱，不理會 `ANTHROPIC_API_KEY`。所以魚魚啟動 ACP 轉接器（`claude-agent-acp`，由它再啟動 Claude Code）時，只在這個子程式的環境變數裡加上 `CLAUDE_CONFIG_DIR=<資料夾>/agent/claude-api`（一個只有你的帳號能讀寫的空資料夾，macOS 為 `~/Library/Application Support/bigbluefish-tw/agent/claude-api`；Windows 上每次啟動前都會關閉這個資料夾繼承來的權限，只留給你的帳戶和 SYSTEM，資料夾是連結時不會啟動）和 `ANTHROPIC_API_KEY`，並拿掉可能讓它改用別的方式驗證或把 Key 送到別處的 `ANTHROPIC_AUTH_TOKEN`、`CLAUDE_CODE_OAUTH_TOKEN`、`ANTHROPIC_BASE_URL`、`CLAUDE_CODE_USE_BEDROCK`、`CLAUDE_CODE_USE_VERTEX`、`CLAUDE_CODE_USE_FOUNDRY`。魚魚交給它的環境變數只會讓 Key 送到 Anthropic 官方的 API；Key 不會寫進任何檔案、記錄主控台、MCP、ACP 訊息或對話記錄，魚魚也不會用它開終端機登入。不過 Key 放在 Claude Code 的環境變數裡，Claude Code 和它執行的指令（例如 Bash 工具）也可能讀得到，所以最好另外建立一把只給魚魚用、設好支出上限的 API Key。工作資料夾不變，所以工作區的 `.claude/settings.json` 和 `.claude/settings.local.json` 照樣適用（例如權限模式）。這兩個檔案裡的 `env`（例如 `ANTHROPIC_BASE_URL`）和 hooks 也會生效，Claude Code 會在啟動時的環境變數之後套用它們，所以可能把 Key 送到別的主機，或讓指令讀到它；開啟這個選項時，不要把來源不明的專案（例如剛 clone 下來的 repo）當作工作區，也不要在工作區設定其他 API 位址。`~/.claude` 裡的個人設定、外掛和記憶則不會帶進這個資料夾。
+
+MCP 的 `get_settings` 會列出 `AgentClaudeApiKey`（true 表示開啟），但 `update_settings` 不能修改，會回覆「Claude Code 改用 Claude API Key 只能由使用者在設定中開啟或關閉。」。
 
 ## 技能與人設
 
@@ -98,6 +116,6 @@ Windows 版的對話輸入框可以往上捲動檢視本機的記錄，往下捲
 
 ## 連線狀態與資料
 
-連線頁會區分未偵測到、正在安裝轉接器、啟動中、恢復中、建立中、已連線、處理中、等待權限、需要登入和失敗。詳細資訊包含程式路徑、Agent 版本、模型、對話編號和內部工具的連線數，另外顯示下一次預約的時間。一輪結束卻沒有呼叫說話工具時，狀態會明確顯示沒有呼叫說話工具。
+連線頁會區分未偵測到、正在安裝轉接器、啟動中、恢復中、建立中、已連線、處理中、等待權限、需要登入、尚未啟動（例如 Claude Code 改用 Claude API Key 卻還沒有 Key）、驗證失敗和失敗。詳細資訊包含程式路徑、Agent 版本、登入方式（Agent 自己的登入或 Claude API Key）、模型、對話編號和內部工具的連線數，另外顯示下一次預約的時間。一輪結束卻沒有呼叫說話工具時，狀態會明確顯示沒有呼叫說話工具。
 
-魚魚會儲存所選的 Harness、設定、對話編號、技能、人設、預約和轉接器檔案（macOS 在 `~/Library/Application Support/bigbluefish-tw/agent/`）。Agent 自己怎麼儲存對話依它的設定而定，可能把輸入或截圖傳送給設定的模型服務。魚魚不會把一般的 ACP 回答自動存成聊天記錄。無MCP版在編譯時就排除了 ACP、內部工具與對話頁面。
+魚魚會儲存所選的 Harness、設定、對話編號、技能、人設、預約和轉接器檔案（macOS 在 `~/Library/Application Support/bigbluefish-tw/agent/`）；Claude Code 改用 Claude API Key 時，Claude Code 自己的設定與對話放在同一處的 `claude-api` 資料夾。Agent 自己怎麼儲存對話依它的設定而定，可能把輸入或截圖傳送給設定的模型服務。魚魚不會把一般的 ACP 回答自動存成聊天記錄。無MCP版在編譯時就排除了 ACP、內部工具與對話頁面。

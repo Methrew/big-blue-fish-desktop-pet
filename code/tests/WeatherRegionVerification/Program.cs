@@ -116,7 +116,8 @@ try
     // --- MCP never sees a secret: get_settings lists public, not [JsonIgnore], not private properties.
     var listed = typeof(CompanionPreferences).GetProperties().Where(p => !p.IsDefined(typeof(JsonIgnoreAttribute)) && !CompanionPreferences.PrivateSettings.Contains(p.Name))
         .Select(p => p.Name).ToArray();
-    Check(!listed.Any(n => n.Contains("ApiKey")) && CompanionPreferences.PrivateSettings.SequenceEqual(["RemoteApiKeyProtected", "CwaApiKeyProtected",
+    // AgentClaudeApiKey is the one switch with ApiKey in its name: a bool saying whether Claude Code uses the key, never the key.
+    Check(!listed.Any(n => n.Contains("ApiKey") && n != "AgentClaudeApiKey") && CompanionPreferences.PrivateSettings.SequenceEqual(["RemoteApiKeyProtected", "CwaApiKeyProtected",
             "ClaudeApiKeyProtected", "OpenAiApiKeyProtected", "GeminiApiKeyProtected"])
         && typeof(CompanionPreferences).GetProperty("CwaApiKey", BindingFlags.Instance | BindingFlags.NonPublic) != null
         && typeof(CompanionPreferences).GetProperty("CwaApiKey") == null && !ControlTools.SettingNames.Any(n => n.Contains("ApiKey")),
@@ -126,6 +127,10 @@ try
             && ControlTools.RefusedSetting(n, CompanionPreferences.PrivateSettings.Contains(n)) == "模型來源與雲端模型只能由使用者在設定中修改。")
         && ControlTools.RefusedSetting("ClaudeApiKeyProtected", true).StartsWith("API Key 與授權碼", StringComparison.Ordinal),
         "get_settings shows the cloud provider, models and limit read-only; update_settings refuses them and the keys");
+    Check(listed.Contains("AgentClaudeApiKey") && typeof(CompanionPreferences).GetProperty("AgentClaudeApiKey")!.PropertyType == typeof(bool)
+        && !new CompanionPreferences().AgentClaudeApiKey && !ControlTools.SettingNames.Contains("AgentClaudeApiKey")
+        && ControlTools.RefusedSetting("AgentClaudeApiKey", CompanionPreferences.PrivateSettings.Contains("AgentClaudeApiKey")) == "Claude Code 改用 Claude API Key 只能由使用者在設定中開啟或關閉。",
+        "AgentClaudeApiKey is a switch, off by default, shown read-only; update_settings refuses it");
 
     // --- The cloud model source survives a restart; anything unknown falls back to what the settings offer.
     File.WriteAllText("preferences.json", JsonSerializer.Serialize(new { ModelSource = "Cloud", CloudProvider = "Gemini", GeminiModel = " gemini-4-hydrogen ", CloudDailyLimit = 500 }));

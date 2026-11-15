@@ -91,7 +91,7 @@ public partial class MainWindow
                 && brain.CanRunOnCurrentPower && regionCode == preferences.WeatherRegionCode)
             {
                 if (text.Length > 0) { FinishCompanionPartial(text, agentTriggered: true); }
-                else ShowCompanionNotice("主人，" + brain.Status + "。", manual: true);
+                else ShowCompanionNotice("主人，" + brain.Status.TrimEnd('。') + "。", manual: true);
             }
         }
         finally

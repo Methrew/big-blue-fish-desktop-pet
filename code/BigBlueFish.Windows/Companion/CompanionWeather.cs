@@ -207,7 +207,7 @@ internal sealed class CompanionWeather : IDisposable
         using var response = await web.SendAsync(request, token);
         // The status goes to the diagnostic log; the code itself never does.
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            throw new HttpRequestException("中央氣象署授權碼無效，請到設定裡確認", null, response.StatusCode);
+            throw new HttpRequestException("中央氣象署不接受這組授權碼，請確認授權碼是否正確。", null, response.StatusCode);
         response.EnsureSuccessStatusCode();
         var body = await response.Content.ReadAsStringAsync(token);
         // In the data directory with the other test-mode files (the program directory stays as installed).

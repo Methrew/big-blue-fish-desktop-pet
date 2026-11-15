@@ -256,7 +256,7 @@ if (args.Contains("live"))
     using var web = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
     using var cwa = new CompanionWeather(web) { CwaApiKey = "CWA-00000000-0000-0000-0000-000000000000" };
     try { await cwa.Context("TW-061-01", CancellationToken.None); throw new Exception("FAIL an impossible CWA code was accepted"); }
-    catch (IOException e) { Check(e.Message == "中央氣象署授權碼無效，請到設定裡確認", "live CWA request is answered and refuses an impossible code"); }
+    catch (IOException e) { Check(e.Message == "中央氣象署不接受這組授權碼，請確認授權碼是否正確。", "live CWA request is answered and refuses an impossible code"); }
 }
 try { Directory.Delete(work, true); } catch (IOException) { }
 Console.WriteLine($"RESULT {checks} region, display name and secret checks passed");

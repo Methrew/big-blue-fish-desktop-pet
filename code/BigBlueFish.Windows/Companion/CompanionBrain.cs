@@ -615,8 +615,12 @@ internal sealed class CompanionBrain : IDisposable
     // Agent weather requests wait for current data, like the local weather broadcast.
     internal Task<string> GetWeatherContext(CancellationToken token) => weather.Context(WeatherRegionCode, token);
 
+    // Why the last weather broadcast said nothing (no forecast, or the model failed); null after one that spoke or was cancelled.
+    internal string? WeatherFailure { get; private set; }
+
     internal async Task<string> GenerateWeather(Action<string>? onPartial = null)
     {
+        WeatherFailure = null;
         if (disposed || Busy || !CanRunOnCurrentPower)
             return "";
         var generationWatch = Stopwatch.StartNew();
@@ -628,7 +632,16 @@ internal sealed class CompanionBrain : IDisposable
         try
         {
             Status = "正在取得所選地區天氣";
-            var context = await weather.Context(WeatherRegionCode, token);
+            string context;
+            // No forecast to talk about (no connection, nothing cached): the model has nothing to do with it, so the
+            // resident model stays loaded and no runner failure is counted.
+            try { context = await weather.Context(WeatherRegionCode, token); }
+            catch (Exception e) when (e is IOException or HttpRequestException)
+            {
+                DiagnosticLog.Write(DiagnosticEvent.WeatherFailed, kind: "weather", error: e);
+                Status = WeatherFailure = e is IOException ? e.Message : "暫時無法取得天氣資料，請稍後重試。";
+                return "";
+            }
             await EnsureRunner(token);
             Status = "正在生成天氣播報";
             var text = await Complete(WeatherPersona, WeatherRequest(context), CompanionDialogue.Temperature, token, onPartial: onPartial);
@@ -641,7 +654,7 @@ internal sealed class CompanionBrain : IDisposable
         {
             DiagnosticLog.Write(DiagnosticEvent.SpeechFailed, kind: kind, error: e);
             StopRunner(); RecordFailure("生成", e);
-            Status = e is IOException ? e.Message : "暫時無法取得或播報天氣，請稍後重試";
+            Status = WeatherFailure = e is IOException ? e.Message : "暫時無法取得或播報天氣，請稍後重試";
             return "";
         }
         finally

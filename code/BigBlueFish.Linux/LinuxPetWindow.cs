@@ -309,6 +309,8 @@ internal sealed partial class LinuxPetWindow : Window
             if (version != speechVersion || Puppet && !agentTriggered || hidden || fullscreenHidden || closed || !Preferences.ModelEnabled || !brain.CanRunOnCurrentPower) return;
             if (text.Length > 0) FinishReply(text);
             else if (streamed && !externalSpeech) bubbleWindow.Hide();
+            // The user asked for the weather: say why there is none instead of nothing at all.
+            else if (weather && !streamed && brain.WeatherFailure is { } failure) ShowText("主人，" + failure.TrimEnd('。') + "。", false);
         }
         finally { generating = false; loading.IsVisible = false; }
     }

@@ -230,7 +230,7 @@ internal static class WeatherCacheVerification
         Check(feed.Calls == calls + 2 && feed.LastAuthorization == "CWA-WRONG-CODE" && taiwan.CachedContext("TW-061-01") == forecast,
             "replacing the code fetches again at once and keeps the last forecast meanwhile");
         try { await taiwan.Context("TW-061-02", default); throw new Exception("refused code accepted"); }
-        catch (IOException e) { Check(e.Message == "中央氣象署授權碼無效，請到設定裡確認" && feed.Calls == calls + 3, "a refused code is reported in the Taiwan edition's words"); }
+        catch (IOException e) { Check(e.Message == "中央氣象署不接受這組授權碼，請確認授權碼是否正確。" && feed.Calls == calls + 3, "a refused code is reported in the Taiwan edition's words"); }
         await taiwan.RefreshIfDue("TW-061-02");
         Check(feed.Calls == calls + 3, "a refused code keeps the hourly spacing");
         taiwan.CwaApiKey = "CWA-TEST-CODE";

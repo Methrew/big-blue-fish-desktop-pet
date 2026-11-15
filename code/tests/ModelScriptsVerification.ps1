@@ -29,16 +29,16 @@ foreach($source in $sources){
     Fixture (Join-Path $models $source.FileName)
     Assert ((Resolve-DevelopmentModel $models).FileName -ceq $source.FileName) 'Source model not recognized'
 }
-$manual=Join-Path $area '手动来源/自选模型.gguf'
+$manual=Join-Path $area '手動來源/自選模型.gguf'
 Fixture $manual
 $install=Join-Path $area 'manual'
 $dest=Join-Path $install 'data'
 & "$root/tools/Setup-Model.ps1" -ModelFile $manual -DestinationDirectory $install -AllowUnverifiedModel
 $selection=Read-ModelSelection $dest
-Assert ($selection.Source -eq 'manual' -and $selection.FileName -eq '自选模型.gguf') 'Actual manual filename lost'
-Assert ((Get-FileHash $manual).Hash -eq (Get-FileHash (Join-Path $dest 'models/自选模型.gguf')).Hash) 'Import changed bytes'
-Assert ((Resolve-DevelopmentModel (Join-Path $dest 'models')).FileName -eq '自选模型.gguf') 'Selection not honored'
-Assert ((Resolve-DevelopmentModel ((Join-Path $dest 'models')+'\')).FileName -eq '自选模型.gguf') 'Trailing separator lost selection'
+Assert ($selection.Source -eq 'manual' -and $selection.FileName -eq '自選模型.gguf') 'Actual manual filename lost'
+Assert ((Get-FileHash $manual).Hash -eq (Get-FileHash (Join-Path $dest 'models/自選模型.gguf')).Hash) 'Import changed bytes'
+Assert ((Resolve-DevelopmentModel (Join-Path $dest 'models')).FileName -eq '自選模型.gguf') 'Selection not honored'
+Assert ((Resolve-DevelopmentModel ((Join-Path $dest 'models')+'\')).FileName -eq '自選模型.gguf') 'Trailing separator lost selection'
 $before=(Get-FileHash (Join-Path $dest 'model-selection.json')).Hash
 function Read-Host { return 'N' }
 Expect-Failure { & "$root/tools/Setup-Model.ps1" -Source Manual -ModelFile $manual -DestinationDirectory $install } 'Declined manual import should stop'
@@ -48,12 +48,12 @@ $invalid=Join-Path $area 'invalid.gguf'
 Expect-Failure { & "$root/tools/Setup-Model.ps1" -ModelFile $invalid -DestinationDirectory $install -AllowUnverifiedModel } 'Non-GGUF accepted'
 Assert ((Get-FileHash (Join-Path $dest 'model-selection.json')).Hash -eq $before) 'Invalid import altered selection'
 # Reimport in place and replace an existing file, exercising atomic paths.
-& "$root/tools/Setup-Model.ps1" -ModelFile (Join-Path $dest 'models/自选模型.gguf') -DestinationDirectory $install -AllowUnverifiedModel
+& "$root/tools/Setup-Model.ps1" -ModelFile (Join-Path $dest 'models/自選模型.gguf') -DestinationDirectory $install -AllowUnverifiedModel
 & "$root/tools/Setup-Model.ps1" -ModelFile $manual -DestinationDirectory $install -AllowUnverifiedModel
 Assert ((Resolve-DevelopmentModel (Join-Path $dest 'models')).Source -eq 'manual') 'Reimport failed'
 & "$root/tools/Setup-Model.ps1" -Source None -DestinationDirectory $install
 Assert ((Resolve-DevelopmentModel (Join-Path $dest 'models')).Source -ceq 'none') 'None ignored existing model'
-Assert (Test-Path (Join-Path $dest 'models/自选模型.gguf')) 'None removed model'
+Assert (Test-Path (Join-Path $dest 'models/自選模型.gguf')) 'None removed model'
 Assert ((Resolve-DevelopmentModel (Join-Path $area 'nonexistent/models') -NoModel).Source -eq 'none') 'NoModel requires files'
 Save-ModelSelection $dest ([ordered]@{Source='manual';FileName='missing.gguf';Sha256=$null})
 Fixture (Join-Path $dest ('models/'+$sources[0].FileName))
@@ -121,9 +121,9 @@ $runtime=Join-Path $area 'runtime'
 [IO.File]::WriteAllText((Join-Path $runtime 'llama-server.exe'),'fixture')
 & $run -ModelsDirectory (Join-Path $area 'modelscope/models') -RuntimeDirectory $runtime
 Assert ((Read-ModelSelection (Join-Path $out 'data')).FileName -eq $sources[1].FileName) 'Launcher rejected domestic filename'
-Save-ModelSelection $dest ([ordered]@{Source='manual';FileName='自选模型.gguf';Sha256=$null})
+Save-ModelSelection $dest ([ordered]@{Source='manual';FileName='自選模型.gguf';Sha256=$null})
 & $run -ModelsDirectory (Join-Path $dest 'models') -RuntimeDirectory $runtime
-Assert ((Read-ModelSelection (Join-Path $out 'data')).FileName -eq '自选模型.gguf') 'Launcher rejected actual manual name'
+Assert ((Read-ModelSelection (Join-Path $out 'data')).FileName -eq '自選模型.gguf') 'Launcher rejected actual manual name'
 Assert (Test-Path $manual) 'Launcher modified source model'
 Assert ((Read-ModelSelection $dest).Source -eq 'manual') 'Launcher rewrote source selection'
 $global:BigBlueFishModelScriptTransport.Running=$true

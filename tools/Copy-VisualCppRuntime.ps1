@@ -11,7 +11,7 @@ if(!$SourceDirectory){
         }
     }
 }
-if(!$SourceDirectory){throw '请通过 -VisualCppDirectory 提供 Microsoft Visual C++ x64 可再发行 CRT 文件夹。'}
+if(!$SourceDirectory){throw '請透過 -VisualCppDirectory 提供 Microsoft Visual C++ x64 可轉散發 CRT 資料夾。'}
 $names=@('concrt140.dll','msvcp140.dll','msvcp140_1.dll','msvcp140_2.dll','msvcp140_atomic_wait.dll',
     'msvcp140_codecvt_ids.dll','vccorlib140.dll','vcruntime140.dll','vcruntime140_1.dll')
 if(Test-Path -LiteralPath (Join-Path $SourceDirectory 'vcruntime140_threads.dll')){$names+='vcruntime140_threads.dll'}
@@ -21,7 +21,7 @@ $manifest=foreach($name in $names){
     if(!(Test-Path -LiteralPath $source)){throw "Visual C++ CRT 缺少 $name"}
     $signature=Get-AuthenticodeSignature -LiteralPath $source
     if($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation'){
-        throw "Visual C++ CRT 签名不符合要求：$name"
+        throw "Visual C++ CRT 簽章不符合要求：$name"
     }
     $bytes=[IO.File]::ReadAllBytes($source)
     $offset=[BitConverter]::ToInt32($bytes,60)
@@ -31,4 +31,4 @@ $manifest=foreach($name in $names){
         sha256=(Get-FileHash -LiteralPath $source -Algorithm SHA256).Hash.ToLowerInvariant()}
 }
 $manifest | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $Destination 'visual-cpp-runtime.json') -Encoding UTF8
-Write-Host "已配置应用内 Visual C++ x64 CRT：$SourceDirectory"
+Write-Host "已在應用程式內配置 Visual C++ x64 CRT：$SourceDirectory"

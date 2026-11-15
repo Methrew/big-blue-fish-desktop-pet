@@ -104,7 +104,7 @@ try:
     check(True,'queued animation begins after actual decoder completion')
     wait(lambda: state()['phase']=='PuppetIdle',14)
     check(True,'external action returns to fixed idle')
-    content('say_next',text='下次自动节奏')
+    content('say_next',text='下次自動節奏')
     command('speech-test'); time.sleep(2)
     check(state()['text']==text and state()['modelPid'] is None,'puppet rejects speech test and does not consume scheduled speech')
     old=state(); x,y=old['X']+250,old['Y']+130

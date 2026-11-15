@@ -54,3 +54,7 @@ code/tests/AgentVerification/LiveProbe.cs	【鱼鱼说话要求】	speech-brief 
 code/tests/AgentVerification/LiveProbe.cs	【说话要求结束】	speech-brief end marker, as CompanionBrain writes it
 code/tests/HermesScenarioVerification/scenarios.py	'蓝色大肥鱼'	the original edition's app, searched for its bundled bridge
 code/tests/HermesScenarioVerification/scenarios.py	{"通過" if ok else "沒過"}	通過 means a scenario passed here, not 'via'
+
+# l4-tooling
+code/tests/LinuxVerification/verify.py	主人，我们一起干杯吧！	Simplified say text proving the Linux bubble shows it in Taiwan Traditional
+code/tests/LinuxVerification/verify.py	點擊回應-元氣揮手	Traditional spelling of an animation id, proving MCP accepts it for the Simplified clip

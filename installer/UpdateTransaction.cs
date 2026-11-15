@@ -18,7 +18,7 @@ internal static class UpdateTransaction
     {
         var path = Path.GetFullPath(Path.Combine(root, relative));
         if (!path.StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("更新文件路径无效。");
+            throw new InvalidDataException("更新檔案路徑無效。");
         return path;
     }
     private static bool Preserved(string relative) => BigBlueFish.Deployment.ApplicationData.IsDataFile(relative);
@@ -102,7 +102,7 @@ internal static class UpdateTransaction
         foreach (var directory in directories)
         {
             if (!Path.GetFullPath(directory).StartsWith(Path.GetFullPath(target).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidDataException("更新临时目录无效。");
+                throw new InvalidDataException("更新暫存資料夾無效。");
             if (Directory.Exists(directory)) Directory.Delete(directory, true);
         }
     }

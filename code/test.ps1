@@ -1,11 +1,11 @@
 ﻿# Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
 # Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
-param([string]$SdkPath,[string]$InstalledDirectory='C:\Program Files\蓝色大肥鱼',[ValidateSet('Ocr','Vision')][string]$InputMode='Ocr')
+param([string]$SdkPath,[string]$InstalledDirectory='C:\Program Files\藍色大肥魚',[ValidateSet('Ocr','Vision')][string]$InputMode='Ocr')
 $ErrorActionPreference='Stop'
 Push-Location $PSScriptRoot
 try {
     & "$PSScriptRoot/tests/PowerShellEncodingVerification.ps1"
-    if(Get-CimInstance Win32_Process -Filter "Name='BigBlueFish.exe' OR Name='VPet-Simulator.Windows.exe'"){throw '请先从托盘菜单退出桌宠，再执行实窗测试。'}
+    if(Get-CimInstance Win32_Process -Filter "Name='BigBlueFish.exe' OR Name='VPet-Simulator.Windows.exe'"){throw '請先從系統匣選單結束桌寵，再執行實際視窗測試。'}
     $sdk=& "$PSScriptRoot/tools/Resolve-Sdk.ps1" -SdkPath $SdkPath
     & $sdk run --project "$PSScriptRoot/tests/TraditionalTextVerification/TraditionalTextVerification.csproj" -c Release
     if($LASTEXITCODE -ne 0){throw '氣泡繁體轉換驗證失敗'}
@@ -17,15 +17,15 @@ try {
         if(!(Test-Path -LiteralPath $link)){New-Item -ItemType Junction -Path $link -Target $target | Out-Null}
     }
         & $sdk run --project "$PSScriptRoot/tests/RunnerVerification/RunnerVerification.csproj" -c Release -p:Platform=x64 "-p:CompanionInputMode=$InputMode" -- --weather-cache (Join-Path $sandbox "weather-$InputMode")
-        if($LASTEXITCODE -ne 0){throw '天气缓存验证失败'}
+        if($LASTEXITCODE -ne 0){throw '天氣快取驗證失敗'}
         & $sdk run --project "$PSScriptRoot/tests/RunnerVerification/RunnerVerification.csproj" -c Release -p:Platform=x64 "-p:CompanionInputMode=$InputMode" -- (Join-Path $sandbox "runner-$InputMode")
-        if($LASTEXITCODE -ne 0){throw 'Runner故障恢复或提示词验证失败'}
+        if($LASTEXITCODE -ne 0){throw 'Runner 故障復原或提示詞驗證失敗'}
         & $sdk run --project "$PSScriptRoot/tests/AnimationVerification/AnimationVerification.csproj" -c Release -- "$PSScriptRoot/BigBlueFish.Windows/assets/fish"
-        if($LASTEXITCODE -ne 0){throw '动画规则验证失败'}
+        if($LASTEXITCODE -ne 0){throw '動畫規則驗證失敗'}
         & $sdk run --project "$PSScriptRoot/tests/ForegroundVerification/ForegroundVerification.csproj" -c Release -p:Platform=x64 "-p:CompanionInputMode=$InputMode"
-        if($LASTEXITCODE -ne 0){throw '前台窗口验证失败'}
+        if($LASTEXITCODE -ne 0){throw '前景視窗驗證失敗'}
         & $sdk run --project "$PSScriptRoot/tests/AnimationUiVerification/AnimationUiVerification.csproj" -c Release -p:Platform=x64 "-p:CompanionInputMode=$InputMode" -- $sandbox
-        if($LASTEXITCODE -ne 0){throw '动画与设置实窗验证失败'}
+        if($LASTEXITCODE -ne 0){throw '動畫與設定實際視窗驗證失敗'}
         & $sdk run --project "$PSScriptRoot/tests/InstallerVerification/InstallerVerification.csproj" -c Release -p:Platform=x64 "-p:CompanionInputMode=$InputMode" -- --update-notes (Join-Path $sandbox "update-notes-$InputMode")
-        if($LASTEXITCODE -ne 0){throw '更新页 Markdown 验证失败'}
+        if($LASTEXITCODE -ne 0){throw '更新頁面 Markdown 驗證失敗'}
 } finally {Pop-Location}

@@ -26,7 +26,7 @@ mkdir -p "$payload/runtime" "$work/$title.app/Contents/Resources"
 fetch() { # url sha256 -> cached path, verified
     local file="$cache/$(basename "$1")"
     if [[ ! -f $file ]]; then curl -fL --retry 3 -o "$file.partial" "$1"; mv "$file.partial" "$file"; fi
-    echo "$2  $file" | shasum -a 256 -c --status || { echo "下载校验失败：$file" >&2; rm -- "$file"; exit 1; }
+    echo "$2  $file" | shasum -a 256 -c --status || { echo "下載驗證失敗：$file" >&2; rm -- "$file"; exit 1; }
     echo "$file"
 }
 
@@ -54,7 +54,7 @@ for archive, wheel in zip(json.load(open(manifest))["archives"], wheels):
     with zipfile.ZipFile(wheel) as package:
         for item in archive["files"]:
             data = package.read(item["source"])
-            if hashlib.sha256(data).hexdigest() != item["sha256"]: sys.exit("动画组件文件校验失败：" + item["target"])
+            if hashlib.sha256(data).hexdigest() != item["sha256"]: sys.exit("動畫元件檔案驗證失敗：" + item["target"])
             path = os.path.join(target, item["target"]); os.makedirs(os.path.dirname(path), exist_ok=True)
             open(path, "wb").write(data); os.chmod(path, 0o755)
 EOF
@@ -98,4 +98,4 @@ if [[ -e $app ]]; then
     rm -r -- "$app"
 fi
 mv "$work/$title.app" "$app"
-echo "已生成：$app"
+echo "已產生：$app"

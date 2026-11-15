@@ -29,11 +29,11 @@ internal static class InstallationLifecycle
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
             Path.TrimEndingDirectorySeparator(Path.GetTempPath()) };
         if (forbidden.Any(p => !string.IsNullOrEmpty(p) && full.Equals(Path.TrimEndingDirectorySeparator(p), StringComparison.OrdinalIgnoreCase)))
-            throw new IOException("请选择蓝色大肥鱼自己的安装文件夹。");
+            throw new IOException("請選擇" + BigBlueFish.Windows.CompanionEdition.DisplayName + "專用的安裝資料夾。");
         if (Path.GetFileName(full).Equals("Program Files", StringComparison.OrdinalIgnoreCase)
             || Path.GetFileName(full).Equals("Program Files (x86)", StringComparison.OrdinalIgnoreCase)
             || (Directory.Exists(full) && (File.GetAttributes(full) & FileAttributes.ReparsePoint) != 0))
-            throw new IOException("请选择蓝色大肥鱼自己的安装文件夹。");
+            throw new IOException("請選擇" + BigBlueFish.Windows.CompanionEdition.DisplayName + "專用的安裝資料夾。");
         return full;
     }
 
@@ -41,7 +41,7 @@ internal static class InstallationLifecycle
     {
         var target = BigBlueFish.Deployment.ApplicationData.DirectoryFor(ValidateDirectory(directory));
         Directory.CreateDirectory(target);
-        if ((File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0) throw new IOException("数据目录不能使用链接。");
+        if ((File.GetAttributes(target) & FileAttributes.ReparsePoint) != 0) throw new IOException("存放資料的資料夾不能是連結。");
         var users = new SecurityIdentifier(WellKnownSidType.BuiltinUsersSid, null);
         var rule = new FileSystemAccessRule(users, FileSystemRights.FullControl,
             InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit, PropagationFlags.None, AccessControlType.Allow);
@@ -77,7 +77,7 @@ internal static class InstallationLifecycle
     {
         var target = ValidateDirectory(directory);
         if (!File.Exists(Path.Combine(target, UninstallerName)))
-            throw new IOException("安装文件中缺少卸载程序。");
+            throw new IOException("安裝檔案中缺少解除安裝程式。");
         var info = new InstallInfo(target, shortcuts, WindowsIdentity.GetCurrent().User!.Value);
         File.WriteAllText(Path.Combine(target, InfoName), JsonSerializer.Serialize(info));
         using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
@@ -135,10 +135,10 @@ internal static class InstallationLifecycle
         if (!manifest.RootElement.GetProperty("Files").EnumerateArray()
             .Any(x => string.Equals(x.GetString(), ApplicationName, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(x.GetString(), LegacyApplicationName, StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidDataException("未找到蓝色大肥鱼的安装记录。");
+            throw new InvalidDataException("找不到" + BigBlueFish.Windows.CompanionEdition.DisplayName + "的安裝記錄。");
         var info = JsonSerializer.Deserialize<InstallInfo>(File.ReadAllText(Path.Combine(target, InfoName)))!;
         if (!target.Equals(info.Directory, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidDataException("安装目录与记录不一致。");
+            throw new InvalidDataException("安裝資料夾與記錄不一致。");
         return target;
     }
 
@@ -179,7 +179,7 @@ internal static class InstallationLifecycle
         foreach (var relative in files.Concat(new[] { UninstallerName, InfoName, "installation-manifest.json" }))
         {
             var path = Path.GetFullPath(Path.Combine(target, relative));
-            if (!IsWithin(target, path)) throw new InvalidDataException("安装记录中的文件路径无效。");
+            if (!IsWithin(target, path)) throw new InvalidDataException("安裝記錄中的檔案路徑無效。");
             if (File.Exists(path)) File.Delete(path);
         }
         foreach (var name in new[] { ".update-previous", ".update-next" })

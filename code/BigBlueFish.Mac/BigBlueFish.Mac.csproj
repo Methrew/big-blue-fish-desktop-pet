@@ -31,6 +31,7 @@
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionWeather.cs" Link="Shared/CompanionWeather.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionNews.cs" Link="Shared/CompanionNews.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionRegions.cs" Link="Shared/CompanionRegions.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="Shared/CompanionEdition.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionOcrLayout.cs" Link="Shared/CompanionOcrLayout.cs" />
     <Compile Include="../../deployment/ModelStore.cs" Link="Shared/ModelStore.cs" />
     <Compile Include="../../deployment/ArtifactDownload.cs" Link="Shared/ArtifactDownload.cs" />

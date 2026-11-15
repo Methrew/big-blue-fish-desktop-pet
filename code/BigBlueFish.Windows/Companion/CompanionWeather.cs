@@ -122,7 +122,7 @@ internal sealed class CompanionWeather : IDisposable
         if (cached.Length > 0) { DiagnosticLog.Write(DiagnosticEvent.WeatherCached); return cached; }
         await refresh.WaitAsync(token);
         cached = CachedContext(regionCode);
-        if (cached.Length == 0) throw new IOException(CwaError(regionCode) ?? "暫時沒有六小時內的天氣資料，請稍後重試。");
+        if (cached.Length == 0) throw new IOException(CwaError(regionCode) ?? "暫時取不到天氣資料，請確認網路連線後再試一次。");
         return cached;
     }
 

@@ -3,6 +3,7 @@
 using System;
 using System.Diagnostics;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -238,9 +239,26 @@ internal sealed class CompanionBrain : IDisposable
     private sealed class GpuStartupException(string message) : IOException(message);
 
     internal const string WeatherPersona = CompanionDialogue.WeatherPersona;
-    // The small model reads the persona's rule on estimates loosely, so an Open-Meteo estimate says it again beside the data.
-    internal static string WeatherRequest(string context) => "本輪天氣資料：\n" + context
-        + (context.Contains("天氣估算") ? "\n（這份是估計值，不是實測：句子裡要用「大概」或「估計」，也不要說成明天的天氣。）" : "");
+    // The small model reads the persona's rules loosely, so the request repeats them beside the data: an Open-Meteo estimate
+    // is one; the place is named as written (「臺灣 · 臺北市 · 中正區」 once came out as 臺中); data dated today is today's.
+    internal static string WeatherRequest(string context, string? place = null, DateTime? today = null)
+    {
+        var request = new StringBuilder("本輪天氣資料：\n").Append(context);
+        if (context.Contains("天氣估算")) request.Append("\n（這份是估計值，不是實測：句子裡要用「大概」或「估計」，也不要說成明天的天氣。）");
+        if (!string.IsNullOrEmpty(place)) request.Append("\n（說到地點時照寫「").Append(place).Append("」，不要改成別的城市，也不要縮寫。）");
+        if (today is { } day && context.Contains("資料日期" + day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), StringComparison.Ordinal))
+            request.Append(CultureInfo.InvariantCulture, $"\n（資料日期就是今天 {day.Month} 月 {day.Day} 日，要說「今天」。）");
+        return request.ToString();
+    }
+
+    // The place a weather sentence names: 臺北市中正區, 安徽省合肥市蜀山區; elsewhere the names keep a space between them.
+    internal static string WeatherPlace(string regionCode)
+    {
+        var district = CompanionRegions.District(regionCode);
+        var country = CompanionRegions.Country(district);
+        var names = CompanionRegions.Chain(district).Select(CompanionRegions.DisplayName).Distinct();
+        return country == CompanionRegions.Taiwan || country == CompanionRegions.China ? string.Concat(names) : string.Join(" ", names);
+    }
     internal const string BasePersona = CompanionDialogue.Voice;
     internal const string SceneGuidance = CompanionDialogue.SceneGuidance;
     internal const string Persona = BasePersona + SceneGuidance + CompanionDialogue.ScreenReadingGuidance;
@@ -648,20 +666,23 @@ internal sealed class CompanionBrain : IDisposable
         var token = active.Token;
         try
         {
+            var modelStatus = Status;
             Status = "正在取得所選地區天氣";
             string context;
             // No forecast to talk about (no connection, nothing cached): the model has nothing to do with it, so the
-            // resident model stays loaded and no runner failure is counted.
+            // resident model stays loaded, no runner failure is counted and the model status stays what it was.
             try { context = await weather.Context(WeatherRegionCode, token); }
             catch (Exception e) when (e is IOException or HttpRequestException)
             {
                 DiagnosticLog.Write(DiagnosticEvent.WeatherFailed, kind: "weather", error: e);
-                Status = WeatherFailure = e is IOException ? e.Message : "暫時無法取得天氣資料，請稍後重試。";
+                WeatherFailure = e is IOException ? e.Message : "暫時取不到天氣資料，請確認網路連線後再試一次。";
+                Status = modelStatus;
                 return "";
             }
             await EnsureRunner(token);
             Status = "正在生成天氣播報";
-            var text = await Complete(WeatherPersona, WeatherRequest(context), CompanionDialogue.Temperature, token, onPartial: onPartial);
+            var request = WeatherRequest(context, WeatherPlace(WeatherRegionCode), DateTime.Now.Date);
+            var text = await Complete(WeatherPersona, request, CompanionDialogue.Temperature, token, onPartial: onPartial);
             Status = ReadyStatus("本機模型就緒");
             DiagnosticLog.Write(DiagnosticEvent.SpeechCompleted, kind: kind, chars: text.Length, elapsedMs: generationWatch.Elapsed.TotalMilliseconds);
             return CanRunOnCurrentPower ? text : "";

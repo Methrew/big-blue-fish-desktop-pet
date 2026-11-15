@@ -6,6 +6,7 @@ import os
 import pathlib
 import plistlib
 import subprocess
+import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
@@ -34,7 +35,14 @@ def run(*command, **kwargs):
 
 info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
 expected_version = ET.parse(pathlib.Path(__file__).resolve().parents[1] / "Version.props").findtext(".//Version")
-check(info["CFBundleShortVersionString"] == expected_version, "bundle product version")
+check(info["CFBundleShortVersionString"] == expected_version.split("-")[0], "bundle product version")
+check(info["CFBundleVersion"] == expected_version, "bundle build version keeps the Taiwan revision")
+identity = json.loads(subprocess.check_output([sys.executable, str(pathlib.Path(__file__).resolve().parent / "Get-EditionIdentity.py"), "--json"]))
+safe = args.edition == "Safe"
+check(info["CFBundleIdentifier"] == identity["MacSafeBundleId" if safe else "MacBundleId"], "edition bundle identifier")
+check(info["CFBundleName"] == identity["SafeDisplayName" if safe else "DisplayName"] and app.name == info["CFBundleName"] + ".app", "edition application name")
+check(info.get("CFBundleDevelopmentRegion") == "zh_TW", "Taiwan development region")
+check(identity["Credits"] in info.get("NSHumanReadableCopyright", ""), "credits to the original author and the Taiwan edition")
 for name in ["BigBlueFish.Mac", "libcoreclr.dylib", "libhostfxr.dylib",
              "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard",
              "runtime/BigBlueFish.MacOcr", "media/gstreamer/lib/libgstreamer-1.0.0.dylib"]:

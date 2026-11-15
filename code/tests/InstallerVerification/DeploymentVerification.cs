@@ -65,10 +65,22 @@ internal static partial class DeploymentVerification
         File.Delete(download);
         try { await ArtifactDownload.Download("http://fixture/model", download, new string('0', 64), client: ignoresRange); throw new Exception("hash mismatch accepted"); }
         catch (InvalidDataException) { Check(!File.Exists(download), "failed verified download never replaces installed destination"); }
-        string release = JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = "v0.5.1", body = "測試更新", assets = new[] { new { name = "BigBlueFish-v0.5.1-OCR-Setup.exe", browser_download_url = "http://fixture/installer", digest = "sha256:" + hash } } });
+        string release = JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = "v0.5.1", body = "測試更新", assets = new[] { new { name = "BigBlueFish-TW-v0.5.1-OCR-Setup.exe", browser_download_url = "http://fixture/installer", digest = "sha256:" + hash } } });
         using var updates = new HttpClient(new Transport(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(release) }));
         Check((await UpdateService.Check("0.5.0", client: updates))?.Sha256 == hash, "public release metadata selects matching OCR installer and SHA256");
         Check(await UpdateService.Check("0.5.1", client: updates) == null && await UpdateService.Check("0.5.2", client: updates) == null, "update check never offers equal version or downgrade");
+        Check(UpdateService.LatestUrl == BigBlueFish.Windows.CompanionEdition.LatestReleaseApi, "update check reads this edition's own releases");
+        string revision = JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = "v1.1.3-tw.2", body = "", assets = new[] { new { name = "BigBlueFish-TW-v1.1.3-tw.2-OCR-Setup.exe", browser_download_url = "http://fixture/installer", digest = "sha256:" + hash } } });
+        using var revisions = new HttpClient(new Transport(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(revision) }));
+        Check((await UpdateService.Check("1.1.3-tw.1", client: revisions))?.Name == "BigBlueFish-TW-v1.1.3-tw.2-OCR-Setup.exe" && await UpdateService.Check("1.1.3-tw.2", client: revisions) == null,
+            "a Taiwan revision of the same base version is offered once, by its own installer name");
+        string original = JsonSerializer.Serialize(new { draft = false, prerelease = false, tag_name = "v9.9.9", body = "", assets = new[] { new { name = "BigBlueFish-v9.9.9-OCR-Setup.exe", browser_download_url = "http://fixture/installer", digest = "sha256:" + hash } } });
+        using var originals = new HttpClient(new Transport(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(original) }));
+        try { await UpdateService.Check("1.1.3-tw.1", client: originals); throw new Exception("original installer accepted"); }
+        catch (IOException) { Check(true, "an installer of the original is never taken for an update of this edition"); }
+        using var missing = new HttpClient(new Transport(_ => new HttpResponseMessage(HttpStatusCode.NotFound)));
+        try { await UpdateService.Check("1.1.3-tw.1", client: missing); throw new Exception("missing release accepted"); }
+        catch (IOException error) { Check(error.Message.Contains("還沒有發布"), "no release yet is reported in words, not as an HTTP error"); }
         var transaction = Path.Combine(root, "transaction"); Directory.CreateDirectory(Path.Combine(transaction, "models"));
         File.WriteAllText(Path.Combine(transaction, "main.bin"), "old program");
         File.WriteAllText(Path.Combine(transaction, "preferences.json"), "user settings");

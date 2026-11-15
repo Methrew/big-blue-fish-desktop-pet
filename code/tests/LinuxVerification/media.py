@@ -21,7 +21,7 @@ def cmd(value):
  (data/'test-command.txt.tmp').write_text(value);(data/'test-command.txt.tmp').replace(data/'test-command.txt')
 try:
  s=wait(lambda:state().get('frames',0)>20)
- assert s['version']==expected and s['animationBackend'].startswith(('CPU','GPU'));print('PASS Linux actual GStreamer software/alpha compatibility',flush=True)
+ assert s['version']==expected.split('-')[0] and s['animationBackend'].startswith(('CPU','GPU'));print('PASS Linux actual GStreamer software/alpha compatibility',flush=True)
  wait(lambda:state().get('phase')=='Idle');print('PASS complete greeting boundary',flush=True)
  cmd('hide');wait(lambda:state().get('hidden'));time.sleep(.5);before=state()['frames'];time.sleep(1.4);assert state()['frames']==before;print('PASS hidden pauses actual playback',flush=True)
  cmd('show');wait(lambda:not state().get('hidden') and state().get('frames')!=before);print('PASS resume advances actual frames',flush=True)

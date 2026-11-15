@@ -21,5 +21,6 @@
   <ItemGroup>
     <None Include="app.manifest" />
     <Compile Include="../installer/InstallationLifecycle.cs" Link="InstallationLifecycle.cs" />
+    <Compile Include="../code/BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="CompanionEdition.cs" />
   </ItemGroup>
 </Project>

@@ -9,7 +9,12 @@ edition=${1:-Standard}; output=${2:-$root/release}
 dotnet=${DOTNET:-$(command -v dotnet || echo "$HOME/.dotnet/dotnet")}
 version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' "$root/Version.props")
 cache="$root/.work/macos-download"; work="$root/.work/macos-$edition"
-title=蓝色大肥鱼; [[ $edition == Safe ]] && title=蓝色大肥鱼无MCP版
+# Identity from code/BigBlueFish.Windows/Companion/CompanionEdition.cs: its own app names and bundle identifiers, so the
+# Taiwan edition installs beside the original and the two editions keep separate login items and permissions.
+{ read -r title; read -r safe_title; read -r bundle_id; read -r safe_bundle_id; } < <(python3 "$root/tools/Get-EditionIdentity.py" DisplayName SafeDisplayName MacBundleId MacSafeBundleId)
+[[ $edition == Safe ]] && { title=$safe_title; bundle_id=$safe_bundle_id; }
+plist_title=$(python3 "$root/tools/Get-EditionIdentity.py" --xml "$([[ $edition == Safe ]] && echo SafeDisplayName || echo DisplayName)")
+credits=$(python3 "$root/tools/Get-EditionIdentity.py" --xml Credits)
 app="$output/$title.app"; payload="$work/$title.app/Contents/MacOS"
 mkdir -p "$cache" "$output"
 if [[ -e $work ]]; then
@@ -65,17 +70,19 @@ cat > "$work/$title.app/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>CFBundleName</key><string>$title</string>
-<key>CFBundleDisplayName</key><string>$title</string>
-<key>CFBundleIdentifier</key><string>io.github.bai-cute.bigbluefish</string>
+<key>CFBundleName</key><string>$plist_title</string>
+<key>CFBundleDisplayName</key><string>$plist_title</string>
+<key>CFBundleIdentifier</key><string>$bundle_id</string>
+<key>CFBundleDevelopmentRegion</key><string>zh_TW</string>
 <key>CFBundleExecutable</key><string>BigBlueFish.Mac</string>
 <key>CFBundleIconFile</key><string>BigBlueFish</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>$version</string>
+<key>CFBundleShortVersionString</key><string>${version%%-*}</string>
 <key>CFBundleVersion</key><string>$version</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSHumanReadableCopyright</key><string>${credits}Apache-2.0；素材授權見 THIRD-PARTY.md。</string>
 </dict></plist>
 EOF
 # shortcut: ad-hoc signature only; Developer ID signing and notarization need the maintainers' certificate.

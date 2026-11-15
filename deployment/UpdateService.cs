@@ -2,6 +2,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -14,7 +15,8 @@ internal sealed record AvailableUpdate(string Version, string Name, string Url, 
 
 internal static class UpdateService
 {
-    internal const string LatestUrl = "https://api.github.com/repos/Bai-Cute/big-blue-fish-desktop-pet/releases/latest";
+    // This edition's own releases, so an update never replaces it with the original (CompanionEdition).
+    internal const string LatestUrl = BigBlueFish.Windows.CompanionEdition.LatestReleaseApi;
     internal static async Task<AvailableUpdate?> Check(string currentVersion, CancellationToken token = default, HttpClient? client = null, string? apiUrl = null)
     {
         using var owned = client == null ? new HttpClient { Timeout = TimeSpan.FromSeconds(20) } : null;
@@ -22,16 +24,23 @@ internal static class UpdateService
         using var request = new HttpRequestMessage(HttpMethod.Get, apiUrl ?? LatestUrl);
         request.Headers.UserAgent.ParseAdd("BigBlueFish/" + typeof(UpdateService).Assembly.GetName().Version!.ToString(3));
         request.Headers.Accept.ParseAdd("application/vnd.github+json");
-        using var response = await http.SendAsync(request, token); response.EnsureSuccessStatusCode();
+        using var response = await http.SendAsync(request, token);
+        // No release published yet: only a manual check reports it, automatic checks stay silent.
+        if (response.StatusCode == HttpStatusCode.NotFound) throw new IOException("這個版本目前還沒有發布任何正式版本，之後再來看看。");
+        response.EnsureSuccessStatusCode();
         using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync(token));
         var release = json.RootElement;
         if (release.GetProperty("draft").GetBoolean() || release.GetProperty("prerelease").GetBoolean()) return null;
-        string version = release.GetProperty("tag_name").GetString()!.TrimStart('v');
-        if (!System.Version.TryParse(version, out var next) || !System.Version.TryParse(currentVersion.Split('+')[0].Split('-')[0], out var current) || next <= current) return null;
+        // Compared as (x.y.z, -tw.N); currentVersion is the InformationalVersion, such as 1.1.3-tw.1. Any other suffix
+        // (a beta build) counts as its x.y.z.
+        if (!ReleaseVersion.TryParse(release.GetProperty("tag_name").GetString(), out var next)
+            || !(ReleaseVersion.TryParse(currentVersion, out var current) || ReleaseVersion.TryParse(currentVersion.Split('+')[0].Split('-')[0], out current))
+            || !(next > current)) return null;
+        string version = next.ToString();
 #if COMPANION_SAFE
-        string name = $"BigBlueFish-v{version}-Safe-OCR-Setup.exe";
+        string name = $"{BigBlueFish.Windows.CompanionEdition.AssetPrefix}-v{version}-Safe-OCR-Setup.exe";
 #else
-        string name = $"BigBlueFish-v{version}-OCR-Setup.exe";
+        string name = $"{BigBlueFish.Windows.CompanionEdition.AssetPrefix}-v{version}-OCR-Setup.exe";
 #endif
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
         var installer = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name);

@@ -77,7 +77,8 @@ try:
     init=request('initialize',dict(protocolVersion='2025-11-25',capabilities={},clientInfo=dict(name='Linux verification',version='1')))
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n'); bridge.stdin.flush()
     version=ET.parse(pathlib.Path(__file__).resolve().parents[3]/'Version.props').findtext('.//Version')
-    check(init['serverInfo']['version']==version,'real stdio bridge negotiates current version')
+    # The bridge reports the numeric assembly version; Version.props may add the Taiwan revision (1.1.3-tw.1).
+    check(init['serverInfo']['version']==version.split('-')[0],'real stdio bridge negotiates current version')
     check(len(request('tools/list')['tools'])==17,'all MCP tools available')
     # The tool list is shared with Windows; walk_to, find_on_screen and get_context are Windows-only and must say so on Linux.
     walk=request('tools/call',dict(name='walk_to',arguments=dict(x=1,y=1)))

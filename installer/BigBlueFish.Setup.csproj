@@ -23,5 +23,6 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="app.manifest" />
+    <Compile Include="../code/BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="CompanionEdition.cs" />
   </ItemGroup>
 </Project>

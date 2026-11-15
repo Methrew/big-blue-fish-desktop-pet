@@ -38,7 +38,8 @@ public partial class MainWindow
         checkingUpdates = true; updateStatus = "正在檢查更新…";
         try
         {
-            var version = typeof(MainWindow).Assembly.GetName().Version!.ToString(3);
+            // The InformationalVersion keeps the -tw.N revision that the numeric assembly version drops.
+            var version = ReleaseVersion.Current(typeof(MainWindow).Assembly).ToString();
             availableUpdate = await UpdateService.Check(version);
             if (companionClosed || exitAnimation) return;
             updateStatus = availableUpdate == null ? "目前已是最新版本" : "發現新版本 " + availableUpdate.Version;

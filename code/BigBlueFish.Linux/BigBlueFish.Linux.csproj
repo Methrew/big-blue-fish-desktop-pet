@@ -21,6 +21,7 @@
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="Shared/CompanionEdition.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionOcrLayout.cs" Link="Shared/CompanionOcrLayout.cs" />
     <Compile Include="../../deployment/ModelStore.cs" Link="Shared/ModelStore.cs" />
+    <Compile Include="../../deployment/ReleaseVersion.cs" Link="Shared/ReleaseVersion.cs" />
     <Compile Include="../../deployment/ArtifactDownload.cs" Link="Shared/ArtifactDownload.cs" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/china-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.china-regions.json" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/taiwan-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.taiwan-regions.json" />

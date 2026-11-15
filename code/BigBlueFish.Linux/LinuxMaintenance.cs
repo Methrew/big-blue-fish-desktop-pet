@@ -2,7 +2,9 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using BigBlueFish.Deployment;
 
@@ -107,40 +109,94 @@ internal sealed partial class LinuxPetWindow
         try { dialog.Show(settings ?? this); await finished.Task; }
         finally { modelWindowCancellation = null; modelDialog = null; modelInstalling = false; if (!closed && phase != "Exit") nextWarmup = DateTime.MinValue; }
     }
+    // The settings page 關於與更新: edition, version, the credits to the original author and the Taiwan edition, and updates.
+    void BuildAbout(StackPanel body)
+    {
+#if COMPANION_SAFE
+        string name = CompanionEdition.SafeDisplayName;
+#else
+        string name = CompanionEdition.DisplayName;
+#endif
+        string version = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(LinuxPetWindow).Assembly)?.InformationalVersion.Split('+')[0]
+            ?? ReleaseVersion.Current(typeof(LinuxPetWindow).Assembly).ToString();
+        body.Children.Add(new TextBlock { Text = name + " " + version, FontSize = 19, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
+        body.Children.Add(Paragraph("這是非官方的台灣繁體中文版，不是原作者發布的版本；使用上的問題請回報到本版的專案頁面。"
+#if COMPANION_MAC
+            + "本版有自己的 App 名稱、套件識別碼和資料夾，可以和原版同時安裝，但同一時間只會執行其中一隻魚。"
+#endif
+        ));
+        body.Children.Add(Paragraph(CompanionEdition.Credits));
+        var links = new WrapPanel();
+        links.Children.Add(ActionButton("本版專案頁面", () => OpenUrl(CompanionEdition.Homepage)));
+        links.Children.Add(ActionButton("原作者 Bai-Cute 的專案", () => OpenUrl("https://github.com/" + CompanionEdition.OriginalRepository)));
+        links.Children.Add(ActionButton("acer1204 的台灣版", () => OpenUrl("https://github.com/" + CompanionEdition.TaiwanEditionRepository)));
+        string notices = Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY.md");
+        if (File.Exists(notices)) links.Children.Add(ActionButton("授權與第三方元件", () => OpenUrl(notices)));
+        body.Children.Add(links);
+        body.Children.Add(Paragraph("設定、模型和 Agent 資料存放在：" + Environment.CurrentDirectory));
+        body.Children.Add(ActionButton("開啟資料夾", () => OpenUrl(Environment.CurrentDirectory)));
+        body.Children.Add(new TextBlock { Text = "更新", FontSize = 18, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 18, 0, 4) });
+        body.Children.Add(Paragraph("只會從本版的發布頁面檢查更新，不會換成原作者的版本。"
+#if COMPANION_MAC
+            + "新版以 DMG 發布：下載後把新版拖到「應用程式」檔案夾，取代舊版即可。"
+#endif
+        ));
+        var automatic = new CheckBox { Content = "每次啟動時自動檢查更新", IsChecked = Preferences.CheckUpdatesOnStartup, Margin = new Thickness(0, 4) };
+        automatic.IsCheckedChanged += (_, _) => { Preferences.CheckUpdatesOnStartup = automatic.IsChecked == true; Save(); };
+        body.Children.Add(automatic);
+        body.Children.Add(ActionButton("檢查更新", async () => await CheckUpdates(true)));
+    }
+    // Updates come only from this edition's own releases (CompanionEdition), never from the original's, and compare
+    // (x.y.z, -tw.N). With no release published yet (404) an automatic check stays silent and a manual one says so.
     async Task CheckUpdates(bool manual)
     {
         if (updateChecking) return; updateChecking = true;
         try {
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(25) };
             client.DefaultRequestHeaders.UserAgent.ParseAdd("BigBlueFish/" + typeof(LinuxPetWindow).Assembly.GetName().Version!.ToString(3));
-            using var json = JsonDocument.Parse(await client.GetStringAsync("https://api.github.com/repos/Bai-Cute/big-blue-fish-desktop-pet/releases/latest"));
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+            async Task<HttpResponseMessage> Latest()
+            {
+                try { return await client.GetAsync(CompanionEdition.LatestReleaseApi); }
+                catch (Exception error) when (error is HttpRequestException or TaskCanceledException) { throw new IOException("無法連線到 GitHub，請確認網路連線後再試一次。", error); }
+            }
+            using var response = await Latest();
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound) { if (manual) await Confirm("檢查更新", CompanionEdition.DisplayName + "目前還沒有發布任何正式版本，之後再來看看。", "知道了"); return; }
+            if (!response.IsSuccessStatusCode) throw new IOException("GitHub 暫時無法回應（HTTP " + (int)response.StatusCode + "），請稍後再試一次。");
+            using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             var root = json.RootElement; string tag = root.GetProperty("tag_name").GetString() ?? "";
-            if (!Version.TryParse(tag.TrimStart('v'), out var latest) || latest <= typeof(LinuxPetWindow).Assembly.GetName().Version) { if (manual) await Confirm("检查更新", "当前已经是最新版本。", "知道了"); return; }
-#if COMPANION_MAC
-            // macOS builds come from source (docs/MACOS.md); point to the release instead of installing a package.
-            if (await Confirm("发现新版本", "发现蓝色大肥鱼 " + latest.ToString(3) + "，请拉取新版源码后按 docs/MACOS.md 重新构建。", "打开发布页")) OpenUrl(root.GetProperty("html_url").GetString()!);
-#else
-#if COMPANION_SAFE
-            string asset = $"BigBlueFish-v{latest.ToString(3)}-Safe-Linux-x64.deb";
-#else
-            string asset = $"BigBlueFish-v{latest.ToString(3)}-Linux-x64.deb";
-#endif
+            if (!ReleaseVersion.TryParse(tag, out var latest) || !(latest > ReleaseVersion.Current(typeof(LinuxPetWindow).Assembly))) { if (manual) await Confirm("檢查更新", "目前已經是最新版本。", "知道了"); return; }
             var assets = root.GetProperty("assets").EnumerateArray().ToArray();
-            string? Url(string name) => assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name).TryGetProperty("browser_download_url", out var value) ? value.GetString() : null;
-            string? url = Url(asset), checksum = Url(asset + ".sha256"); if (url == null || checksum == null) throw new IOException("该版本的 Linux 安装包尚未就绪。");
-            if (!await Confirm("发现新版本", "发现蓝色大肥鱼 " + latest.ToString(3) + "，是否下载并安装更新？", "下载更新")) return;
+            string? Url(string name) => assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name) is { ValueKind: JsonValueKind.Object } found
+                && found.TryGetProperty("browser_download_url", out var value) ? value.GetString() : null;
+#if COMPANION_SAFE
+            string edition = "-Safe";
+#else
+            string edition = "";
+#endif
+#if COMPANION_MAC
+            // A DMG release: the app is never replaced from inside; the user downloads the DMG and replaces the app.
+            string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-macOS-arm64.dmg";
+            if (Url(asset) == null) { if (manual) await Confirm("發現新版本", CompanionEdition.DisplayName + " " + latest + " 已經發布，但 macOS 安裝檔還沒準備好，請稍後再檢查一次。", "知道了"); return; }
+            if (await Confirm("發現新版本", CompanionEdition.DisplayName + " " + latest + " 已經發布。請在發布頁面下載「" + asset + "」，結束目前的" + CompanionEdition.DisplayName
+                + "，打開 DMG 後把新版拖到「應用程式」檔案夾，取代舊版。設定和模型存放在資料夾「" + Environment.CurrentDirectory + "」，不會受影響；取代後如果讀不到畫面，請到「系統設定 › 隱私權與安全性 › 螢幕與系統錄音」重新允許。", "開啟發布頁面", reject: "稍後再說"))
+                OpenUrl(root.GetProperty("html_url").GetString() ?? CompanionEdition.ReleasesPage);
+#else
+            string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-Linux-x64.deb";
+            string? url = Url(asset), checksum = Url(asset + ".sha256"); if (url == null || checksum == null) throw new IOException("這個版本的 Linux 安裝套件還沒準備好，請稍後再試一次。");
+            if (!await Confirm("發現新版本", CompanionEdition.DisplayName + " " + latest + " 已經發布，要下載並安裝更新嗎？", "下載更新", reject: "稍後再說")) return;
             string hash = (await client.GetStringAsync(checksum)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
-            if (!Regex.IsMatch(hash, "^[a-f0-9]{64}$")) throw new IOException("更新校验信息无效。");
+            if (!Regex.IsMatch(hash, "^[a-f0-9]{64}$")) throw new IOException("更新的校驗資訊無效。");
             string package = Path.Combine(Environment.CurrentDirectory, "cache/updates", asset);
             await ArtifactDownload.Download(url, package, hash);
             var start = new ProcessStartInfo("/usr/bin/pkexec") { UseShellExecute = false };
             foreach (string item in new[] { "/usr/bin/apt-get", "install", "-y", package }) start.ArgumentList.Add(item);
-            using var installer = Process.Start(start) ?? throw new IOException("无法启动系统安装器。");
-            await installer.WaitForExitAsync(); if (installer.ExitCode != 0) throw new IOException("更新安装未完成，可再次检查更新后重试。");
+            using var installer = Process.Start(start) ?? throw new IOException("無法啟動系統安裝程式。");
+            await installer.WaitForExitAsync(); if (installer.ExitCode != 0) throw new IOException("更新沒有安裝完成，可以再檢查一次更新後重試。");
             var restart = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux")) { UseShellExecute = false };
             restart.ArgumentList.Add("--wait-for-exit"); restart.ArgumentList.Add(Environment.ProcessId.ToString()); Process.Start(restart); CloseImmediately();
 #endif
-        } catch (Exception error) { if (manual) await Confirm("检查更新", error.Message, "知道了"); }
+        } catch (Exception error) { if (manual && !closed && !consentOpen) await Confirm("檢查更新", "這次沒有完成檢查更新：" + error.Message, "知道了"); }
         finally { updateChecking = false; }
     }
 }

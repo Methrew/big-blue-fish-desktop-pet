@@ -21,16 +21,26 @@ internal static class CompanionActionNames
 
     // Names the three closest clips, so a misspelt name is fixed in one step instead of another list_actions round.
     // Names are compared both folded to Simplified and in CompanionTraditional's wording (被滑鼠拖拽 is part of
-    // 被鼠标拖拽悬空反馈 only in the latter); clips containing the name, or contained in it, come first.
+    // 被鼠标拖拽悬空反馈 only in the latter); clips containing the name, or contained in it, come first, then those
+    // sharing the most of its characters (跳舞 finds the dances, 元氣揮手打招呼 finds 点击回应-元气挥手), then the
+    // fewest edits, which alone would favour short unrelated names.
     internal static string Unknown(IEnumerable<string> ids, string field, string name)
     {
         string folded = CompanionTraditional.Fold(name), converted = CompanionTraditional.Convert(name);
         static bool Overlaps(string a, string b) => a.Contains(b, StringComparison.OrdinalIgnoreCase) || b.Contains(a, StringComparison.OrdinalIgnoreCase);
         var closest = ids.Select(id => (Id: id, Folded: CompanionTraditional.Fold(id), Converted: CompanionTraditional.Convert(id)))
             .OrderBy(x => Overlaps(x.Folded, folded) || Overlaps(x.Converted, converted) ? 0 : 1)
+            .ThenByDescending(x => Math.Max(Shared(x.Folded, folded), Shared(x.Converted, converted)))
             .ThenBy(x => Math.Min(EditDistance(x.Folded, folded), EditDistance(x.Converted, converted)))
             .ThenBy(x => x.Id, StringComparer.Ordinal).Take(3).Select(x => x.Id);
         return $"{field} 沒有「{name}」這個動作。最接近的是：{string.Join("、", closest)}。請照 list_actions 的名稱原樣填，不要重複查 list_actions。";
+    }
+
+    // How many different characters of the name the clip's name has too (letters ignoring case; spaces and dashes left out).
+    private static int Shared(string id, string name)
+    {
+        var have = new HashSet<char>(id.ToLowerInvariant());
+        return name.ToLowerInvariant().Where(c => !char.IsWhiteSpace(c) && c != '-').Distinct().Count(have.Contains);
     }
 
     // Same Levenshtein distance as CompanionScreenSearch.EditDistance, which the Linux and macOS builds do not compile.

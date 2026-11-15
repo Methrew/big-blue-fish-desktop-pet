@@ -97,6 +97,10 @@ Check(CompanionActionNames.Resolve(ids, "不存在的動作") == null, "unknown 
 Check(CompanionActionNames.Unknown(ids, "action", "元氣揮手").Contains("「元氣揮手」") && CompanionActionNames.Unknown(ids, "action", "元氣揮手").Contains("点击回应-元气挥手"),
     "unknown action names the closest clips");
 Check(CompanionActionNames.Unknown(ids, "action", "被滑鼠拖拽").Contains("：被鼠标拖拽悬空反馈、"), "a part of the Taiwan wording suggests its clip first");
+// Shared characters come before the edit distance, which alone favours short unrelated names.
+Check(CompanionActionNames.Unknown(ids, "action", "元氣揮手打招呼").Contains("：点击回应-元气挥手"), "a longer wording of a clip suggests that clip first");
+var dances = CompanionActionNames.Unknown(ids, "action", "跳舞");
+Check(dances[(dances.IndexOf('：') + 1)..].Split('。')[0].Split('、').All(id => id.Contains('舞')), "跳舞 suggests dances: " + dances);
 
 // A full-length say (4000 UTF-16 units) must not stall the UI thread.
 var longText = string.Concat(Enumerable.Repeat("今天天气很好，我們一起去公园散步吧！Today is nice. ", 160))[..4000];

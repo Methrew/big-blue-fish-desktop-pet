@@ -805,7 +805,7 @@ internal static class Program
         if (args.Length == 1 && args[0] == "--focus-fixture") {
             var fixtureApp = new System.Windows.Application();
             fixtureApp.Run(new Window { Title = "MCP 設定焦點 · 獨立應用", Left = SystemParameters.WorkArea.Left+15, Top = SystemParameters.WorkArea.Top+15, Width = 340, Height = 180,
-                Content = new TextBlock { Text = "普通應用：檢查設定視窗不會搶佔前臺", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20) } }); return 0;
+                Content = new TextBlock { Text = "普通應用：檢查設定視窗不會搶佔前景", TextWrapping = TextWrapping.Wrap, Margin = new Thickness(20) } }); return 0;
         }
         // Another process for find_on_screen, which leaves the pet's own process out: two buttons in a row, one below.
         if (args.Length == 2 && args[0] == "--find-fixture") {
@@ -1189,7 +1189,7 @@ internal static class Program
     }
     private sealed class Fixture : IDisposable
     {
-        internal readonly Window Window = new() { Title = "MCP前臺截圖驗證 · 1001", Width = 640, Height = 420, Background = Brushes.LimeGreen, Content = new TextBlock { Text = "藍色大肥魚 MCP 截圖驗證\n前臺內容編號：1001", FontSize = 30, Margin = new Thickness(30) } };
+        internal readonly Window Window = new() { Title = "MCP前景截圖驗證 · 1001", Width = 640, Height = 420, Background = Brushes.LimeGreen, Content = new TextBlock { Text = "藍色大肥魚 MCP 截圖驗證\n前景內容編號：1001", FontSize = 30, Margin = new Thickness(30) } };
         public void Dispose() => Window.Close();
     }
 }

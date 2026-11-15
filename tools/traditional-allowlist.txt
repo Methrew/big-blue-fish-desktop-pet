@@ -36,3 +36,8 @@ tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble t
 code/BigBlueFish.Control/ControlTools.cs	地點的代碼	WeatherRegionCode is an identifier; 代碼 is the Taiwan word for such a code
 code/BigBlueFish.Control/ControlTools.cs	鄉鎮市區代碼	township code of the CWA region table, an identifier
 code/BigBlueFish.Control/ControlTools.cs	無效代碼	an invalid region code, an identifier
+code/tests/AgentVerification/WorkspaceVerification.cs	蓝色大肥鱼工作区	the original edition's workspace folder, created to prove it keeps being used
+code/tests/AgentVerification/WorkspaceVerification.cs	另一个工作区	non-ASCII workspace name used as test input
+code/tests/AgentVerification/WorkspaceVerification.cs	项目.txt	non-ASCII file name used as test input
+code/tests/AgentVerification/WorkspaceVerification.cs	不支持图片输入	Simplified Agent error message the refusal check must recognise
+code/tests/AgentVerification/Program.cs	允许一次	permission option of the fixture Agent, as an external Agent may name it

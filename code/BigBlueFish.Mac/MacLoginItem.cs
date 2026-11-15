@@ -44,12 +44,17 @@ internal static class MacLoginItem
     {
         location ??= AppContext.BaseDirectory;
         if (location.Contains("/AppTranslocation/", StringComparison.Ordinal))
-            return "macOS 目前是從暫時的位置執行" + CompanionEdition.DisplayName + "（App Translocation），登入時會找不到它。請先結束" + CompanionEdition.DisplayName
+            return "macOS 目前是從暫時的位置執行" + EditionName + "（App Translocation），登入時會找不到它。請先結束" + EditionName
                 + "，把它拖到「應用程式」檔案夾，再從「應用程式」重新開啟後設定。";
         if (location.StartsWith("/Volumes/", StringComparison.Ordinal) && ReadOnly(location))
-            return CompanionEdition.DisplayName + "目前是直接從磁碟映像（DMG）執行，退出映像後登入時會找不到它。請先把它拖到「應用程式」檔案夾，再從「應用程式」重新開啟後設定。";
+            return EditionName + "目前是直接從磁碟映像（DMG）執行，退出映像後登入時會找不到它。請先把它拖到「應用程式」檔案夾，再從「應用程式」重新開啟後設定。";
         return null;
     }
+#if COMPANION_SAFE
+    static string EditionName => CompanionEdition.SafeDisplayName;
+#else
+    static string EditionName => CompanionEdition.DisplayName;
+#endif
 
     internal static void Set(bool on)
     {

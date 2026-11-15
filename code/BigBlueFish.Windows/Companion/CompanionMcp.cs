@@ -551,7 +551,7 @@ public partial class MainWindow
         var content = new StackPanel(); content.Children.Add(historyView); content.Children.Add(editor);
         var frame = new Border { Background = new SolidColorBrush(Color.FromRgb(255, 251, 244)), BorderBrush = blue,
             BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(12), Child = content };
-        var window = new Window { Title = "藍色大肥魚 · 輸入", Width = 354, Height = 120, WindowStyle = WindowStyle.None,
+        var window = new Window { Title = CompanionEdition.DisplayName + " · 輸入", Width = 354, Height = 120, WindowStyle = WindowStyle.None,
             AllowsTransparency = true, Background = Brushes.Transparent, ResizeMode = ResizeMode.NoResize,
             ShowInTaskbar = false, ShowActivated = false, Topmost = true, Owner = this, Content = frame, FontFamily = new FontFamily("Microsoft JhengHei UI") };
         using (var theme = typeof(ModernWindow).Assembly.GetManifestResourceStream("BigBlueFish.ModernTheme.xaml")!)

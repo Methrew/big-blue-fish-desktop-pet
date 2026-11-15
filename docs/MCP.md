@@ -7,7 +7,52 @@ macOS、Windows 與 Linux 使用同一份工具清單與事件；平台之間的
 
 ## MCP 介面（外部客戶端）
 
-除了內建的 Agent 連線，也可以開啟「開啟 MCP 介面」，讓 Hermes 橋接程式等本機的 MCP 客戶端連線。開關在 Windows 版設定的「Agent 與 MCP」頁，macOS 與 Linux 版在「連線 Agent」頁下方的「MCP 介面（外部 Agent，例如 Hermes 橋接程式）」。這些客戶端直接執行 `BigBlueFish.Mcp`（Windows 是 `BigBlueFish.Mcp.exe`，macOS 在 `藍色大肥魚.app/Contents/MacOS/` 裡），不帶參數，連到依使用者帳號計算的固定管道（`ControlTools.PipeName`；macOS 上是 `/tmp/bbf-<20 碼>`）。Windows 的「複製 MCP 連線設定」按鈕會複製對應的 `mcpServers` 設定，macOS 與 Linux 的「複製 Hermes 的 MCP 設定」按鈕會複製 Hermes `config.yaml` 的 `mcp_servers` 片段。
+除了內建的 Agent 連線，也可以開啟「開啟 MCP 介面」，讓 Hermes 橋接程式等本機的 MCP 客戶端連線。開關在 Windows 版設定的「Agent 與 MCP」頁，macOS 與 Linux 版在「連線 Agent」頁下方的「MCP 介面（外部 Agent，例如 Hermes 橋接程式）」。這些客戶端直接執行 `BigBlueFish.Mcp`（Windows 是 `BigBlueFish.Mcp.exe`，macOS 在 `藍色大肥魚.app/Contents/MacOS/` 裡），不帶參數，連到依使用者帳號計算的固定管道（`ControlTools.PipeName`；macOS 上是 `/tmp/bbf-<20 碼>`）。Windows 的「複製 MCP 連線設定」按鈕會複製對應的 `mcpServers` 設定。macOS 與 Linux 版在開啟 MCP 介面後有「連線其他 MCP 軟體」選單：選擇 Claude Desktop（僅 macOS）、Claude Code、Codex CLI、Gemini CLI、Cursor、VS Code、Hermes 橋接程式或其他 MCP 軟體，下方會顯示這個軟體要用的設定和要貼到哪裡，按「複製設定」複製；路徑是目前執行的 App 裡的 `BigBlueFish.Mcp`。
+
+### 設定其他 MCP 軟體
+
+支援本機（stdio）MCP 伺服器的軟體都能連線，例如 Claude Desktop、Claude Code、Codex CLI、Gemini CLI、Cursor 和 VS Code。這些軟體只會呼叫工具：在它們自己的視窗輸入，就能讓魚魚說話、做動作或讀取畫面，但收不到雙擊魚魚的輸入（見下方「雙擊輸入只交給一方」）。以下以 macOS 裝在「應用程式」資料夾為例，指令是 `/Applications/藍色大肥魚.app/Contents/MacOS/BigBlueFish.Mcp`，不需要參數；無MCP版沒有這個程式。
+
+以下是選單會複製的內容。Claude Desktop（`~/Library/Application Support/Claude/claude_desktop_config.json`）、Cursor（`~/.cursor/mcp.json`）與 Gemini CLI（`~/.gemini/settings.json`）使用 `mcpServers` 格式；設定檔裡已經有其他 MCP 伺服器時，只把 `big-blue-fish` 這一項加進去：
+
+```json
+{
+  "mcpServers": {
+    "big-blue-fish": {
+      "command": "/Applications/藍色大肥魚.app/Contents/MacOS/BigBlueFish.Mcp",
+      "args": []
+    }
+  }
+}
+```
+
+Claude Code 用指令加入（`--scope user` 讓每個專案都能用）：
+
+```bash
+claude mcp add --scope user big-blue-fish -- "/Applications/藍色大肥魚.app/Contents/MacOS/BigBlueFish.Mcp"
+```
+
+Codex CLI（`~/.codex/config.toml`）：
+
+```toml
+[mcp_servers.big-blue-fish]
+command = "/Applications/藍色大肥魚.app/Contents/MacOS/BigBlueFish.Mcp"
+```
+
+VS Code（專案的 `.vscode/mcp.json`）：
+
+```json
+{
+  "servers": {
+    "big-blue-fish": {
+      "type": "stdio",
+      "command": "/Applications/藍色大肥魚.app/Contents/MacOS/BigBlueFish.Mcp"
+    }
+  }
+}
+```
+
+Claude Code 也在內建 Agent 連線的清單裡。選在「連線 Agent」時由魚魚在背景啟動它，它會收到雙擊輸入，也能編寫日常關心；加成 MCP 時，是你在自己的終端機對話裡控制魚魚。兩者可以同時使用。
 
 開啟前會顯示隱私提示，只有使用者能開關，`get_settings` 只讀得到 `McpEnabled`。兩條連線使用同一份工具清單與事件，可以同時開啟：MCP 介面關閉時，外部客戶端的呼叫會回錯誤；`get_operation_guide`、`get_wakeups`、`schedule_wakeup`、`cancel_wakeup` 只供內建的 Agent 連線使用，經 MCP 介面呼叫一律回錯誤，Agent 連線關閉時也會回錯誤。提線木偶模式（`PuppetMode`）由兩者共用，經 MCP 介面開啟時會顯示「開啟提線木偶模式」的確認；另一邊也開著時，確認視窗會註明兩邊共用。提線木偶模式已經開著時再開啟 Agent 連線，會再請使用者確認讓 Agent 接管日常關心與動作。關閉 Agent 連線會清除該 Harness 的關心預約，即使 MCP 介面仍維持提線木偶模式。
 

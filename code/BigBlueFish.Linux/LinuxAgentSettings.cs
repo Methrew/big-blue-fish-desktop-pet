@@ -99,8 +99,28 @@ internal sealed partial class LinuxPetWindow
         body.Children.Add(new TextBlock { Text = "MCP 介面（外部 Agent，例如 Hermes 橋接程式）", FontSize = 18, FontWeight = Avalonia.Media.FontWeight.SemiBold, Margin = new Avalonia.Thickness(0, 28, 0, 4) });
         var enabled = new CheckBox { Content = "開啟 MCP 介面", IsChecked = Preferences.McpEnabled };
         body.Children.Add(enabled);
-        body.Children.Add(Paragraph("開啟後，這台電腦上以你的帳號執行的其他程式（例如 Hermes 橋接程式）可以透過 BigBlueFish.Mcp 控制魚魚。上面的 Agent 連線不需要開啟這裡。"));
+        body.Children.Add(Paragraph("開啟後，這台電腦上以你的帳號執行的其他程式（例如 Hermes 橋接程式、Claude Desktop、Cursor）可以透過 BigBlueFish.Mcp 控制魚魚。上面的 Agent 連線不需要開啟這裡。"));
         var extra = new StackPanel { IsVisible = Preferences.McpEnabled, Spacing = 8 }; body.Children.Add(extra);
+        // 連線其他 MCP 軟體: pick the client, see what will be copied and where it goes (LinuxMcpInterface.McpClientSetups).
+        extra.Children.Add(new TextBlock { Text = "連線其他 MCP 軟體" });
+        var setups = McpClientSetups();
+        var client = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = setups.Select(c => c.Name).ToArray(), SelectedIndex = 0 };
+        Avalonia.Automation.AutomationProperties.SetName(client, "連線其他 MCP 軟體");
+        extra.Children.Add(client);
+        var snippet = new TextBox { IsReadOnly = true, AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, FontFamily = LinuxFonts.Log, FontSize = 12 };
+        Avalonia.Automation.AutomationProperties.SetName(snippet, "要複製的設定");
+        var copySetup = ActionButton("複製設定", () => { });
+        var where = Paragraph("");
+        void ShowSetup() { var setup = setups[Math.Max(0, client.SelectedIndex)]; snippet.Text = setup.Text; where.Text = setup.Where; copySetup.Content = "複製設定"; }
+        client.SelectionChanged += (_, _) => ShowSetup();
+        copySetup.Click += async (_, _) => {
+            if (TopLevel.GetTopLevel(copySetup)?.Clipboard is not { } clipboard) return;
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, snippet.Text ?? "");
+            copySetup.Content = "已複製";
+        };
+        extra.Children.Add(snippet); extra.Children.Add(copySetup); extra.Children.Add(where);
+        extra.Children.Add(Paragraph("設定檔裡已經有其他 MCP 伺服器時，只把 big-blue-fish（Hermes 是 big_blue_fish）這一項加進去。除了 Hermes 橋接程式，這些軟體只會呼叫工具：在它們自己的視窗輸入，就能讓魚魚說話、做動作或讀取畫面，但收不到雙擊魚魚的輸入。"));
+        ShowSetup();
         var puppet = new CheckBox { Content = "提線木偶模式", IsChecked = Preferences.PuppetMode }; extra.Children.Add(puppet);
         extra.Children.Add(Paragraph("關閉魚魚自己的說話和動作切換，完全交給外部 Agent。這和上面 Agent 連線的「" + ControlTools.BehaviorControlLabel + "」是同一個開關。"));
         var chat = new CheckBox { Content = "雙擊輸入交給 MCP 介面（Hermes 橋接程式）", IsChecked = Preferences.McpChatEnabled }; extra.Children.Add(chat);
@@ -117,14 +137,6 @@ internal sealed partial class LinuxPetWindow
             SelectedIndex = Math.Max(0, Array.IndexOf(CompanionPreferences.EventReminderChoices, Preferences.EventReminderMinutes)) };
         extra.Children.Add(ahead);
         extra.Children.Add(Paragraph("簡報、回來時的摘要和行程提醒都由 Hermes 橋接程式說，沒有執行橋接程式時不會說；行程提醒需要先替 Hermes 設定好 Google 日曆。"));
-        var copy = ActionButton("複製 Hermes 的 MCP 設定", () => { });
-        copy.Click += async (_, _) => {
-            if (TopLevel.GetTopLevel(copy)?.Clipboard is not { } clipboard) return;
-            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, HermesMcpConfig());
-            copy.Content = "已複製，請貼到 ~/.hermes/config.yaml";
-        };
-        extra.Children.Add(copy);
-        extra.Children.Add(Paragraph("在 Hermes 設定檔的 mcp_servers 底下加入這段；名稱必須是 big_blue_fish，橋接程式才叫得到魚魚的工具。"));
         var state = Paragraph(""); extra.Children.Add(state);
         void Refresh() => state.Text = Preferences.McpEnabled ? $"已連線 {mcpInterface?.Connections ?? 0} 個 MCP 客戶端" + (McpChatAvailable ? "，雙擊輸入目前交給 MCP 介面。" : Preferences.AgentEnabled ? "，雙擊輸入目前交給 Agent 連線。" : "。") : "";
         enabled.Click += async (_, _) => {

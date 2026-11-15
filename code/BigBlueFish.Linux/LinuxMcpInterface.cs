@@ -66,11 +66,37 @@ internal sealed partial class LinuxPetWindow
     partial void LogExternalSpeech(string text);
 
     // The Hermes server entry: Hermes names the pet's tools mcp__big_blue_fish__*, which the bridge's instructions rely on.
-    static string HermesMcpConfig()
+    static string HermesMcpConfig() => "mcp_servers:\n  big_blue_fish:\n    command: " + Quoted(McpCommand) + "\n    args: []\n";
+
+    // The connections 連線其他 MCP 軟體 copies: the entry each client reads, and where it goes. Every one runs BigBlueFish.Mcp
+    // without arguments; the JSON and TOML keep the path readable, 藍色大肥魚.app included.
+    internal sealed record McpClientSetup(string Name, string Text, string Where);
+    static McpClientSetup[] McpClientSetups()
     {
-        var command = System.Text.Json.JsonSerializer.Serialize(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp"),
-            new System.Text.Json.JsonSerializerOptions { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
-        return "mcp_servers:\n  big_blue_fish:\n    command: " + command + "\n    args: []\n";
+        string servers = McpServersJson();
+        var setups = new List<McpClientSetup>();
+        if (OperatingSystem.IsMacOS())
+            setups.Add(new("Claude Desktop", servers, "貼到 ~/Library/Application Support/Claude/claude_desktop_config.json，再重新開啟 Claude Desktop。"));
+        setups.Add(new("Claude Code", "claude mcp add --scope user big-blue-fish -- '" + McpCommand.Replace("'", "'\\''") + "'",
+            "在終端機執行這行指令；--scope user 讓每個專案都能用。"));
+        setups.Add(new("Codex CLI", "[mcp_servers.big-blue-fish]\ncommand = " + Quoted(McpCommand) + "\n", "貼到 ~/.codex/config.toml。"));
+        setups.Add(new("Gemini CLI", servers, "貼到 ~/.gemini/settings.json。"));
+        setups.Add(new("Cursor", servers, "貼到 ~/.cursor/mcp.json（每個專案都能用），或專案裡的 .cursor/mcp.json。"));
+        setups.Add(new("VS Code", System.Text.Json.JsonSerializer.Serialize(
+            new { servers = new Dictionary<string, object> { ["big-blue-fish"] = new { type = "stdio", command = McpCommand } } }, IndentedJson), "貼到專案裡的 .vscode/mcp.json。"));
+        setups.Add(new("Hermes 橋接程式", HermesMcpConfig(), "貼到 ~/.hermes/config.yaml；名稱必須是 big_blue_fish，橋接程式才叫得到魚魚的工具。"));
+        setups.Add(new("其他 MCP 軟體", servers, "大多數 MCP 軟體讀這個 mcpServers 格式；指令就是上面的路徑，不需要參數。"));
+        return [.. setups];
     }
+
+    // The mcpServers entry most MCP clients read, as the Windows button copies it.
+    static string McpServersJson() => System.Text.Json.JsonSerializer.Serialize(
+        new { mcpServers = new Dictionary<string, object> { ["big-blue-fish"] = new { command = McpCommand, args = Array.Empty<string>() } } }, IndentedJson);
+
+    static string McpCommand => Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp");
+    // A JSON string is also a valid YAML and TOML basic string.
+    static string Quoted(string text) => System.Text.Json.JsonSerializer.Serialize(text, McpConfigJson);
+    static readonly System.Text.Json.JsonSerializerOptions McpConfigJson = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
+    static readonly System.Text.Json.JsonSerializerOptions IndentedJson = new(McpConfigJson) { WriteIndented = true };
 #endif
 }

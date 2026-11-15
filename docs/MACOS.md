@@ -295,7 +295,7 @@ Hermes 對話橋接程式（`BigBlueFish.HermesBridge`）會把你雙擊魚魚�
        args: []
    ```
 
-   魚魚設定裡的「複製 Hermes 的 MCP 設定」按鈕會複製這一段，路徑是你目前執行的 App 裡的 `BigBlueFish.Mcp`。
+   在魚魚設定開啟 MCP 介面（下一步）後，「連線其他 MCP 軟體」選單選「Hermes 橋接程式」，按「複製設定」就會複製這一段，路徑是你目前執行的 App 裡的 `BigBlueFish.Mcp`。
 4. 重新啟動 Hermes gateway（`hermes gateway restart`），確認 `http://127.0.0.1:8642/health` 有回應。
 
 ### 2. 在魚魚開啟 MCP 介面

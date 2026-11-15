@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- The remote model path of the macOS edition against a fake OpenAI-compatible server (HttpListener):
+       dotnet run with the project code/tests/RemoteModelVerification and -r osx-arm64 on a Mac (win-x64 is the default).
+       The arguments "live <url> [api-key]" test a real server instead, such as runtime/llama-server started with an API key.
+       CompanionBrain is compiled as macOS has it (COMPANION_OCR, COMPANION_MAC); the window capture, OCR and window
+       identity are stand-ins (Stubs.cs) that record what was asked of them. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <NuGetLockFilePath>packages.$(RuntimeIdentifier).lock.json</NuGetLockFilePath>
+    <DefineConstants>$(DefineConstants);COMPANION_OCR;COMPANION_MAC</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionBrain.cs" Link="Shared/CompanionBrain.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionDialogue.cs" Link="Shared/CompanionDialogue.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionWeather.cs" Link="Shared/CompanionWeather.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionNews.cs" Link="Shared/CompanionNews.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionInferenceDevices.cs" Link="Shared/CompanionInferenceDevices.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionRegions.cs" Link="Shared/CompanionRegions.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionOcrLayout.cs" Link="Shared/CompanionOcrLayout.cs" />
+    <Compile Include="../../../deployment/ModelStore.cs" Link="Shared/ModelStore.cs" />
+    <Compile Include="../../BigBlueFish.Linux/LinuxProcesses.cs" Link="Linux/LinuxProcesses.cs" />
+    <Compile Include="../../BigBlueFish.Linux/LinuxRemoteScreen.cs" Link="Linux/LinuxRemoteScreen.cs" />
+    <PackageReference Include="SkiaSharp" Version="3.119.4" />
+    <ProjectReference Include="../../BigBlueFish.Diagnostics/BigBlueFish.Diagnostics.csproj" />
+  </ItemGroup>
+</Project>

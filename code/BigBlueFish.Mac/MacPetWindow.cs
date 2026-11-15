@@ -54,6 +54,11 @@ internal sealed partial class LinuxPetWindow
         var box = new CheckBox { Content = "在所有桌面空間顯示桌寵", IsChecked = Preferences.ShowOnAllSpaces, Margin = new Thickness(0, 4) };
         box.IsCheckedChanged += (_, _) => { Preferences.ShowOnAllSpaces = box.IsChecked == true; ApplyPlatformSettings(); Save(); };
         body.Children.Add(box);
-        body.Children.Add(Paragraph("切換桌面空間時，桌寵、對話氣泡和輸入框會跟著過去，Mission Control 也不會移動它們。關閉「全螢幕時自動隱藏桌寵」時，桌寵也會顯示在全螢幕 App 上方。"));
+#if COMPANION_SAFE
+        const string follows = "桌寵和對話氣泡"; // the Safe app has no input box
+#else
+        const string follows = "桌寵、對話氣泡和輸入框";
+#endif
+        body.Children.Add(Paragraph("切換桌面空間時，" + follows + "會跟著過去，Mission Control 也不會移動它們。關閉「全螢幕時自動隱藏桌寵」時，桌寵也會顯示在全螢幕 App 上方。"));
     }
 }

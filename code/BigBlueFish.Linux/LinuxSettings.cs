@@ -133,7 +133,9 @@ internal sealed partial class LinuxPetWindow
             LocalModelOnly(Toggle("筆電拔掉電源時暫停模型（只對本機模型有效）", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); }));
             Toggle("連網取得天氣和科技新聞", Preferences.PublicInfo, value => Preferences.PublicInfo = value);
             Toggle(OperatingSystem.IsMacOS() ? "感知目前使用的 App" : "感知目前使用的程式", Preferences.ForegroundEnabled, value => Preferences.ForegroundEnabled = value);
-#if !COMPANION_SAFE
+#if COMPANION_SAFE
+            body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型時，會傳送到上面填寫的伺服器。"));
+#else
             body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型時，會傳送到上面填寫的伺服器。由 Agent 編寫日常關心時，會提供前景視窗截圖給 Agent。"));
 #endif
             body.Children.Add(ActionButton(brain.ModelAvailable ? "管理本機模型" : "安裝模型", async () => await InstallModel()));

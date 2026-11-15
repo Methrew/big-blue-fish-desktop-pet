@@ -2,24 +2,38 @@
   "version": 1,
   "dependencies": {
     "net10.0-windows10.0.26100": {
+      "Anthropic": {
+        "type": "Transitive",
+        "resolved": "13.8.0",
+        "contentHash": "N1+grCB2HdfsFsuRVVjBgN0evlxtdvSBw26P7rvaVGHrqgnr00Llw8sPuOP8w8akKzcN5tOd+3I75iEeERJbEQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.5.1"
+        }
+      },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.5.1",
+        "contentHash": "nB0l3IlsVbNeUxsE7nZNb9GY8rP1OSeqpj0pseORPejt474HNKEauTWTLdSJPkSvPlRMxowZNMo6nyp7APAiSg=="
+      },
       "BigBlueFish": {
         "type": "Project",
         "dependencies": {
-          "BigBlueFish.Agent": "[1.1.2, )",
-          "BigBlueFish.Control": "[1.1.2, )",
-          "BigBlueFish.Diagnostics": "[1.1.2, )"
+          "Anthropic": "[13.8.0, )",
+          "BigBlueFish.Agent": "[1.1.3-tw.1, )",
+          "BigBlueFish.Control": "[1.1.3-tw.1, )",
+          "BigBlueFish.Diagnostics": "[1.1.3-tw.1, )"
         }
       },
       "bigbluefish.agent": {
         "type": "Project",
         "dependencies": {
-          "BigBlueFish.Diagnostics": "[1.1.2, )"
+          "BigBlueFish.Diagnostics": "[1.1.3-tw.1, )"
         }
       },
       "bigbluefish.control": {
         "type": "Project",
         "dependencies": {
-          "BigBlueFish.Diagnostics": "[1.1.2, )"
+          "BigBlueFish.Diagnostics": "[1.1.3-tw.1, )"
         }
       },
       "bigbluefish.diagnostics": {

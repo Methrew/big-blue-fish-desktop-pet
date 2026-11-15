@@ -98,6 +98,9 @@ Check(ControlTools.RefusedSetting("ModelSource", false) == "模型來源與遠�
     && ControlTools.RefusedSetting("AgentHarnessId", false).StartsWith("Agent 連線只能由使用者") && ControlTools.RefusedSetting("McpEnabled", false).StartsWith("MCP 介面只能由使用者")
     && ControlTools.RefusedSetting("CwaApiKeyProtected", true).StartsWith("API Key 與授權碼") && ControlTools.RefusedSetting("Nonsense", false) == "未知設定：Nonsense"
     && ControlTools.RefusedSetting("ShowOnAllSpaces", false).Contains("macOS"), "Read-only, private and unknown settings are refused with their reason");
+Check(new[] { "CloudProvider", "ClaudeModel", "OpenAiModel", "GeminiModel", "CloudDailyLimit" }.All(name => ControlTools.RefusedSetting(name, false) == "模型來源與雲端模型只能由使用者在設定中修改。")
+    && new[] { "ClaudeApiKeyProtected", "OpenAiApiKeyProtected", "GeminiApiKeyProtected" }.All(name => ControlTools.RefusedSetting(name, true).StartsWith("API Key 與授權碼")),
+    "The cloud model settings are the user's, and the cloud API keys are never written by MCP");
 Check(ControlTools.SettingNames.Contains("ShowOnAllSpaces") == OperatingSystem.IsMacOS(), "ShowOnAllSpaces is writable on macOS only");
 Check(Rejected(() => ControlTools.OptionalNumber(sample, "word", 0, 1)) && Rejected(() => ControlTools.OptionalNumber(sample, "big", 0, 100))
     && Rejected(() => ControlTools.OptionalBool(sample, "x", true)) && Rejected(() => ControlTools.OptionalChoice(sample, "space", "screen"))
@@ -111,7 +114,8 @@ Check(!settingSchema.GetProperty("additionalProperties").GetBoolean(), "Settings
 var settingProperties = settingSchema.GetProperty("properties");
 Check(settingProperties.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(ControlTools.SettingNames.Order()), "Every writable setting is documented exactly once");
 Check(!settingProperties.TryGetProperty("McpEnabled", out _), "User-only MCP switch absent from writable schema");
-foreach (var userOnly in new[] { "AgentEnabled", "AgentHarnessId", "ModelSource", "RemoteUrl", "RemoteModel", "ScreenImages", "RemoteApiKeyProtected", "CwaApiKeyProtected" })
+foreach (var userOnly in new[] { "AgentEnabled", "AgentHarnessId", "ModelSource", "RemoteUrl", "RemoteModel", "ScreenImages", "RemoteApiKeyProtected", "CwaApiKeyProtected",
+    "CloudProvider", "ClaudeModel", "OpenAiModel", "GeminiModel", "CloudDailyLimit", "ClaudeApiKeyProtected", "OpenAiApiKeyProtected", "GeminiApiKeyProtected" })
     Check(!settingProperties.TryGetProperty(userOnly, out _), "User-only setting absent from writable schema: " + userOnly);
 Check(new[] { "AgentDailySpeech", "AgentRespondToClick", "AgentRespondToDrag", "McpChatEnabled", "DailyBriefing", "WelcomeBackMinutes", "SitReminderMinutes", "LateReminder" }
     .All(name => settingProperties.TryGetProperty(name, out _)), "Agent, chat, briefing and reminder settings are writable");

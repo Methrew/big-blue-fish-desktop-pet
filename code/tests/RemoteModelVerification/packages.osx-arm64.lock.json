@@ -2,6 +2,15 @@
   "version": 1,
   "dependencies": {
     "net10.0": {
+      "Anthropic": {
+        "type": "Direct",
+        "requested": "[13.8.0, )",
+        "resolved": "13.8.0",
+        "contentHash": "N1+grCB2HdfsFsuRVVjBgN0evlxtdvSBw26P7rvaVGHrqgnr00Llw8sPuOP8w8akKzcN5tOd+3I75iEeERJbEQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.5.1"
+        }
+      },
       "SkiaSharp": {
         "type": "Direct",
         "requested": "[3.119.4, )",
@@ -11,6 +20,11 @@
           "SkiaSharp.NativeAssets.Win32": "3.119.4",
           "SkiaSharp.NativeAssets.macOS": "3.119.4"
         }
+      },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.5.1",
+        "contentHash": "nB0l3IlsVbNeUxsE7nZNb9GY8rP1OSeqpj0pseORPejt474HNKEauTWTLdSJPkSvPlRMxowZNMo6nyp7APAiSg=="
       },
       "SkiaSharp.NativeAssets.macOS": {
         "type": "Transitive",

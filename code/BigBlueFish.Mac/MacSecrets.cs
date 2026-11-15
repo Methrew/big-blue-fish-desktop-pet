@@ -18,8 +18,8 @@ internal sealed partial class LinuxPetWindow
     bool screenWasLocked;
     long nextLockCheck;
 
-    // Reads the CWA authorization code (and the remote API key) from the login keychain off the UI thread, then hands the
-    // code to the weather. Until then, and while the keychain cannot be read, 臺灣 townships get the Open-Meteo estimate.
+    // Reads the CWA authorization code (and the remote and cloud API keys) from the login keychain off the UI thread, then
+    // hands the code to the weather. Until then, and while the keychain cannot be read, 臺灣 townships get the Open-Meteo estimate.
     partial void LoadPlatformSecrets() => ReadSecrets();
 
     // Reads whatever is not loaded yet; with nothing left to read it only refreshes the settings page.
@@ -38,8 +38,8 @@ internal sealed partial class LinuxPetWindow
             // Twice: the first save turns the old file, which still held the Base64 value, into preferences.json.bak.
             if (moved) { Save(); Save(); }
             brain.CwaApiKey = Preferences.CwaApiKey;
-            // A remote model server gets its API key only now.
-            if (Preferences.UseRemoteModel) ApplyModelSource();
+            // A remote model server or a cloud AI service gets its API key only now.
+            if (Preferences.UseRemoteModel || Preferences.CloudSelected) ApplyModelSource();
             refreshLinuxSettings?.Invoke();
             ScheduleSecretRetry();
         }), TaskScheduler.Default);
@@ -76,7 +76,7 @@ internal sealed partial class LinuxPetWindow
     // Under a key field of the settings: why the stored secret is not in use, or null when it is.
     string? SecretNote(string account, string what)
     {
-        bool inUse = (account == MacKeychain.CwaAccount ? Preferences.CwaApiKey : Preferences.RemoteApiKey).Length > 0;
+        bool inUse = Preferences.SecretValue(account).Length > 0;
         return Preferences.StateOf(account) switch
         {
             CompanionPreferences.SecretState.Failed => "無法讀取 macOS 鑰匙圈：" + Preferences.SecretProblem(account)

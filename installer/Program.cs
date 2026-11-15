@@ -118,7 +118,9 @@ internal sealed class InstallerForm : ModernWindow
                 else { ExtractApplication(archive, target); FinishInstallation(target, Environment.ProcessPath!); }
             });
             progress.IsIndeterminate = false;
-            if (!updating && ModelStore.Resolve(ApplicationData.DirectoryFor(target)) == null && ModelStore.ReadSelection(ApplicationData.DirectoryFor(target))?.Source != "none")
+            // A data folder that already uses the cloud AI service needs no local model.
+            if (!updating && ModelStore.Resolve(ApplicationData.DirectoryFor(target)) == null && ModelStore.ReadSelection(ApplicationData.DirectoryFor(target))?.Source != "none"
+                && !ModelInstallWindow.CloudSourceChosen(ApplicationData.DirectoryFor(target)))
             {
                 var model = new ModelInstallWindow(ApplicationData.DirectoryFor(target)) { Owner = this };
                 model.ShowDialog();

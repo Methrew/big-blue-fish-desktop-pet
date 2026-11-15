@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -32,6 +33,7 @@ internal sealed class ModelInstallWindow : ModernWindow
     private readonly Button install;
     private readonly Button skip;
     private readonly Button abandon;
+    private readonly Button cloud;
     private bool abandonRequested;
     private CancellationTokenSource? download;
     private CancellationTokenSource? importing;
@@ -41,6 +43,10 @@ internal sealed class ModelInstallWindow : ModernWindow
     private readonly HttpClient? client;
     private readonly Action<string>? openAddress;
     internal bool Completed { get; private set; }
+    // 改用雲端 AI 服務 was chosen: no local model now (Completed stays false). The app, here or started by the installer
+    // afterwards, finds CloudRequestName in the data folder and opens 設定 › 模型與供電 on the cloud panel.
+    internal bool CloudChosen { get; private set; }
+    internal const string CloudRequestName = "cloud-setup.request";
 
     internal ModelInstallWindow(string installationDirectory, HttpClient? client = null, Action<string>? openAddress = null) : base("安裝本機模型", "為魚魚準備本機模型", "兩個來源的模型有所不同，但都適用於本程式。自動安裝會從 Hugging Face 或中國大陸的 ModelScope 下載約 2.7 GB 的模型。", 650, 630)
     {
@@ -58,12 +64,15 @@ internal sealed class ModelInstallWindow : ModernWindow
         links.Children.Add(ModernUI.Button("Hugging Face 頁面", () => Open(ModelStore.HuggingFace.Page)));
         links.Children.Add(ModernUI.Button("選擇已下載檔案", async () => await PickFile()));
         manualPanel.Children.Add(links); manualPanel.Visibility = Visibility.Collapsed;
-        Body.Children.Add(manualPanel); Body.Children.Add(progress); Body.Children.Add(status);
+        Body.Children.Add(manualPanel);
+        Body.Children.Add(ModernUI.Text("不想下載模型的話，也可以按「改用雲端 AI 服務」，用你自己的 Claude、ChatGPT 或 Gemini API Key 讓魚魚說話（依用量向服務付費），接著在設定裡填寫 API Key。"));
+        Body.Children.Add(progress); Body.Children.Add(status);
         skip = ModernUI.Button("先無模型啟動", () => FinishWithoutModel());
+        cloud = ModernUI.Button("改用雲端 AI 服務", UseCloud);
         install = ModernUI.Button("下載並安裝", async () => await Install(), true);
         abandon = ModernUI.Button("放棄並轉為手動安裝", AbandonDownload);
         abandon.Visibility = Visibility.Collapsed;
-        Actions.Children.Add(skip); Actions.Children.Add(abandon); Actions.Children.Add(install);
+        Actions.Children.Add(skip); Actions.Children.Add(cloud); Actions.Children.Add(abandon); Actions.Children.Add(install);
         Closing += (_, e) =>
         {
             if (busy && !succeeded) { closeRequested = true; download?.Cancel(); importing?.Cancel(); e.Cancel = true; status.Text = "正在停止並保留進度…"; }
@@ -120,7 +129,7 @@ internal sealed class ModelInstallWindow : ModernWindow
     {
         this.busy = busy;
         if (closed) return;
-        recommended.IsEnabled = domestic.IsEnabled = manual.IsEnabled = install.IsEnabled = skip.IsEnabled = !busy;
+        recommended.IsEnabled = domestic.IsEnabled = manual.IsEnabled = install.IsEnabled = skip.IsEnabled = cloud.IsEnabled = !busy;
         manualPanel.IsEnabled = !busy;
         RefreshDownloadAction();
     }
@@ -129,6 +138,27 @@ internal sealed class ModelInstallWindow : ModernWindow
         ModelStore.Save(directory, new ModelStore.Selection("none", null, null));
         Completed = true; succeeded = true; Close();
     }
+    private void UseCloud()
+    {
+        if (busy || closed || closeRequested) return;
+        // Only the request; the model source changes in the app, after its own confirmation of what is sent where.
+        try { File.WriteAllText(Path.Combine(directory, CloudRequestName), ""); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        CloudChosen = true; succeeded = true; Close();
+    }
+
+    // The data folder's preferences already use the cloud AI service, so the installer asks for no local model.
+    internal static bool CloudSourceChosen(string directory)
+    {
+        try
+        {
+            using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "preferences.json")));
+            return json.RootElement.ValueKind == JsonValueKind.Object && json.RootElement.TryGetProperty("ModelSource", out var source)
+                && source.ValueKind == JsonValueKind.String && source.GetString() == "Cloud";
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { return false; }
+    }
+
     private async Task PickFile()
     {
         var picker = new OpenFileDialog { Filter = "GGUF 模型 (*.gguf)|*.gguf|所有檔案 (*.*)|*.*", InitialDirectory = Path.Combine(directory, "models"), CheckFileExists = true };

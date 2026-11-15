@@ -46,8 +46,35 @@ internal sealed class CompanionBrain : IDisposable
     private bool usingCpuFallback;
     private CompanionInferenceDevices? inferenceDevices;
     // A remote server reports no local buffer placement; the local runner reports what it actually loaded.
-    internal string ExecutionDevice => UseRemote ? "遠端模型伺服器"
+    internal string ExecutionDevice => UseCloud ? "雲端 AI 服務：" + CompanionCloud.Info(cloudProvider).DisplayName
+        : UseRemote ? "遠端模型伺服器"
         : runner is { HasExited: false } ? inferenceDevices?.Describe(runnerReady) ?? "正在確認執行裝置" : "未執行";
+    // The cloud model source (CompanionCloud.cs): set while a cloud AI service writes the speech. The remote state above
+    // stays set too (UseRemote), so nothing is loaded on this computer, there is no warm-up and no power pause.
+    private string? cloudProvider;
+    private string cloudKey = "", cloudModel = "";
+    private CloudService? cloudService;
+    private readonly CloudPause cloudPause = new();
+    internal bool UseCloud => cloudProvider != null;
+    internal string? CloudProvider => cloudProvider;
+    // The model the requests name: the one chosen in the settings, or the provider's recommended one.
+    internal string CloudModel => cloudProvider == null ? "" : cloudModel.Length > 0 ? cloudModel : CompanionCloud.DefaultModel(cloudProvider);
+    // What the last successful 儲存並測試 listed for this key (empty before a test, or when the key may not list models).
+    internal IReadOnlyList<CloudModelInfo> CloudModels { get; private set; } = [];
+    // Until when cloud requests wait after a rate limit, an overloaded service or a key, model or billing problem.
+    internal DateTime? CloudPausedUntil => UseCloud ? cloudPause.Until : null;
+    // Requests a day (0 = no limit), from CompanionPreferences.CloudDailyLimit.
+    internal int CloudDailyLimit { get; set; } = 200;
+    internal CloudUsage CloudUsage { get; }
+    private string CloudName => CompanionCloud.Info(cloudProvider).Name;
+    // The settings page with the model source: 模型與資訊 on macOS and Linux, 模型與供電 on Windows.
+#if COMPANION_LINUX || COMPANION_MAC
+    private const string ModelSettingsPage = "模型與資訊";
+#else
+    private const string ModelSettingsPage = "模型與供電";
+#endif
+    private string NoCloudKey => $"尚未填寫 {CloudName} 的 API Key，請到設定 › {ModelSettingsPage}填寫後按「儲存並測試」。";
+    private string DailyLimitReached => $"今天的雲端請求已達上限（{CloudDailyLimit} 次），魚魚先休息，明天會自動恢復；可以在設定 › {ModelSettingsPage}調整每天的上限。";
     private readonly TimeSpan runnerLoadTimeout;
     private readonly string runtimeDirectory;
     private readonly CompanionJob job = new();
@@ -69,14 +96,59 @@ internal sealed class CompanionBrain : IDisposable
     internal bool UseRemote => remoteUrl != null;
     // Remote inference does not drain the battery, so the unplugged pause covers the local runner only.
     internal bool CanRunOnCurrentPower => UseRemote || !StopOnBattery || CompanionNative.OnAC;
-    // Diagnostic kind of the model that writes this turn: the local runner or the remote server.
-    private string ModelKind => UseRemote ? "remote" : "local";
+    // Diagnostic kind of the model that writes this turn: the local runner, the remote server or a cloud AI service.
+    private string ModelKind => UseCloud ? "cloud" : UseRemote ? "remote" : "local";
     private DateTime nextModelCheck;
     private bool modelAvailable;
+
+    // A cloud AI service (Claude, ChatGPT or Gemini) replaces the local runner the way a remote server does. Without a key
+    // the source stays: the fish stays quiet and the status says why, rather than turning to a local model that may not be
+    // installed. The same provider and key keep their pause and model list; anything else starts afresh.
+    internal void UseCloudModel(string provider, string apiKey, string model)
+    {
+        provider = CompanionCloud.Info(provider).Id;
+        apiKey = apiKey.Trim();
+        model = model.Trim();
+        bool sameKey = cloudProvider == provider && cloudKey == apiKey && (cloudService != null || apiKey.Length == 0);
+        if (!sameKey)
+        {
+            cloudService?.Dispose();
+            cloudService = apiKey.Length == 0 ? null : CompanionCloud.Create(provider, apiKey);
+            CloudModels = [];
+        }
+        if (!sameKey || cloudModel != model) cloudPause.Clear();
+        cloudProvider = provider;
+        cloudKey = apiKey;
+        cloudModel = model;
+        remoteUrl = CompanionCloud.Endpoint(provider).ToString();
+        remoteApiKey = "";
+        remoteModel = "";
+        remoteVision = true;
+        remoteImagesRefused = false;
+        remoteCheckedUntil = DateTime.MinValue;
+        active?.Cancel();
+        StopRunner();
+        // What the fish waits for: a key, a pause that the same settings keep, or tomorrow after today's limit.
+        Status = cloudService == null ? NoCloudKey
+            : cloudPause.Active(DateTime.UtcNow) is { } paused ? paused.Message
+            : CloudUsage.Reached(CloudDailyLimit) ? DailyLimitReached
+            : "等待說話時使用 " + CloudName;
+    }
+
+    private void LeaveCloud()
+    {
+        cloudService?.Dispose();
+        cloudService = null;
+        cloudProvider = null;
+        cloudKey = cloudModel = "";
+        CloudModels = [];
+        cloudPause.Clear();
+    }
 
     // An OpenAI-compatible llama.cpp server replaces the local runner; null returns to the local model.
     internal void UseRemoteModel(string? url, string apiKey, string model)
     {
+        LeaveCloud();
         url = url?.Trim().TrimEnd('/');
         if (url != null && url.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) url = url[..^3];
         remoteUrl = string.IsNullOrEmpty(url) ? null : url;
@@ -97,6 +169,7 @@ internal sealed class CompanionBrain : IDisposable
     internal async Task<string> TestRemote()
     {
         if (disposed) return Status;
+        if (UseCloud) return await TestCloud();
         if (!UseRemote) return Status = "請填寫有效的 http 或 https 網址";
         if (Busy) return "模型正在生成，請稍後再試";
         Busy = true;
@@ -144,6 +217,94 @@ internal sealed class CompanionBrain : IDisposable
         }
     }
 
+    // 儲存並測試 for a cloud AI service: listing the models this key may use proves the key without spending tokens and
+    // fills CloudModels (the settings preselect with CompanionCloud.Preselect). A success ends any pause.
+    private async Task<string> TestCloud()
+    {
+        if (Busy) return "模型正在生成，請稍後再試";
+        if (cloudService is not { } service) return Status = NoCloudKey;
+        Busy = true;
+        active = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        try
+        {
+            Status = $"正在測試 {CloudName} 的 API Key";
+            var models = await service.ListModels(active.Token);
+            CloudModels = models;
+            cloudPause.Clear();
+            remoteImagesRefused = false;
+            remoteVision = true;
+            remoteModelId = CloudModel;
+            DiagnosticLog.Write(DiagnosticEvent.RunnerReady, kind: "cloud", state: cloudProvider!.ToLowerInvariant(), count: models.Count);
+            if (cloudModel.Length > 0 && models.Count > 0 && models.All(m => m.Id != cloudModel))
+                return Status = $"{CloudName} 的 API Key 有效，但這把 Key 的模型清單裡沒有 {cloudModel}，請從清單重新選擇。";
+            return Status = ReadyStatus("") + $"（API Key 有效，找到 {models.Count} 個可用模型）";
+        }
+        catch (CloudException error) when (!disposed)
+        {
+            DiagnosticLog.Write(DiagnosticEvent.RunnerFailed, kind: "cloud", state: error.Token);
+            // A restricted OpenAI key may write with a model but not list them (a 401 naming the missing scope); a 403
+            // (a region block, for example) is paused like any other failure.
+            if (cloudProvider == CompanionCloud.OpenAI && error.Kind == CloudFailure.MissingScope)
+                return Status = "這把 OpenAI API Key 沒有讀取模型清單的權限（可能只開了部分權限）；仍可以直接填寫模型名稱，例如 " + CompanionCloud.DefaultModel(cloudProvider) + "。";
+            return Status = cloudPause.Apply(error, DateTime.UtcNow).Message;
+        }
+        catch (OperationCanceledException) when (!disposed)
+        {
+            return Status = $"連線 {CloudName} 逾時，請確認網路連線後再試。";
+        }
+        catch (Exception error)
+        {
+            DiagnosticLog.Write(DiagnosticEvent.RunnerFailed, kind: "cloud", error: error);
+            return Status = $"無法測試 {CloudName}，請稍後再試。";
+        }
+        finally
+        {
+            Busy = false;
+            active?.Dispose();
+            active = null;
+        }
+    }
+
+    // Ready for a cloud request, or why not: no key, a pause, or today's limit reached. Nothing is sent from here.
+    private CloudService EnsureCloud()
+    {
+        if (cloudService is not { } service) throw new CloudException(CloudFailure.NoKey, NoCloudKey);
+        if (cloudPause.Active(DateTime.UtcNow) is { } paused) throw paused;
+        if (CloudUsage.Reached(CloudDailyLimit)) throw new CloudException(CloudFailure.DailyLimit, DailyLimitReached);
+        remoteModelId = CloudModel;
+        remoteVision = true;
+        Status = ReadyStatus("");
+        return service;
+    }
+
+    // One cloud request: counted before it is sent (also when it fails), its tokens added when the reply says them.
+    private async Task<string> CompleteCloud(string persona, string request, CancellationToken token, CompanionWindowImage? image, Action<string>? onPartial)
+    {
+        var service = EnsureCloud();
+        LastTimings = null;
+        CloudUsage.Count();
+        var lastPartial = "";
+        void Partial(string raw)
+        {
+            var partial = Clean(raw);
+            if (partial.Length == 0 || partial == lastPartial) return;
+            lastPartial = partial;
+            onPartial?.Invoke(partial);
+        }
+        CloudReply reply;
+        try { reply = await service.Complete(new(CloudModel, SystemPrompt(persona), request, image?.DataUrl), Partial, token); }
+        catch (CloudException error) { throw CloudFailed(error); }
+        CloudUsage.AddTokens(reply.InputTokens, reply.OutputTokens);
+        if (reply.Problem != null) throw CloudFailed(reply.Problem);
+        return Clean(reply.Text);
+    }
+
+    private CloudException CloudFailed(CloudException error)
+    {
+        DiagnosticLog.Write(DiagnosticEvent.RunnerFailed, kind: "cloud", state: error.Token);
+        return cloudPause.Apply(error, DateTime.UtcNow);
+    }
+
     internal bool ModelAvailable
     {
         get
@@ -178,9 +339,11 @@ internal sealed class CompanionBrain : IDisposable
         TimeSpan.FromSeconds(60)) { }
 
     // The verification harness substitutes a real child process, not model output in the app.
-    internal CompanionBrain(Func<ProcessStartInfo, Process?> startRunner, TimeSpan runnerLoadTimeout, HttpClient? weatherClient = null, string? weatherCachePath = null, Func<double>? newsRoll = null, Func<CancellationToken, Task<string>>? gpuDevices = null, string? runtimeDirectory = null)
+    internal CompanionBrain(Func<ProcessStartInfo, Process?> startRunner, TimeSpan runnerLoadTimeout, HttpClient? weatherClient = null, string? weatherCachePath = null, Func<double>? newsRoll = null, Func<CancellationToken, Task<string>>? gpuDevices = null, string? runtimeDirectory = null, string? cloudUsagePath = null)
     {
         this.startRunner = startRunner;
+        // Relative: the data folder, like preferences.json.
+        CloudUsage = new(cloudUsagePath ?? "cloud-usage.json");
         this.runtimeDirectory = runtimeDirectory ?? Path.Combine(AppContext.BaseDirectory, "runtime");
         this.gpuDevices = gpuDevices ?? ReadGpuDevices;
         this.runnerLoadTimeout = runnerLoadTimeout;
@@ -197,7 +360,8 @@ internal sealed class CompanionBrain : IDisposable
     }
     internal JsonElement? LastTimings { get; private set; }
     // llama-server started without --alias names its model by the file path; the status shows the file name only.
-    private string ReadyStatus(string text) => UseRemote ? "遠端模型就緒：" + remoteModelId?[(remoteModelId.LastIndexOfAny(['/', '\\']) + 1)..]
+    private string ReadyStatus(string text) => UseCloud ? CompanionCloud.ReadyPrefix + CloudName + "（" + CloudModel + "）"
+        : UseRemote ? "遠端模型就緒：" + remoteModelId?[(remoteModelId.LastIndexOfAny(['/', '\\']) + 1)..]
         : usingCpuFallback ? text + "（CPU相容模式）" : text;
 
     private async Task<string> ReadGpuDevices(CancellationToken token)
@@ -283,10 +447,12 @@ internal sealed class CompanionBrain : IDisposable
     internal sealed record ChatMessage(string role, object content);
     internal static string FixedSpeechInstructions(string persona) => persona
         + "\n本次只說魚魚最想說的那一小句，一個自然可愛的小反應就好。\n";
+    // The system prompt of a turn: the speech personas get the one-line instruction and a random reaction hint.
+    internal static string SystemPrompt(string persona) => persona == Persona || persona == OcrPersona
+        ? FixedSpeechInstructions(persona) + CompanionDialogue.ReactionHint() : persona;
     internal static ChatMessage[] BuildMessages(string persona, string request, CompanionWindowImage? image = null)
     {
-        if (persona == Persona || persona == OcrPersona)
-            persona = FixedSpeechInstructions(persona) + CompanionDialogue.ReactionHint();
+        persona = SystemPrompt(persona);
         object content = image == null ? request : new object[]
         {
             new { type = "image_url", image_url = new { url = image.DataUrl } },
@@ -424,6 +590,7 @@ internal sealed class CompanionBrain : IDisposable
     private async Task EnsureRunner(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (UseCloud) { EnsureCloud(); return; }
         if (UseRemote) { await EnsureRemote(token); return; }
         if (runnerReady && runner is { HasExited: false })
         {
@@ -729,6 +896,8 @@ internal sealed class CompanionBrain : IDisposable
 
     private async Task<string> CompleteRequest(string persona, string request, double temperature, CancellationToken token, CompanionWindowImage? image = null, Action<string>? onPartial = null)
     {
+        // A cloud AI service gets the same system prompt and material, without llama.cpp's fields or sampling parameters.
+        if (UseCloud) return await CompleteCloud(persona, request, token, image, onPartial);
         var messages = BuildMessages(persona, request, image);
         LastTimings = null;
         var payload = new
@@ -873,6 +1042,8 @@ internal sealed class CompanionBrain : IDisposable
 #endif
         try
         {
+            // A cloud service that cannot take a request now (no key, a pause, today's limit) reads nothing of the screen.
+            if (UseCloud) EnsureCloud();
             CompanionNews.Item? news = null;
             if (usePublic && CompanionNews.ShouldSelect(newsRoll()))
                 news = await NewsItem(token);
@@ -950,7 +1121,7 @@ internal sealed class CompanionBrain : IDisposable
 
             await EnsureRunner(token);
             runnerReadyMs = generationWatch.Elapsed.TotalMilliseconds;
-            Status = image != null ? "正在理解目前視窗" : UseRemote ? "遠端生成短句" : "本機生成短句";
+            Status = image != null ? "正在理解目前視窗" : UseCloud ? "雲端生成短句" : UseRemote ? "遠端生成短句" : "本機生成短句";
 #if COMPANION_OCR
             var selectedPersona = news == null ? (ocr == null ? Persona : OcrPersona) : NewsPersona;
 #else
@@ -971,10 +1142,12 @@ internal sealed class CompanionBrain : IDisposable
             {
                 text = await Complete(selectedPersona, request, temperature, token, image, OnContent);
             }
-            catch (HttpRequestException error) when (image != null && UseRemote && error.StatusCode != null && !token.IsCancellationRequested)
+            catch (Exception error) when (image != null && UseRemote && !token.IsCancellationRequested
+                && (error is HttpRequestException { StatusCode: not null } || error is CloudException { Kind: CloudFailure.BadRequest }))
             {
                 // The server answered the window image with an error status (no image input after all, too large for
                 // its context, ...): this turn once more as text, and text for this server until its settings change.
+                // A cloud service's 400 or 413 with an image is taken the same way.
                 remoteImagesRefused = true;
                 DiagnosticLog.Write(DiagnosticEvent.ScreenReadFallback, kind: "image", state: "refused", error: error);
                 image = null;
@@ -984,7 +1157,7 @@ internal sealed class CompanionBrain : IDisposable
                 selectedPersona = ocr == null ? Persona : OcrPersona;
 #endif
                 await EnsureRunner(token);
-                Status = "遠端生成短句";
+                Status = UseCloud ? "雲端生成短句" : "遠端生成短句";
                 text = await Complete(selectedPersona, request, temperature, token, null, OnContent);
             }
 #if COMPANION_OCR
@@ -1216,6 +1389,7 @@ internal sealed class CompanionBrain : IDisposable
         job.Dispose();
         local.Dispose();
         remote.Dispose();
+        cloudService?.Dispose();
         weather.Dispose();
         publicWeb.Dispose();
     }

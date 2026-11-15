@@ -236,6 +236,8 @@ public partial class MainWindow
         {
             InstallCompanionHook();
             await LoadCompanionAnimations();
+            // 改用雲端 AI 服務 chosen in the installer's 安裝本機模型 window.
+            AdoptCloudRequest();
             if (preferences.CheckUpdatesOnStartup && !App.Args.Contains("--test-mode"))
             {
                 await Task.Delay(3000);
@@ -329,9 +331,15 @@ public partial class MainWindow
         });
     }
 
+    // A cloud AI service or a remote server replaces the local runner; with the cloud source chosen the brain takes it
+    // even without a key (it then says why it is quiet), so no local model is asked for.
     private void ApplyCompanionModelSource()
     {
-        brain.UseRemoteModel(preferences.UseRemoteModel ? preferences.RemoteUrl : null, preferences.RemoteApiKey, preferences.RemoteModel);
+        // The limit first: the cloud status says when today's limit is already reached.
+        brain.CloudDailyLimit = preferences.CloudDailyLimit;
+        if (preferences.CloudSelected)
+            brain.UseCloudModel(preferences.CloudProvider, preferences.CloudApiKey(preferences.CloudProvider), preferences.CloudModel(preferences.CloudProvider));
+        else brain.UseRemoteModel(preferences.UseRemoteModel ? preferences.RemoteUrl : null, preferences.RemoteApiKey, preferences.RemoteModel);
         brain.ScreenImages = preferences.ScreenImages;
         brain.RefreshModelAvailability();
         nextWarmup = DateTime.MinValue;

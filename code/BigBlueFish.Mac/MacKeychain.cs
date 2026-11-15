@@ -4,8 +4,9 @@ using System.Text.RegularExpressions;
 
 namespace BigBlueFish.Windows;
 
-// The secrets the settings collect (the CWA authorization code, the remote model's API key) live in the user's login
-// keychain as generic passwords: service CompanionEdition.KeychainService, accounts CwaAccount and RemoteAccount.
+// The secrets the settings collect (the CWA authorization code, the remote model's API key, the API keys of the cloud AI
+// services) live in the user's login keychain as generic passwords: service CompanionEdition.KeychainService, accounts
+// CwaAccount, RemoteAccount, ClaudeAccount, OpenAiAccount and GeminiAccount.
 // They go through Apple's /usr/bin/security, so the items trust that tool and this ad-hoc signed app, whose signature
 // changes with every update, never has to ask for keychain access again (a Security.framework item would trust the
 // app's own signature). Every call blocks for up to Timeout, so callers stay off the UI thread. A failure throws and
@@ -13,6 +14,8 @@ namespace BigBlueFish.Windows;
 internal static partial class MacKeychain
 {
     internal const string CwaAccount = "CwaApiKey", RemoteAccount = "RemoteApiKey";
+    // The same names as CompanionCloud.Providers' KeychainAccount.
+    internal const string ClaudeAccount = "ClaudeApiKey", OpenAiAccount = "OpenAiApiKey", GeminiAccount = "GeminiApiKey";
     // security's exit status for errSecItemNotFound.
     const int NotFound = 44;
     // Tests point these at a stand-in for the tool.
@@ -49,7 +52,8 @@ internal static partial class MacKeychain
         if (exit != 0 && exit != NotFound) throw new IOException($"無法從 macOS 鑰匙圈移除（security 結束代碼 {exit}）。");
     }
 
-    static string Account(string account) => account is CwaAccount or RemoteAccount ? account : throw new ArgumentOutOfRangeException(nameof(account));
+    static string Account(string account) => account is CwaAccount or RemoteAccount or ClaudeAccount or OpenAiAccount or GeminiAccount
+        ? account : throw new ArgumentOutOfRangeException(nameof(account));
 
     static (int Exit, string Output) Run(string[] arguments, string? input)
     {

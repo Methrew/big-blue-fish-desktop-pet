@@ -85,7 +85,8 @@ internal sealed partial class LinuxPetWindow : Window
 #else
             InitializeMcp(); InitializeTray(); timer.Start();
 #endif
-            if (!File.Exists("model-selection.json") && !brain.ModelAvailable && !App.Args.Contains("--test-mode")) await InstallModel();
+            // With a cloud AI service chosen nothing is installed here, so the first run does not ask for a local model.
+            if (!File.Exists("model-selection.json") && !Preferences.CloudSelected && !brain.ModelAvailable && !App.Args.Contains("--test-mode")) await InstallModel();
             if (Preferences.CheckUpdatesOnStartup && !App.Args.Contains("--test-mode")) _ = CheckUpdates(false);
         };
         PointerPressed += (_, e) => {

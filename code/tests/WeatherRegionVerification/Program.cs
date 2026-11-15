@@ -116,10 +116,31 @@ try
     // --- MCP never sees a secret: get_settings lists public, not [JsonIgnore], not private properties.
     var listed = typeof(CompanionPreferences).GetProperties().Where(p => !p.IsDefined(typeof(JsonIgnoreAttribute)) && !CompanionPreferences.PrivateSettings.Contains(p.Name))
         .Select(p => p.Name).ToArray();
-    Check(!listed.Any(n => n.Contains("ApiKey")) && CompanionPreferences.PrivateSettings.SequenceEqual(["RemoteApiKeyProtected", "CwaApiKeyProtected"])
+    Check(!listed.Any(n => n.Contains("ApiKey")) && CompanionPreferences.PrivateSettings.SequenceEqual(["RemoteApiKeyProtected", "CwaApiKeyProtected",
+            "ClaudeApiKeyProtected", "OpenAiApiKeyProtected", "GeminiApiKeyProtected"])
         && typeof(CompanionPreferences).GetProperty("CwaApiKey", BindingFlags.Instance | BindingFlags.NonPublic) != null
         && typeof(CompanionPreferences).GetProperty("CwaApiKey") == null && !ControlTools.SettingNames.Any(n => n.Contains("ApiKey")),
         "get_settings has no secret and update_settings accepts none");
+    Check(listed.Contains("CloudProvider") && listed.Contains("ClaudeModel") && listed.Contains("CloudDailyLimit")
+        && new[] { "CloudProvider", "ClaudeModel", "OpenAiModel", "GeminiModel", "CloudDailyLimit" }.All(n => !ControlTools.SettingNames.Contains(n)
+            && ControlTools.RefusedSetting(n, CompanionPreferences.PrivateSettings.Contains(n)) == "模型來源與雲端模型只能由使用者在設定中修改。")
+        && ControlTools.RefusedSetting("ClaudeApiKeyProtected", true).StartsWith("API Key 與授權碼", StringComparison.Ordinal),
+        "get_settings shows the cloud provider, models and limit read-only; update_settings refuses them and the keys");
+
+    // --- The cloud model source survives a restart; anything unknown falls back to what the settings offer.
+    File.WriteAllText("preferences.json", JsonSerializer.Serialize(new { ModelSource = "Cloud", CloudProvider = "Gemini", GeminiModel = " gemini-4-hydrogen ", CloudDailyLimit = 500 }));
+    File.Delete("preferences.json.bak");
+    var cloudPrefs = CompanionPreferences.Read();
+    Check(cloudPrefs.ModelSource == "Cloud" && cloudPrefs.CloudSelected && cloudPrefs.CloudProvider == "Gemini" && cloudPrefs.CloudModel("Gemini") == "gemini-4-hydrogen"
+        && cloudPrefs.CloudModel("Claude") == "" && cloudPrefs.CloudDailyLimit == 500 && !cloudPrefs.UseCloudModel && !cloudPrefs.UseRemoteModel,
+        "ModelSource Cloud is kept with its provider, model and limit (not usable without a key)");
+    File.WriteAllText("preferences.json", JsonSerializer.Serialize(new { ModelSource = "Elsewhere", CloudProvider = "Bard", CloudDailyLimit = 7 }));
+    cloudPrefs = CompanionPreferences.Read();
+    Check(cloudPrefs.ModelSource == "Local" && cloudPrefs.CloudProvider == "Claude" && cloudPrefs.CloudDailyLimit == 200, "an unknown source, provider or limit reads as the default");
+    File.WriteAllText("preferences.json", "{\"Scale\":0.8}");
+    cloudPrefs = CompanionPreferences.Read();
+    Check(cloudPrefs.ModelSource == "Local" && cloudPrefs.CloudProvider == "Claude" && cloudPrefs.CloudDailyLimit == 200 && cloudPrefs.ClaudeModel == ""
+        && CompanionPreferences.CloudDailyLimitChoices.SequenceEqual([50, 100, 200, 500, 0]), "preferences from before the cloud source start with Claude and 200 requests a day");
 
     if (OperatingSystem.IsWindows()) Console.WriteLine("SKIP the keychain stand-in needs bash");
     else Keychain();
@@ -216,7 +237,7 @@ void Keychain()
         "clearing the code removes only its keychain item");
     MacKeychain.Delete(MacKeychain.CwaAccount);
     Check(MacKeychain.Read(MacKeychain.CwaAccount) == "", "removing a missing item is fine");
-    Throws<ArgumentOutOfRangeException>(() => MacKeychain.Read("Other"), "only the two known accounts are used");
+    Throws<ArgumentOutOfRangeException>(() => MacKeychain.Read("Other"), "only the known accounts are used");
     // A code an earlier build kept in the file as Base64 moves into the keychain.
     File.WriteAllText("preferences.json", JsonSerializer.Serialize(new { WeatherRegionCode = "340104", CwaApiKeyProtected = Convert.ToBase64String(Encoding.UTF8.GetBytes("CWA-LEGACY-0001")) }));
     var legacy = CompanionPreferences.Read();
@@ -245,6 +266,34 @@ void Keychain()
     Throws<ArgumentException>(() => refused.RemoteApiKey = refused.RemoteApiKey, "saving the refused key again names why the keychain refuses it");
     refused.RemoteApiKey = "pass-phrase";
     Check(refused.StateOf(MacKeychain.RemoteAccount) == CompanionPreferences.SecretState.Loaded && refused.RemoteApiKeyProtected == CompanionPreferences.KeychainMarker, "a key the keychain accepts replaces it");
+
+    // The cloud AI services' keys: one keychain item each, read back with the other secrets.
+    File.Delete("preferences.json"); File.Delete("preferences.json.bak");
+    const string ClaudeKey = "sk-ant-api03-Test_key-0001", OpenAiKey = "sk-proj-Test_key-0002", GeminiKey = "AQ.Test_key-0003";
+    var cloud = CompanionPreferences.Read();
+    cloud.ModelSource = "Cloud";
+    Check(cloud.CloudSelected && !cloud.UseCloudModel, "the cloud source without a key is chosen but not usable");
+    cloud.SetCloudApiKey("Claude", ClaudeKey);
+    cloud.SetCloudApiKey("OpenAI", OpenAiKey);
+    cloud.SetCloudApiKey("Gemini", " " + GeminiKey + " ");
+    Check(File.ReadAllText(Item(MacKeychain.ClaudeAccount)) == ClaudeKey && File.ReadAllText(Item(MacKeychain.OpenAiAccount)) == OpenAiKey && File.ReadAllText(Item(MacKeychain.GeminiAccount)) == GeminiKey
+        && new[] { cloud.ClaudeApiKeyProtected, cloud.OpenAiApiKeyProtected, cloud.GeminiApiKeyProtected }.All(v => v == CompanionPreferences.KeychainMarker)
+        && cloud.UseCloudModel && cloud.CloudApiKey("Gemini") == GeminiKey, "each cloud key is a keychain item of its own (ClaudeApiKey, OpenAiApiKey, GeminiApiKey), trimmed");
+    Check(new[] { ClaudeKey, OpenAiKey, GeminiKey }.All(k => !Calls().Contains(k)) && Calls().Contains("-a GeminiApiKey"), "cloud keys reach security through stdin, never argv");
+    cloud.CloudProvider = "Gemini";
+    cloud.SetCloudModel("Gemini", " gemini-4-hydrogen ");
+    cloud.Save();
+    var saved = File.ReadAllText("preferences.json");
+    Check(new[] { ClaudeKey, OpenAiKey, GeminiKey }.All(k => !saved.Contains(k)) && saved.Contains("\"GeminiApiKeyProtected\": \"keychain\"") && saved.Contains("\"CloudProvider\": \"Gemini\""),
+        "preferences.json only says keychain for the cloud keys");
+    var back = CompanionPreferences.Read();
+    Check(back.LoadSecrets() == (false, null) && back.CloudApiKey("Claude") == ClaudeKey && back.CloudApiKey("OpenAI") == OpenAiKey && back.CloudApiKey("Gemini") == GeminiKey
+        && back.CloudProvider == "Gemini" && back.CloudModel("Gemini") == "gemini-4-hydrogen" && back.UseCloudModel
+        && CompanionPreferences.CloudAccount("OpenAI") == MacKeychain.OpenAiAccount && back.SecretValue(MacKeychain.ClaudeAccount) == ClaudeKey
+        && back.StateOf(MacKeychain.GeminiAccount) == CompanionPreferences.SecretState.Loaded, "a restart reads the cloud keys back from the keychain");
+    back.SetCloudApiKey("OpenAI", "");
+    Check(!File.Exists(Item(MacKeychain.OpenAiAccount)) && back.OpenAiApiKeyProtected == null && File.Exists(Item(MacKeychain.ClaudeAccount)) && File.Exists(Item(MacKeychain.GeminiAccount)),
+        "clearing one cloud key removes only its keychain item");
 }
 
 // --- The shared weather checks: CWA forecast with a code, Open-Meteo estimate without, separate caches and retries.

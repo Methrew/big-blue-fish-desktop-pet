@@ -89,6 +89,9 @@ internal sealed partial class LinuxPetWindow
                 // The manual 檢查更新 path with its dialogs; a URL in place of this edition's latest-release API answers for GitHub.
                 case "check-updates": Beside(CheckUpdates(true, argument.Length > 0 ? argument : null)); break;
                 case "install-model": Beside(InstallModel()); break;
+                // cloud-models <id>[,<id>...]: the open cloud panel takes this list as if 儲存並測試 had listed it (no key, nothing sent).
+                case "cloud-models":
+                    (cloudModelsListed ?? throw new InvalidOperationException("the model page is not open"))(argument.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(id => new CloudModelInfo(id, id)).ToList()); break;
                 case "bubble" when space > 0: ShowText(command[7..], true); break;
 #if !COMPANION_SAFE
                 case "render-input": RenderControl(mcpInput ?? throw new InvalidOperationException("the input is not open"), Png("input.png")); break;

@@ -25,9 +25,10 @@ internal sealed partial class LinuxPetWindow
         modelInstalling = true;
         // With a model in place the window manages it: it names the model, and the resident model keeps running until a
         // download or an import begins (v1.1.3 stopped it as the window opened and loaded it again once it closed).
-        // With the remote model nothing local runs, so nothing is stopped and a reply from the server is not cut off.
+        // With the remote model or a cloud AI service nothing local runs, so nothing is stopped and a reply from the server is
+        // not cut off.
         string? installed = ModelStore.Resolve(Environment.CurrentDirectory);
-        bool remote = brain.UseRemote, modelStopped = false;
+        bool remote = brain.UseRemote, modelStopped = false, offerCloud = installed == null && !Preferences.CloudSelected;
         void StopModel() { if (modelStopped || remote) return; modelStopped = true; brain.Stop(); speechVersion++; }
         if (installed == null) StopModel();
         var panel = new StackPanel { Spacing = 10 };
@@ -44,12 +45,15 @@ internal sealed partial class LinuxPetWindow
                 _ => "放在模型資料夾中",
             };
             panel.Children.Add(Paragraph(remote
-                ? "本機模型：" + Path.GetFileName(installed) + "（" + origin + "）。目前由遠端伺服器說話，切回「本機內建模型」時才會用到這個模型。"
+                ? "本機模型：" + Path.GetFileName(installed) + "（" + origin + "）。目前由" + (brain.UseCloud ? "雲端 AI 服務（" + CompanionCloud.Info(brain.CloudProvider).Name + "）" : "遠端伺服器")
+                    + "說話，切回「本機內建模型」時才會用到這個模型。"
                 : "目前使用：" + Path.GetFileName(installed) + "（" + origin + "）。"));
             panel.Children.Add(Paragraph(remote ? "要換模型時，選擇下載來源或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"
                 : "要換模型時，選擇下載來源或匯入已下載的 GGUF 模型；開始下載或匯入時，目前的模型會先停止。兩個來源的模型有所不同，但都適用於本程式。"));
         }
-        else panel.Children.Add(Paragraph("選擇下載來源，或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"));
+        else panel.Children.Add(Paragraph("選擇下載來源，或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"
+            // The first run's other way: no model on this computer, the speech from Claude, ChatGPT or Gemini.
+            + (offerCloud ? "\n不想在這台電腦上執行模型，也可以改用雲端 AI 服務（Claude、ChatGPT 或 Gemini）：需要該服務的 API Key，並依用量付費。" : "")));
         var dialog = Dialog(CompanionEdition.AppName + (installed == null ? " · 安裝模型" : " · 管理模型"), panel, 680, 550);
         var status = Paragraph("模型資料夾：" + Path.Combine(Environment.CurrentDirectory, "models")); panel.Children.Add(status);
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, Height = 8 }; panel.Children.Add(progress);
@@ -77,7 +81,7 @@ internal sealed partial class LinuxPetWindow
             if (dialogClosed) return;
             abandon.IsVisible = transfer != null; abandon.IsEnabled = transfer?.IsCancellationRequested == false && !confirming && !abandonRequested;
             resume.IsVisible = !busy && File.Exists(Path.Combine(Environment.CurrentDirectory, "models", selected.FileName) + ".partial");
-            choices.IsEnabled = retry.IsEnabled = !busy;
+            choices.IsEnabled = retry.IsEnabled = !busy && !confirming;
         }
         dialog.Closing += (_, e) => {
             closeRequested = true; cancel.Cancel(); transfer?.Cancel();
@@ -127,9 +131,26 @@ internal sealed partial class LinuxPetWindow
             }
         }
         void Without() { ModelStore.Save(Environment.CurrentDirectory, new("none", null, null)); brain.RefreshModelAvailability(); dialog.Close(); }
+        // 改用雲端 AI 服務: after the same confirmation as in the settings, the cloud source is saved (no model-selection.json:
+        // the cloud source alone keeps the next start from asking for a local model) and 設定 › 模型與資訊 opens on its panel.
+        async Task UseCloud()
+        {
+            if (busy || dialogClosed || closeRequested || confirming) return;
+            confirming = true; RefreshControls();
+            bool accepted;
+            try { accepted = await Confirm("改用雲端 AI 服務？", CloudConsent(Preferences.CloudProvider), "改用雲端 AI 服務", cancel.Token); }
+            catch (InvalidOperationException) { accepted = false; }
+            finally { confirming = false; RefreshControls(); }
+            if (!accepted || dialogClosed || closeRequested || closed) return;
+            Preferences.ModelSource = "Cloud";
+            speechVersion++; ApplyModelSource(); Save();
+            dialog.Close();
+            OpenModelSettings();
+        }
         foreach (var source in ModelStore.Sources) choices.Children.Add(ActionButton(source.Label, async () => await Download(source)));
         // With a model in place, leaving keeps it: 關閉 and 保留目前的模型 stand where 無模型啟動 would drop it.
         choices.Children.Add(ActionButton("手動安裝", async () => await Manual()));
+        if (offerCloud) choices.Children.Add(ActionButton("改用雲端 AI 服務", async () => await UseCloud()));
         choices.Children.Add(installed == null ? ActionButton("無模型啟動", Without) : ActionButton("關閉", () => dialog.Close()));
         retry.Children.Add(ActionButton("重試", async () => await Download(selected))); retry.Children.Add(ActionButton("手動安裝模型", async () => await Manual()));
         retry.Children.Add(installed == null ? ActionButton("無模型啟動", Without) : ActionButton("保留目前的模型", () => dialog.Close()));

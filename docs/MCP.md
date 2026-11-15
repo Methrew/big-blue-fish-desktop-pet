@@ -70,13 +70,26 @@ Claude Code 也在內建 Agent 連線的清單裡。選在「連線 Agent」時�
 
 ## 設定
 
-`get_settings` 回傳 `settings` 與 `state`。settings 是會儲存下來的欄位與系統啟動設定；state 是視窗是否顯示、隱藏原因、目前動作、播放階段、動作佇列、待說文字、工具連線、輸入框、Agent 狀態和模型狀態的快照。`modelAvailable` 表示有模型檔，不等於推論程式已經載入。`connections` 是已初始化的客戶端總數，`mcpClients` 是其中經 MCP 介面連線的外部客戶端。各版本的 state 也有 `bubbleVisible`、`externalBubble`（目前氣泡來自 `say` 或 `say_next`）、`speechPending`（魚魚正在準備自己的說話或天氣）、`fullscreen`、`idleSeconds`、`activeMinutes`、`lastBreakMinutes`；Windows 與 macOS 版另有 `walk_to` 的 `walk`、`tour`、`lastWalk` 與 `walkBubble`；macOS 與 Linux 版另有 `platform`（`macos` 或 `linux`）。
+`get_settings` 回傳 `settings` 與 `state`。settings 是會儲存下來的欄位與系統啟動設定；state 是視窗是否顯示、隱藏原因、目前動作、播放階段、動作佇列、待說文字、工具連線、輸入框、Agent 狀態和模型狀態的快照。`modelAvailable` 表示有模型檔，不等於推論程式已經載入；使用遠端模型或雲端 AI 服務時一律為 true。`connections` 是已初始化的客戶端總數，`mcpClients` 是其中經 MCP 介面連線的外部客戶端。各版本的 state 也有 `bubbleVisible`、`externalBubble`（目前氣泡來自 `say` 或 `say_next`）、`speechPending`（魚魚正在準備自己的說話或天氣）、`fullscreen`、`idleSeconds`、`activeMinutes`、`lastBreakMinutes`；Windows 與 macOS 版另有 `walk_to` 的 `walk`、`tour`、`lastWalk` 與 `walkBubble`；macOS 與 Linux 版另有 `platform`（`macos` 或 `linux`）。
 
-`update_settings` 的參數為 `{"settings":{...}}`，省略的欄位保留，欄位名稱區分大小寫，會先驗證整份修改。`AgentEnabled`、`AgentHarnessId` 只能讀取，由使用者在連線頁選擇。`McpEnabled` 與遠端模型設定（`ModelSource`、`RemoteUrl`、`RemoteModel`、`ScreenImages`）同樣只能讀取；遠端模型的 API Key 與中央氣象署授權碼由使用者在設定中填寫（macOS 存在鑰匙圈，Windows 以目前的 Windows 帳戶加密），不會出現在 `get_settings`，也不能透過 `update_settings` 寫入，被拒絕的欄位只列出名稱、不回傳數值。寫入唯讀欄位時，各平台都回覆同樣的原因（例如「模型來源與遠端模型只能由使用者在設定中修改。」），只有真的不存在的欄位才回覆「未知設定：」。以下是可以寫入的欄位：
+`update_settings` 的參數為 `{"settings":{...}}`，省略的欄位保留，欄位名稱區分大小寫，會先驗證整份修改。`AgentEnabled`、`AgentHarnessId` 只能讀取，由使用者在連線頁選擇。`McpEnabled`、遠端模型設定與雲端 AI 服務設定（見下表）同樣只能讀取；遠端模型的 API Key、雲端 AI 服務的三把 API Key（`ClaudeApiKeyProtected`、`OpenAiApiKeyProtected`、`GeminiApiKeyProtected`）與中央氣象署授權碼由使用者在設定中填寫（macOS 存在鑰匙圈，Windows 以目前的 Windows 帳戶加密），不會出現在 `get_settings`，也不能透過 `update_settings` 寫入，被拒絕的欄位只列出名稱、不回傳數值。寫入唯讀欄位時，各平台都回覆同樣的原因：遠端模型的欄位是「模型來源與遠端模型只能由使用者在設定中修改。」，雲端 AI 服務的欄位是「模型來源與雲端模型只能由使用者在設定中修改。」，金鑰是「API Key 與授權碼只能由使用者在設定中填寫。」；只有真的不存在的欄位才回覆「未知設定：」。
+
+模型來源的唯讀欄位：
+
+| 欄位 | 值 | 意義 |
+| --- | --- | --- |
+| ModelSource | `Local`、`Remote` 或 `Cloud` | 魚魚自己說話用的模型：本機模型、遠端 llama.cpp 伺服器或雲端 AI 服務 |
+| RemoteUrl / RemoteModel | 字串 | 遠端伺服器的網址與模型名稱 |
+| ScreenImages | bool | 遠端模型或雲端 AI 服務是否改傳前景視窗截圖（取代 OCR 文字） |
+| CloudProvider | `Claude`、`OpenAI` 或 `Gemini` | ModelSource 為 `Cloud` 時由哪個服務說話；其他來源時只是記下的選擇 |
+| ClaudeModel / OpenAiModel / GeminiModel | 字串 | 各服務選用的模型，換服務時各自保留；空字串表示該服務的建議模型（`claude-opus-5-5`、`gpt-6-luna`、`gemini-3.5-flash-lite`） |
+| CloudDailyLimit | 50、100、200、500 或 0 | 每天最多送出幾次雲端請求，0 為不限制，預設 200；達到上限時魚魚當天不再送出請求 |
+
+雲端 AI 服務只連線寫在程式裡的官方端點，MCP 沒有任何欄位能改變端點或讀取金鑰；每天的請求次數與 token 用量只顯示在設定頁，不在 `get_settings` 裡。state 的 `modelStatus` 是設定頁的模型狀態文字，使用雲端 AI 服務時會說明目前的服務與模型，或還沒填 API Key、暫停、達到每天上限的原因，不含金鑰或服務回覆的原文。以下是可以寫入的欄位：
 
 | 欄位 | 類型與範圍 | 意義 |
 | --- | --- | --- |
-| ModelEnabled | bool | 設定頁的「啟用模型說話」：允許魚魚用內建或遠端模型自己說話與播報天氣；不限制外部的 `say` |
+| ModelEnabled | bool | 設定頁的「啟用模型說話」：允許魚魚用內建模型、遠端模型或雲端 AI 服務自己說話與播報天氣；不限制外部的 `say` |
 | GpuEnabled | bool | 本機推論使用 GPU |
 | PublicInfo | bool | 內建的天氣與科技新聞 |
 | ForegroundEnabled | bool | 內建模型讀取螢幕，以及 Agent 日常關心附上的畫面；不控制明確呼叫的截圖工具 |
@@ -121,7 +134,7 @@ Claude Code 也在內建 Agent 連線的清單裡。選在「連線 Agent」時�
 | interrupt_action | action | 清空尚未播放的佇列，立即切換動作 |
 | say | text，選填 transient | 立即逐字顯示原文，取代目前的氣泡並取消舊的本機生成；`transient=true` 表示進度或一時的提示，只顯示在氣泡，不寫進聊天記錄 |
 | say_next | text | 覆蓋待說的原文，在下次符合日常節奏時顯示 |
-| request_local_speech | 空物件 | 立即請魚魚自己的模型（本機模型或設定的遠端模型）依目前情境產生日常關心；需要 AgentDailySpeech=false 且模型可用 |
+| request_local_speech | 空物件 | 立即請魚魚自己的模型（本機模型，或設定的遠端模型、雲端 AI 服務）依目前情境產生日常關心；需要 AgentDailySpeech=false 且模型可用。使用雲端 AI 服務時，每次呼叫算一次雲端請求，計入使用者設定的每天上限；沒有 API Key、暫停中或已達上限時不會送出 |
 
 max_dimension 為 256–16384 的整數。action 填 `list_actions` 的名稱，最多 200 字元，Disabled 池的動作也可以指定。動作名稱是簡體字，寫成繁體也認得（例如逐字換成繁體，或換成台灣用詞的寫法），回傳的 `action` 是原本的簡體名稱；名稱不對時，錯誤訊息會列出最接近的三個名稱。重複的動作不去重複；隱藏或拖曳時，排隊的動作會等待。外部動作播完後，一般模式恢復自主排程，關心觸發與動作接管模式回到固定待機。立即動作和說話不會自動讓被隱藏的角色重新顯示。
 

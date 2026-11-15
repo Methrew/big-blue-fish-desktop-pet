@@ -121,13 +121,56 @@ internal sealed class CompanionPreferences
     public string? RemoteApiKeyProtected { get; set; }
     public bool ScreenImages { get; set; }
     public string? CwaApiKeyProtected { get; set; }
+    // ModelSource "Cloud" (CompanionCloud.cs): the provider that writes the speech, the model chosen for each provider (kept
+    // while another one is in use; empty = the provider's recommended model) and the requests allowed a day (0 = no limit).
+    // Each provider's API key is a secret of its own. ScreenImages also decides whether a cloud request carries the
+    // foreground window's screenshot.
+    public string CloudProvider { get; set; } = "Claude";
+    public string ClaudeModel { get; set; } = "";
+    public string OpenAiModel { get; set; } = "";
+    public string GeminiModel { get; set; } = "";
+    public int CloudDailyLimit { get; set; } = 200;
+    public string? ClaudeApiKeyProtected { get; set; }
+    public string? OpenAiApiKeyProtected { get; set; }
+    public string? GeminiApiKeyProtected { get; set; }
+    // The ids CompanionCloud.Providers uses, in the same order.
+    internal static readonly string[] CloudProviders = ["Claude", "OpenAI", "Gemini"];
+    internal static readonly int[] CloudDailyLimitChoices = [50, 100, 200, 500, 0];
 
     // Secrets never appear in MCP get_settings (which also leaves out every [JsonIgnore] alias above), and update_settings
     // refuses them; any process of this user could still read them.
-    internal static readonly string[] PrivateSettings = [nameof(RemoteApiKeyProtected), nameof(CwaApiKeyProtected)];
+    internal static readonly string[] PrivateSettings = [nameof(RemoteApiKeyProtected), nameof(CwaApiKeyProtected),
+        nameof(ClaudeApiKeyProtected), nameof(OpenAiApiKeyProtected), nameof(GeminiApiKeyProtected)];
     internal bool UseRemoteModel => ModelSource == "Remote" && Uri.TryCreate(RemoteUrl.Trim(), UriKind.Absolute, out var url) && url.Scheme is "http" or "https";
+    // The cloud source is chosen (the brain then uses it even before a key is entered, and says so instead of speaking).
+    internal bool CloudSelected => ModelSource == "Cloud";
+    // ... and usable: a known provider with a key.
+    internal bool UseCloudModel => CloudSelected && CloudProviders.Contains(CloudProvider) && CloudApiKey(CloudProvider).Length > 0;
+    internal string CloudModel(string provider) => provider switch { "OpenAI" => OpenAiModel, "Gemini" => GeminiModel, _ => ClaudeModel };
+    internal void SetCloudModel(string provider, string model)
+    {
+        model = model.Trim();
+        switch (provider)
+        {
+            case "OpenAI": OpenAiModel = model; break;
+            case "Gemini": GeminiModel = model; break;
+            default: ClaudeModel = model; break;
+        }
+    }
+    internal string CloudApiKey(string provider) => provider switch { "OpenAI" => OpenAiApiKey, "Gemini" => GeminiApiKey, _ => ClaudeApiKey };
+    // On macOS this writes the keychain and blocks for up to a few seconds (see below); a refused write throws.
+    internal void SetCloudApiKey(string provider, string value)
+    {
+        switch (provider)
+        {
+            case "OpenAI": OpenAiApiKey = value; break;
+            case "Gemini": GeminiApiKey = value; break;
+            default: ClaudeApiKey = value; break;
+        }
+    }
 #if COMPANION_MAC
-    // macOS keeps both secrets in the login keychain (MacKeychain); preferences.json only says "keychain" for a stored one.
+    // macOS keeps every secret (the CWA code, the remote and the three cloud API keys) in the login keychain (MacKeychain);
+    // preferences.json only says "keychain" for a stored one.
     // LoadSecrets reads them into memory off the UI thread, and the getters return those values without blocking.
     // Setting one writes the keychain at once and blocks for up to a few seconds, so the settings page sets it off the
     // UI thread and saves afterwards; a refused write throws, keeps the old value and never leaves a copy in the file.
@@ -142,6 +185,31 @@ internal sealed class CompanionPreferences
     private readonly Dictionary<string, (SecretState State, string? Problem)> secretStates = new();
     internal string CwaApiKey { get => Revealed(MacKeychain.CwaAccount); set => CwaApiKeyProtected = Conceal(value, MacKeychain.CwaAccount); }
     internal string RemoteApiKey { get => Revealed(MacKeychain.RemoteAccount); set => RemoteApiKeyProtected = Conceal(value, MacKeychain.RemoteAccount); }
+    internal string ClaudeApiKey { get => Revealed(MacKeychain.ClaudeAccount); set => ClaudeApiKeyProtected = Conceal(value, MacKeychain.ClaudeAccount); }
+    internal string OpenAiApiKey { get => Revealed(MacKeychain.OpenAiAccount); set => OpenAiApiKeyProtected = Conceal(value, MacKeychain.OpenAiAccount); }
+    internal string GeminiApiKey { get => Revealed(MacKeychain.GeminiAccount); set => GeminiApiKeyProtected = Conceal(value, MacKeychain.GeminiAccount); }
+    // The keychain account of a cloud provider's key, for StateOf, SecretProblem and the settings' notes.
+    internal static string CloudAccount(string provider) => provider switch { "OpenAI" => MacKeychain.OpenAiAccount, "Gemini" => MacKeychain.GeminiAccount, _ => MacKeychain.ClaudeAccount };
+    // The value in use for an account, whatever its state.
+    internal string SecretValue(string account) => Revealed(account);
+    private static readonly string[] SecretAccounts = [MacKeychain.CwaAccount, MacKeychain.RemoteAccount, MacKeychain.ClaudeAccount, MacKeychain.OpenAiAccount, MacKeychain.GeminiAccount];
+    private string? StoredSecret(string account) => account switch
+    {
+        MacKeychain.CwaAccount => CwaApiKeyProtected, MacKeychain.RemoteAccount => RemoteApiKeyProtected, MacKeychain.ClaudeAccount => ClaudeApiKeyProtected,
+        MacKeychain.OpenAiAccount => OpenAiApiKeyProtected, MacKeychain.GeminiAccount => GeminiApiKeyProtected, _ => throw new ArgumentOutOfRangeException(nameof(account))
+    };
+    private void StoreSecret(string account, string? stored)
+    {
+        switch (account)
+        {
+            case MacKeychain.CwaAccount: CwaApiKeyProtected = stored; break;
+            case MacKeychain.RemoteAccount: RemoteApiKeyProtected = stored; break;
+            case MacKeychain.ClaudeAccount: ClaudeApiKeyProtected = stored; break;
+            case MacKeychain.OpenAiAccount: OpenAiApiKeyProtected = stored; break;
+            case MacKeychain.GeminiAccount: GeminiApiKeyProtected = stored; break;
+            default: throw new ArgumentOutOfRangeException(nameof(account));
+        }
+    }
     private string Revealed(string account) { lock (revealed) return revealed.GetValueOrDefault(account, ""); }
     internal SecretState StateOf(string account) { lock (revealed) return secretStates.GetValueOrDefault(account).State; }
     // Why the secret is not simply loaded, for the settings page; null when it is.
@@ -165,10 +233,10 @@ internal sealed class CompanionPreferences
     {
         bool moved = false;
         Exception? error = null;
-        foreach (var account in new[] { MacKeychain.CwaAccount, MacKeychain.RemoteAccount })
+        foreach (var account in SecretAccounts)
         {
             if (StateOf(account) is SecretState.Loaded or SecretState.Unsaved) continue;
-            var stored = account == MacKeychain.CwaAccount ? CwaApiKeyProtected : RemoteApiKeyProtected;
+            var stored = StoredSecret(account);
             try
             {
                 if (stored is null or KeychainMarker)
@@ -183,7 +251,7 @@ internal sealed class CompanionPreferences
                 {
                     // Not Base64 (an edited or damaged file): nothing to move, so it leaves the file as well.
                     lock (revealed) if (secretStates.GetValueOrDefault(account).State is not SecretState.Loaded) secretStates[account] = (SecretState.Unsaved, "設定檔裡舊版的內容無法讀取。");
-                    if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = null; else RemoteApiKeyProtected = null;
+                    StoreSecret(account, null);
                     moved = true;
                     error ??= unreadable;
                     continue;
@@ -192,14 +260,14 @@ internal sealed class CompanionPreferences
                 try
                 {
                     var marker = Conceal(legacy, account);
-                    if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = marker; else RemoteApiKeyProtected = marker;
+                    StoreSecret(account, marker);
                     moved = true;
                 }
                 catch (ArgumentException refused)
                 {
                     // For good: the value stays usable in memory for this run, and the file stops carrying it.
                     lock (revealed) secretStates[account] = (SecretState.Unsaved, refused.Message);
-                    if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = null; else RemoteApiKeyProtected = null;
+                    StoreSecret(account, null);
                     moved = true;
                     error ??= refused;
                 }
@@ -217,6 +285,9 @@ internal sealed class CompanionPreferences
 #else
     internal string CwaApiKey { get => Reveal(CwaApiKeyProtected); set => CwaApiKeyProtected = Conceal(value); }
     internal string RemoteApiKey { get => Reveal(RemoteApiKeyProtected); set => RemoteApiKeyProtected = Conceal(value); }
+    internal string ClaudeApiKey { get => Reveal(ClaudeApiKeyProtected); set => ClaudeApiKeyProtected = Conceal(value); }
+    internal string OpenAiApiKey { get => Reveal(OpenAiApiKeyProtected); set => OpenAiApiKeyProtected = Conceal(value); }
+    internal string GeminiApiKey { get => Reveal(GeminiApiKeyProtected); set => GeminiApiKeyProtected = Conceal(value); }
     internal static string? Conceal(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
@@ -292,8 +363,11 @@ internal sealed class CompanionPreferences
                     if (!EventReminderChoices.Contains(s.EventReminderMinutes)) s.EventReminderMinutes = 10;
                     s.BubbleDurationIndex = Math.Clamp(s.BubbleDurationIndex, 0, BubbleDurations.Length - 1);
                     s.WeatherRegionCode = CompanionRegions.District(s.WeatherRegionCode).Code;
-                    s.ModelSource = s.ModelSource == "Remote" ? "Remote" : "Local";
+                    s.ModelSource = s.ModelSource is "Remote" or "Cloud" ? s.ModelSource : "Local";
                     s.RemoteUrl ??= ""; s.RemoteModel ??= "";
+                    if (!CloudProviders.Contains(s.CloudProvider)) s.CloudProvider = CloudProviders[0];
+                    s.ClaudeModel = s.ClaudeModel?.Trim() ?? ""; s.OpenAiModel = s.OpenAiModel?.Trim() ?? ""; s.GeminiModel = s.GeminiModel?.Trim() ?? "";
+                    if (!CloudDailyLimitChoices.Contains(s.CloudDailyLimit)) s.CloudDailyLimit = 200;
                     return s;
                 }
             }

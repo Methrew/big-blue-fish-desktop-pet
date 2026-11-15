@@ -2,6 +2,7 @@
 // Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Windows;
 using System.Threading.Tasks;
 using BigBlueFish.Deployment;
@@ -28,8 +29,25 @@ public partial class MainWindow
             brain.RefreshModelAvailability();
             nextWarmup = DateTime.MinValue;
             nextSpeech = DateTime.UtcNow.AddSeconds(20);
+            if (dialog.CloudChosen) AdoptCloudRequest(true);
         };
         dialog.Show();
+    }
+
+    // 改用雲端 AI 服務 in the 安裝本機模型 window, here or in the installer before this start (which leaves
+    // ModelInstallWindow.CloudRequestName in the data folder): 設定 › 模型與供電 opens with 模型來源 turned to the cloud
+    // AI service, which asks its confirmation first. A model source already on the cloud only gets the page.
+    private void AdoptCloudRequest(bool chosen = false)
+    {
+        try
+        {
+            if (File.Exists(ModelInstallWindow.CloudRequestName)) { File.Delete(ModelInstallWindow.CloudRequestName); chosen = true; }
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+        {
+            DiagnosticLog.Write(DiagnosticEvent.RunnerFailed, kind: "cloud", state: "read", error: error);
+        }
+        if (chosen) OpenCloudSettings();
     }
 
     private async Task CheckForUpdates(bool interactive)

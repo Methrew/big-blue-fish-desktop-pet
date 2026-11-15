@@ -36,12 +36,15 @@
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionAttachmentRules.cs" Link="Shared/CompanionAttachmentRules.cs" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
+    <!-- The official Anthropic C# SDK, for the cloud model source's Claude (CompanionCloud.cs). -->
+    <PackageReference Include="Anthropic" Version="13.8.0" />
     <ProjectReference Include="../BigBlueFish.Control/BigBlueFish.Control.csproj" Condition="'$(CompanionEdition)' != 'Safe'" />
     <ProjectReference Include="../BigBlueFish.Agent/BigBlueFish.Agent.csproj" Condition="'$(CompanionEdition)' != 'Safe'" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionPreferences.cs" Link="Shared/CompanionPreferences.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionAnimationPolicy.cs" Link="Shared/CompanionAnimationPolicy.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionDialogue.cs" Link="Shared/CompanionDialogue.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionBrain.cs" Link="Shared/CompanionBrain.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionCloud.cs" Link="Shared/CompanionCloud.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionInferenceDevices.cs" Link="Shared/CompanionInferenceDevices.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionWeather.cs" Link="Shared/CompanionWeather.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionReminders.cs" Link="Shared/CompanionReminders.cs" />

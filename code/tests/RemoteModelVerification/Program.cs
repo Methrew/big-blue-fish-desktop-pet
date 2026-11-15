@@ -12,6 +12,7 @@ using SkiaSharp;
 // the connection test's messages, the window image (foreground only, JPEG, long side 1568), the text retry after a
 // refused image, and that nothing of the desktop or the full screen is captured or read for the server.
 // "live <url> [api-key] [model]" runs the connection test and one window-image turn against a real server instead.
+// CloudVerification.cs does the same for the cloud model source, against fake Claude, OpenAI and Gemini servers.
 int checks = 0;
 void Check(bool value, string name) { if (!value) throw new Exception("FAIL " + name); checks++; Console.WriteLine("PASS " + name); }
 CompanionBrain NewBrain() => new(_ => null, TimeSpan.FromSeconds(1), weatherClient: new HttpClient(), newsRoll: () => 1);
@@ -263,6 +264,8 @@ var weatherRequest = CompanionBrain.WeatherRequest(estimate, "臺北市中正區
 Check(weatherRequest.Contains("照寫「臺北市中正區」") && weatherRequest.Contains("資料日期就是今天 11 月 15 日") && weatherRequest.Contains("「大概」或「估計」"), "weather request names the place, today and the estimate");
 Check(!CompanionBrain.WeatherRequest(estimate, "臺北市中正區", new DateTime(2026, 11, 16)).Contains("今天") && CompanionBrain.WeatherRequest(estimate) == "本輪天氣資料：\n" + estimate + "\n（這份是估計值，不是實測：句子裡要用「大概」或「估計」，也不要說成明天的天氣。）",
     "yesterday's data is not called today, and the request without a place is as before");
+// The cloud AI services (Claude, ChatGPT, Gemini) against fake servers on this computer.
+checks += await CloudVerification.Run();
 Console.WriteLine($"All {checks} remote model checks passed.");
 return 0;
 

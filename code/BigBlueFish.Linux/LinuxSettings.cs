@@ -17,6 +17,8 @@ internal sealed partial class LinuxPetWindow
     bool consentOpen;
     Window? consentWindow;
     Action? refreshLinuxSettings;
+    // Opens 模型與資訊 in the open settings window (OpenModelSettings).
+    Action? showModelPage;
     Action? disposeLogConsole;
 #if COMPANION_MAC
     // A LaunchAgent labelled with this edition's bundle identifier (MacLoginItem). Refused while the app runs from a
@@ -87,6 +89,8 @@ internal sealed partial class LinuxPetWindow
     }
     // A notice that only tells something: one button, as tall as its text.
     Task Inform(string title, string message, string accept = "知道了") => Confirm(title, message, accept, reject: null);
+    // The settings on 模型與資訊 (from the first-run 安裝本機模型 window's 改用雲端 AI 服務).
+    void OpenModelSettings() { OpenSettings(); showModelPage?.Invoke(); }
     void OpenSettings()
     {
         if (settings != null) { if (settings.WindowState == WindowState.Minimized) settings.WindowState = WindowState.Normal; settings.Activate(); return; }
@@ -95,7 +99,7 @@ internal sealed partial class LinuxPetWindow
         // The right margin keeps the overlay scroll bar off the last characters and the right edge of the fields.
         var body = new StackPanel { Spacing = 8, Margin = new Thickness(0, 0, 16, 0) }; var scroll = new ScrollViewer { Content = body }; Grid.SetColumn(scroll, 1); root.Children.Add(navigation); root.Children.Add(scroll);
         settings = Dialog(CompanionEdition.AppName + " · 設定", root, 880, 700); settings.MinWidth = 780; settings.MinHeight = 600;
-        settings.Closed += (_, _) => { disposeLogConsole?.Invoke(); disposeLogConsole = null; settings = null; refreshLinuxSettings = null; DiagnosticLog.Write(DiagnosticEvent.SettingsClosed); Save(); nextEvent = DateTime.UtcNow.AddSeconds(Preferences.AnimationIntervalSeconds); };
+        settings.Closed += (_, _) => { disposeLogConsole?.Invoke(); disposeLogConsole = null; settings = null; refreshLinuxSettings = null; showModelPage = null; cloudModelsListed = null; DiagnosticLog.Write(DiagnosticEvent.SettingsClosed); Save(); nextEvent = DateTime.UtcNow.AddSeconds(Preferences.AnimationIntervalSeconds); };
         Action selectedPage = General;
         void Navigate(Action page) { selectedPage = page; page(); }
         void Title(string text) { disposeLogConsole?.Invoke(); disposeLogConsole = null; body.Children.Clear(); body.Children.Add(new TextBlock { Text = text, FontSize = 25, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 16) }); }
@@ -123,8 +127,11 @@ internal sealed partial class LinuxPetWindow
             // Added only after the handlers: the open window attaches it at once, and a later handler would never run.
             var deviceStatus = Paragraph("");
             var deviceClock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            // "GPU：Apple M4（MTL0）" reads with one colon here: 推論裝置：GPU Apple M4（MTL0）.
-            void UpdateDevice() => deviceStatus.Text = "推論裝置：" + (brain.ExecutionDevice is var device && device.StartsWith("GPU：", StringComparison.Ordinal) ? "GPU " + device[4..] : device);
+            // "GPU：Apple M4（MTL0）" reads with one colon here: 推論裝置：GPU Apple M4（MTL0）; "雲端 AI 服務：Claude（Anthropic）"
+            // reads 推論裝置：Claude（Anthropic）的雲端 AI 服務.
+            const string cloudDevice = "雲端 AI 服務：";
+            void UpdateDevice() => deviceStatus.Text = "推論裝置：" + (brain.ExecutionDevice is var device && device.StartsWith("GPU：", StringComparison.Ordinal) ? "GPU " + device[4..]
+                : device.StartsWith(cloudDevice, StringComparison.Ordinal) ? device[cloudDevice.Length..] + "的雲端 AI 服務" : device);
             deviceClock.Tick += (_, _) => UpdateDevice();
             deviceStatus.AttachedToVisualTree += (_, _) => { UpdateDevice(); deviceClock.Start(); };
             deviceStatus.DetachedFromVisualTree += (_, _) => deviceClock.Stop();
@@ -133,9 +140,9 @@ internal sealed partial class LinuxPetWindow
             Toggle("連網取得天氣和科技新聞", Preferences.PublicInfo, value => Preferences.PublicInfo = value);
             Toggle(OperatingSystem.IsMacOS() ? "感知目前使用的 App" : "感知目前使用的程式", Preferences.ForegroundEnabled, value => Preferences.ForegroundEnabled = value);
 #if COMPANION_SAFE
-            body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型時，會傳送到上面填寫的伺服器。"));
+            body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型或雲端 AI 服務時，會傳送到上面填寫的伺服器或選擇的服務。"));
 #else
-            body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型時，會傳送到上面填寫的伺服器。由 Agent 編寫日常關心時，會提供前景視窗截圖給 Agent。"));
+            body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型或雲端 AI 服務時，會傳送到上面填寫的伺服器或選擇的服務。由 Agent 編寫日常關心時，會提供前景視窗截圖給 Agent。"));
 #endif
             body.Children.Add(ActionButton(BigBlueFish.Deployment.ModelStore.Resolve(Environment.CurrentDirectory) != null ? "管理本機模型" : "安裝模型", async () => await InstallModel()));
             var frequency = Select("自動說話間隔", CompanionPreferences.SpeechRanges.Select(r => $"{r.Min}–{r.Max} 分鐘").ToArray(), Preferences.SpeechRangeIndex, value => { Preferences.SpeechMinMinutes = CompanionPreferences.SpeechRanges[value].Min; nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); });
@@ -159,6 +166,7 @@ internal sealed partial class LinuxPetWindow
 #endif
         navigation.Children.Add(ActionButton("關於與更新", () => Navigate(About)));
         refreshLinuxSettings = () => { var offset = scroll.Offset; selectedPage(); scroll.Offset = offset; };
+        showModelPage = () => { Navigate(Model); scroll.Offset = default; };
         void Logs() { Title("記錄主控台"); disposeLogConsole = BuildLogConsole(body); }
         navigation.Children.Add(ActionButton("記錄主控台", () => Navigate(Logs)));
         DiagnosticLog.Write(DiagnosticEvent.SettingsOpened);

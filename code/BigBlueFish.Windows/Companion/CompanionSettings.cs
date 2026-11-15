@@ -2,11 +2,15 @@
 // Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
+using BigBlueFish.Deployment;
 
 namespace BigBlueFish.Windows;
 public partial class MainWindow
@@ -14,7 +18,19 @@ public partial class MainWindow
     private const string AgentConnectionPage = "連線 Agent", McpInterfacePage = "Agent 與 MCP", LogConsolePage = "記錄主控台";
     private Action? refreshCompanionSettings;
     private Action? disposeCompanionSettingsContent;
-    private void OpenCompanionSettings()
+    // 模型與供電, in both editions.
+    private const int ModelSettingsPage = 2;
+    // The cloud panel's typed keys and models per service, until a save of the model source; dropped with the window.
+    private readonly Dictionary<string, string> cloudKeyDrafts = new(), cloudModelDrafts = new();
+    private Window? cloudDraftWindow;
+    // The next build of the settings turns 模型來源 to the cloud AI service (after its confirmation).
+    private bool cloudSettingsRequested;
+#if COMPANION_OCR
+    private const string CloudScreenshotLabel = "傳送前景視窗截圖（取代 OCR 文字）";
+#else
+    private const string CloudScreenshotLabel = "傳送前景視窗截圖";
+#endif
+    private void OpenCompanionSettings(int page = 0)
     {
         if (exitAnimation || companionClosed || exitReady) return;
         if (companionSettings != null)
@@ -45,11 +61,14 @@ public partial class MainWindow
         { Source = new Uri("/BigBlueFish;component/Companion/CompanionSettingsStyles.xaml", UriKind.Relative) });
         companionSettings = w;
         DiagnosticLog.Write(DiagnosticEvent.SettingsOpened);
-        BuildCompanionSettingsContent(w);
+        BuildCompanionSettingsContent(w, page);
         w.Closed += (_, _) =>
         {
             disposeCompanionSettingsContent?.Invoke();
             disposeCompanionSettingsContent = refreshCompanionSettings = null;
+            cloudKeyDrafts.Clear();
+            cloudModelDrafts.Clear();
+            cloudDraftWindow = null;
             companionSettings = null;
             DiagnosticLog.Write(DiagnosticEvent.SettingsClosed);
             SaveCompanion();
@@ -339,7 +358,10 @@ public partial class MainWindow
         var source = new ComboBox { Margin = new Thickness(0, 0, 0, 8) };
         source.Items.Add("本機內建模型");
         source.Items.Add("遠端 llama.cpp 伺服器（OpenAI 相容介面）");
-        source.SelectedIndex = preferences.ModelSource == "Remote" ? 1 : 0;
+        source.Items.Add("雲端 AI 服務（Claude、ChatGPT、Gemini）");
+        // The saved source; a switch to the cloud AI service counts only after its confirmation.
+        int confirmedSource = preferences.ModelSource switch { "Remote" => 1, "Cloud" => 2, _ => 0 };
+        source.SelectedIndex = confirmedSource;
         System.Windows.Automation.AutomationProperties.SetName(source, "模型來源");
         p.Children.Add(source);
         var remotePanel = new StackPanel { Visibility = source.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed };
@@ -363,12 +385,177 @@ public partial class MainWindow
         var testRemote = new Button { Content = "儲存並測試連線", Padding = new Thickness(8), Margin = new Thickness(0, 8, 0, 4) };
         remotePanel.Children.Add(testRemote);
         p.Children.Add(remotePanel);
-        void SaveModelSource()
+
+        // 雲端 AI 服務 (CompanionCloud.cs): 服務, 取得 API Key, the API key of that service (masked, 顯示 API Key), 模型 (typed,
+        // or picked from the list a test fills), 每天最多, the window screenshot option, what is sent where, 儲存並測試, the
+        // model state and today's and this month's use. Keys and models typed here wait in cloudKeyDrafts/cloudModelDrafts
+        // (one per service, kept over a rebuild of this window) until something saves the model source.
+        if (!ReferenceEquals(cloudDraftWindow, w)) { cloudKeyDrafts.Clear(); cloudModelDrafts.Clear(); cloudDraftWindow = w; }
+        var cloudPanel = new StackPanel { Visibility = confirmedSource == 2 ? Visibility.Visible : Visibility.Collapsed };
+        string cloudProvider = CompanionCloud.Info(preferences.CloudProvider).Id;
+        TextBlock CloudLabel(string text)
         {
-            preferences.ModelSource = source.SelectedIndex == 1 ? "Remote" : "Local";
+            var t = new TextBlock { Text = text, Margin = new Thickness(0, 10, 0, 4) };
+            cloudPanel.Children.Add(t);
+            return t;
+        }
+        TextBlock CloudNote(string text = "")
+        {
+            var t = new TextBlock { Text = text, TextWrapping = TextWrapping.Wrap, Foreground = Brushes.SlateGray, Margin = new Thickness(0, 4, 0, 4) };
+            cloudPanel.Children.Add(t);
+            return t;
+        }
+        CloudLabel("服務");
+        var cloudService = new ComboBox();
+        foreach (var info in CompanionCloud.Providers) cloudService.Items.Add(info.DisplayName);
+        cloudService.SelectedIndex = Array.FindIndex(CompanionCloud.Providers, info => info.Id == cloudProvider);
+        System.Windows.Automation.AutomationProperties.SetName(cloudService, "服務");
+        cloudPanel.Children.Add(cloudService);
+        var getKey = new Button { Content = "取得 API Key", Padding = new Thickness(8), Margin = new Thickness(0, 8, 0, 4), HorizontalAlignment = HorizontalAlignment.Left };
+        cloudPanel.Children.Add(getKey);
+#if COMPANION_SAFE
+        CloudLabel("API Key（以目前 Windows 帳戶加密儲存）");
+#else
+        CloudLabel("API Key（以目前 Windows 帳戶加密儲存，不提供給 MCP 和 Agent）");
+#endif
+        var cloudKey = new PasswordBox { Padding = new Thickness(6, 4, 6, 4) };
+        var cloudKeyShown = new TextBox { Padding = new Thickness(6, 4, 6, 4), Visibility = Visibility.Collapsed };
+        System.Windows.Automation.AutomationProperties.SetName(cloudKey, "雲端 API Key");
+        System.Windows.Automation.AutomationProperties.SetName(cloudKeyShown, "雲端 API Key");
+        cloudPanel.Children.Add(cloudKey);
+        cloudPanel.Children.Add(cloudKeyShown);
+        var revealKey = new CheckBox { Content = "顯示 API Key", Margin = new Thickness(0, 4, 0, 0) };
+        cloudPanel.Children.Add(revealKey);
+        CloudNote("貼上 API Key 時，會依開頭自動選擇服務：sk-ant- 是 Claude，AIza 和 AQ. 是 Gemini，其他 sk- 是 ChatGPT。");
+        CloudLabel("模型");
+        var cloudModel = new TextBox { Padding = new Thickness(6, 4, 6, 4) };
+        System.Windows.Automation.AutomationProperties.SetName(cloudModel, "模型");
+        cloudPanel.Children.Add(cloudModel);
+        var cloudModels = new ComboBox { Margin = new Thickness(0, 6, 0, 0), Visibility = Visibility.Collapsed };
+        System.Windows.Automation.AutomationProperties.SetName(cloudModels, "從清單選擇模型");
+        cloudPanel.Children.Add(cloudModels);
+        var modelNote = CloudNote();
+        var costNote = CloudNote();
+        CloudLabel("每天最多");
+        var dailyLimit = new ComboBox();
+        foreach (var limit in CompanionPreferences.CloudDailyLimitChoices) dailyLimit.Items.Add(limit == 0 ? "不限制" : $"{limit} 次");
+        dailyLimit.SelectedIndex = Math.Max(0, Array.IndexOf(CompanionPreferences.CloudDailyLimitChoices, preferences.CloudDailyLimit));
+        System.Windows.Automation.AutomationProperties.SetName(dailyLimit, "每天最多");
+        cloudPanel.Children.Add(dailyLimit);
+        CloudNote("魚魚每請雲端服務寫一句話（包括天氣和新聞）算一次；到了上限，當天就不再送出，隔天自動恢復。");
+        var cloudImages = new CheckBox { Content = CloudScreenshotLabel, IsChecked = preferences.ScreenImages, Margin = new Thickness(0, 12, 0, 4) };
+        cloudPanel.Children.Add(cloudImages);
+        var cloudPrivacy = CloudNote();
+        var testCloud = new Button { Content = "儲存並測試", Padding = new Thickness(8), Margin = new Thickness(0, 8, 0, 4) };
+        cloudPanel.Children.Add(testCloud);
+        var cloudResult = CloudNote("填好 API Key 後按「儲存並測試」：只會讀取這把 API Key 可用的模型清單，不會用掉 token。");
+        var cloudState = CloudNote();
+        var cloudUsage = CloudNote();
+        p.Children.Add(cloudPanel);
+
+        bool loadingCloud = false;
+        int lastKeyLength = 0;
+        string CloudKeyText() => (revealKey.IsChecked == true ? cloudKeyShown.Text : cloudKey.Password).Trim();
+        string CloudModelText() => cloudModel.Text.Trim();
+        void SelectListedModel()
+        {
+            var listed = cloudModels.Items.OfType<ComboBoxItem>().FirstOrDefault(item => item.Tag as string == CloudModelText());
+            if (ReferenceEquals(cloudModels.SelectedItem, listed)) return;
+            loadingCloud = true;
+            try { cloudModels.SelectedItem = listed; }
+            finally { loadingCloud = false; }
+        }
+        // The models the last successful test listed, for the service shown.
+        void FillCloudModels()
+        {
+            IReadOnlyList<CloudModelInfo> models = brain.UseCloud && brain.CloudProvider == cloudProvider ? brain.CloudModels : Array.Empty<CloudModelInfo>();
+            loadingCloud = true;
+            try
+            {
+                cloudModels.Items.Clear();
+                foreach (var model in models)
+                    cloudModels.Items.Add(new ComboBoxItem { Content = model.DisplayName.Length == 0 || model.DisplayName == model.Id ? model.Id : $"{model.DisplayName}（{model.Id}）", Tag = model.Id });
+            }
+            finally { loadingCloud = false; }
+            cloudModels.Visibility = models.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+            SelectListedModel();
+        }
+        void UpdateCloudCost()
+        {
+            // The company bills the service: Anthropic, OpenAI, Google.
+            var name = CompanionCloud.Company(cloudProvider);
+            var model = CloudModelText().Length > 0 ? CloudModelText() : CompanionCloud.DefaultModel(cloudProvider);
+            var text = CompanionCloud.CostHint(cloudProvider, model) is { } hint
+                ? $"費用估計：{model} 每說一句{hint}（以附上前景視窗截圖估計，實際費用以 {name} 的帳單為準）。"
+                : $"{model} 沒有費用估計，價格請見 {name} 的網站。";
+            if (cloudProvider == CompanionCloud.Claude)
+                text += $"\nClaude 各模型每說一句大約：Opus 5.5 {CompanionCloud.CostHint(CompanionCloud.Claude, "claude-opus-5-5")}、Sonnet 5.5 {CompanionCloud.CostHint(CompanionCloud.Claude, "claude-sonnet-5-5")}、Haiku 5.5 {CompanionCloud.CostHint(CompanionCloud.Claude, "claude-haiku-5-5")}。";
+            costNote.Text = text;
+        }
+        // The service shown: its key and model (typed and not saved yet, or saved), its model list, notes and privacy text.
+        void ShowCloudProvider()
+        {
+            loadingCloud = true;
+            try
+            {
+                var key = cloudKeyDrafts.TryGetValue(cloudProvider, out var typedKey) ? typedKey : preferences.CloudApiKey(cloudProvider);
+                cloudKey.Password = key;
+                cloudKeyShown.Text = key;
+                lastKeyLength = key.Length;
+                cloudModel.Text = cloudModelDrafts.TryGetValue(cloudProvider, out var typedModel) ? typedModel : preferences.CloudModel(cloudProvider);
+            }
+            finally { loadingCloud = false; }
+            FillCloudModels();
+            modelNote.Text = $"按「儲存並測試」後，下面會列出這把 API Key 可用的模型；也可以直接輸入模型名稱。留空則使用建議的 {CompanionCloud.DefaultModel(cloudProvider)}。";
+            cloudPrivacy.Text = CloudPrivacyText(cloudProvider);
+            UpdateCloudCost();
+        }
+        void UpdateCloudState()
+        {
+            if (cloudPanel.Visibility != Visibility.Visible) return;
+            cloudState.Text = "模型狀態：" + (brain.UseCloud ? brain.Status : "尚未使用雲端 AI 服務");
+            var usage = "用量：" + brain.CloudUsage.Describe(preferences.CloudDailyLimit);
+            if (brain.CloudPausedUntil is { } until)
+                usage += $"\n雲端請求暫停中，{until.ToLocalTime():HH:mm} 自動恢復；換用其他服務、API Key 或模型，或按「儲存並測試」成功後也會解除。";
+            cloudUsage.Text = usage;
+        }
+        // Turns the panel to another service. Nothing is saved: 儲存並測試 (or picking a model from the tested list) does that.
+        void SelectCloudProvider(string provider)
+        {
+            int index = Array.FindIndex(CompanionCloud.Providers, info => info.Id == provider);
+            if (index < 0 || provider == cloudProvider) return;
+            cloudProvider = provider;
+            loadingCloud = true;
+            try { cloudService.SelectedIndex = index; }
+            finally { loadingCloud = false; }
+            ShowCloudProvider();
+        }
+        ShowCloudProvider();
+        UpdateCloudState();
+        timer.Tick += (_, _) => UpdateCloudState();
+
+        // cloud: the service shown on the cloud panel and its typed keys and models become the saved ones (儲存並測試, the
+        // confirmed switch to the cloud source, a model picked from the tested list). Every other save (the image option,
+        // another source, 測試遠端模型) leaves them as drafts, as the panel says.
+        void SaveModelSource(bool cloud = false)
+        {
+            preferences.ModelSource = confirmedSource switch { 1 => "Remote", 2 => "Cloud", _ => "Local" };
             preferences.RemoteUrl = remoteUrl.Text.Trim();
             preferences.RemoteModel = remoteModel.Text.Trim();
             preferences.RemoteApiKey = remoteKey.Password;
+            if (cloud)
+            {
+                preferences.CloudProvider = cloudProvider;
+                // A key typed for one service that belongs to another is not saved for it; it stays a draft.
+                foreach (var (provider, key) in cloudKeyDrafts.ToList())
+                    if (CompanionCloud.ProviderForKey(key) is not { } owner || owner == provider)
+                    {
+                        preferences.SetCloudApiKey(provider, key.Trim());
+                        cloudKeyDrafts.Remove(provider);
+                    }
+                foreach (var (provider, model) in cloudModelDrafts) preferences.SetCloudModel(provider, model);
+                cloudModelDrafts.Clear();
+            }
             preferences.ScreenImages = screenImages.IsChecked == true;
             // Drops pending speech and weather requests too, as every other switch of the model does since 1.0.5.
             InvalidateSpeechRequests();
@@ -376,13 +563,61 @@ public partial class MainWindow
             ApplyCompanionModelSource();
             SaveCompanion();
             UpdateStatus();
+            UpdateCloudState();
         }
+        void ShowSourcePanels()
+        {
+            remotePanel.Visibility = confirmedSource == 1 ? Visibility.Visible : Visibility.Collapsed;
+            cloudPanel.Visibility = confirmedSource == 2 ? Visibility.Visible : Visibility.Collapsed;
+            UpdateCloudState();
+        }
+        bool revertingSource = false;
         source.SelectionChanged += (_, _) =>
         {
-            remotePanel.Visibility = source.SelectedIndex == 1 ? Visibility.Visible : Visibility.Collapsed;
+            if (revertingSource || source.SelectedIndex < 0 || source.SelectedIndex == confirmedSource) return;
+            if (source.SelectedIndex != 2)
+            {
+                confirmedSource = source.SelectedIndex;
+                ShowSourcePanels();
+                SaveModelSource();
+                return;
+            }
+            // Once the selection has settled: the confirmation names the service and what is sent; 取消 keeps the source.
+            remotePanel.Visibility = Visibility.Collapsed;
+            w.Dispatcher.BeginInvoke(DispatcherPriority.Input, (Action)(() =>
+            {
+                if (companionSettings != w || w.Content != shell || source.SelectedIndex != 2 || confirmedSource == 2) return;
+                if (ConfirmCloudSource(w, cloudProvider))
+                {
+                    confirmedSource = 2;
+                    ShowSourcePanels();
+                    // The confirmation named the service shown: it is the one used.
+                    SaveModelSource(cloud: true);
+                    // Rebuilt while the confirmation was open (MCP update_settings): the new page shows the saved source.
+                    if (companionSettings == w && w.Content != shell) { refreshCompanionSettings?.Invoke(); return; }
+                    if (!preferences.UseCloudModel)
+                        cloudResult.Text = $"請貼上 {CompanionCloud.Info(cloudProvider).Name} 的 API Key，再按「儲存並測試」。還沒有 API Key 的話，按「取得 API Key」開啟建立 API Key 的網頁。";
+                    w.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, (Action)(() => cloudPanel.BringIntoView()));
+                }
+                else
+                {
+                    revertingSource = true;
+                    try { source.SelectedIndex = confirmedSource; }
+                    finally { revertingSource = false; }
+                    ShowSourcePanels();
+                }
+            }));
+        };
+        screenImages.Click += (_, _) =>
+        {
+            cloudImages.IsChecked = screenImages.IsChecked;
             SaveModelSource();
         };
-        screenImages.Click += (_, _) => SaveModelSource();
+        cloudImages.Click += (_, _) =>
+        {
+            screenImages.IsChecked = cloudImages.IsChecked;
+            SaveModelSource();
+        };
         testRemote.Click += async (_, _) =>
         {
             SaveModelSource();
@@ -391,6 +626,133 @@ public partial class MainWindow
             await brain.TestRemote();
             testRemote.IsEnabled = true;
             UpdateStatus();
+        };
+        cloudService.SelectionChanged += (_, _) =>
+        {
+            if (loadingCloud || cloudService.SelectedIndex < 0) return;
+            var provider = CompanionCloud.Providers[cloudService.SelectedIndex].Id;
+            if (provider == cloudProvider) return;
+            cloudProvider = provider;
+            ShowCloudProvider();
+            cloudResult.Text = provider == preferences.CloudProvider && preferences.CloudSelected ? ""
+                : $"已改選 {CompanionCloud.Info(provider).DisplayName}，按「儲存並測試」後才會改用這個服務。";
+        };
+        getKey.Click += (_, _) =>
+        {
+            var page = CompanionCloud.Info(cloudProvider).KeyPage;
+            try { Process.Start(new ProcessStartInfo(page) { UseShellExecute = true }); }
+            catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException)
+            {
+                cloudResult.Text = "無法開啟瀏覽器，請自行前往 " + page;
+            }
+        };
+        void CloudKeyChanged(string text)
+        {
+            if (loadingCloud) return;
+            loadingCloud = true;
+            try
+            {
+                if (revealKey.IsChecked == true) cloudKey.Password = text;
+                else cloudKeyShown.Text = text;
+            }
+            finally { loadingCloud = false; }
+            // A pasted key (not a keystroke) names its service: the panel turns to it, and the service shown before keeps
+            // its own key.
+            bool pasted = Math.Abs(text.Length - lastKeyLength) > 1;
+            lastKeyLength = text.Length;
+            if (pasted && CompanionCloud.ProviderForKey(text) is { } detected && detected != cloudProvider)
+            {
+                cloudKeyDrafts.Remove(cloudProvider);
+                cloudKeyDrafts[detected] = text;
+                SelectCloudProvider(detected);
+                cloudResult.Text = $"依 API Key 的開頭，已改選 {CompanionCloud.Info(detected).DisplayName}；按「儲存並測試」後才會改用。";
+                return;
+            }
+            cloudKeyDrafts[cloudProvider] = text;
+        }
+        cloudKey.PasswordChanged += (_, _) => CloudKeyChanged(cloudKey.Password);
+        cloudKeyShown.TextChanged += (_, _) => CloudKeyChanged(cloudKeyShown.Text);
+        revealKey.Click += (_, _) =>
+        {
+            bool shown = revealKey.IsChecked == true;
+            cloudKeyShown.Visibility = shown ? Visibility.Visible : Visibility.Collapsed;
+            cloudKey.Visibility = shown ? Visibility.Collapsed : Visibility.Visible;
+        };
+        cloudModel.TextChanged += (_, _) =>
+        {
+            if (loadingCloud) return;
+            cloudModelDrafts[cloudProvider] = cloudModel.Text;
+            UpdateCloudCost();
+            SelectListedModel();
+        };
+        // A model picked from the list the test filled is used at once.
+        cloudModels.SelectionChanged += (_, _) =>
+        {
+            if (loadingCloud || cloudModels.SelectedItem is not ComboBoxItem { Tag: string id }) return;
+            loadingCloud = true;
+            try { cloudModel.Text = id; }
+            finally { loadingCloud = false; }
+            cloudModelDrafts[cloudProvider] = id;
+            UpdateCloudCost();
+            SaveModelSource(cloud: true);
+        };
+        dailyLimit.SelectionChanged += (_, _) =>
+        {
+            if (dailyLimit.SelectedIndex < 0) return;
+            preferences.CloudDailyLimit = CompanionPreferences.CloudDailyLimitChoices[dailyLimit.SelectedIndex];
+            brain.CloudDailyLimit = preferences.CloudDailyLimit;
+            SaveCompanion();
+            UpdateCloudState();
+        };
+        testCloud.Click += async (_, _) =>
+        {
+            // A key of another service turns the panel to that service first.
+            if (CompanionCloud.ProviderForKey(CloudKeyText()) is { } detected && detected != cloudProvider)
+            {
+                var typed = CloudKeyText();
+                cloudKeyDrafts.Remove(cloudProvider);
+                cloudKeyDrafts[detected] = typed;
+                SelectCloudProvider(detected);
+            }
+            SaveModelSource(cloud: true);
+            var provider = cloudProvider;
+            var name = CompanionCloud.Info(provider).Name;
+            if (!preferences.UseCloudModel)
+            {
+                cloudResult.Text = $"請先貼上 {name} 的 API Key。還沒有 API Key 的話，按「取得 API Key」開啟建立 API Key 的網頁。";
+                return;
+            }
+            testCloud.IsEnabled = false;
+            cloudResult.Text = $"正在測試 {name} 的 API Key…";
+            try
+            {
+                // Saving cancelled whatever the model was doing; it lets go within moments.
+                for (int i = 0; i < 30 && brain.Busy; i++) await Task.Delay(100);
+                var reply = await brain.TestRemote();
+                if (companionSettings != w || w.Content != shell) return;
+                bool ready = reply.StartsWith(CompanionCloud.ReadyPrefix, StringComparison.Ordinal);
+                // No model chosen yet (or the recommended one is not listed for this key): the preselected one is used.
+                if (ready && brain.UseCloud && brain.CloudProvider == provider && cloudProvider == provider && brain.CloudModels.Count > 0)
+                {
+                    var current = preferences.CloudModel(provider);
+                    var pick = CompanionCloud.Preselect(provider, brain.CloudModels, current);
+                    if (pick != current)
+                    {
+                        loadingCloud = true;
+                        try { cloudModel.Text = pick; }
+                        finally { loadingCloud = false; }
+                        cloudModelDrafts[provider] = pick;
+                        SaveModelSource(cloud: true);
+                    }
+                }
+                if (cloudProvider == provider) { FillCloudModels(); UpdateCloudCost(); }
+                // A valid key whose list lacks the model typed says so itself; it is not a failed test.
+                cloudResult.Text = ready
+                    ? $"測試成功：{name} 的 API Key 有效，找到 {brain.CloudModels.Count} 個可用模型，目前使用 {brain.CloudModel}。"
+                    : reply.Contains("API Key 有效", StringComparison.Ordinal) ? reply : "測試沒有成功：" + reply;
+            }
+            finally { testCloud.IsEnabled = true; }
+            UpdateCloudState();
         };
         void Button(string text, Action action)
         {
@@ -439,6 +801,77 @@ public partial class MainWindow
             if (companionSettings != w || w.Content != shell) return;
             for (int i = 0; i < views.Length; i++) views[i].ScrollToVerticalOffset(scrollOffsets[i]);
         }));
+        if (cloudSettingsRequested)
+        {
+            cloudSettingsRequested = false;
+            w.Dispatcher.BeginInvoke(DispatcherPriority.Loaded, (Action)(() =>
+            {
+                if (companionSettings != w || w.Content != shell) return;
+                source.BringIntoView();
+                // Asks its confirmation; a source already on the cloud stays as it is.
+                if (source.SelectedIndex != 2) source.SelectedIndex = 2;
+            }));
+        }
+    }
+
+    // 改用雲端 AI 服務 from the 安裝本機模型 window: 設定 › 模型與供電 with 模型來源 turned to the cloud AI service.
+    private void OpenCloudSettings()
+    {
+        if (exitAnimation || companionClosed || exitReady) return;
+        cloudSettingsRequested = true;
+        if (companionSettings is { } open)
+        {
+            BuildCompanionSettingsContent(open, ModelSettingsPage);
+            ActivateCompanionSettings(open);
+        }
+        else OpenCompanionSettings(ModelSettingsPage);
+    }
+
+    // What the cloud panel says is sent, and to which service.
+    private static string CloudPrivacyText(string provider) => "使用雲端 AI 服務時，會傳送到 " + CompanionCloud.Info(provider).DisplayName
+        + " 的內容：魚魚的說話設定、目前時間、前景視窗的程式名稱、標題、視窗類別與介面元件名稱"
+#if COMPANION_OCR
+        + "、在這台電腦上 OCR 辨識的前景視窗文字，或在開啟「傳送前景視窗截圖」時改傳前景視窗的截圖"
+#else
+        + "，以及在開啟「傳送前景視窗截圖」時，前景視窗的截圖"
+#endif
+        + "（JPEG，長邊最多 1568 像素）；開啟天氣和新聞時，還有天氣地點與預報、新聞內容。只會讀取最前面的那個視窗，不會傳送整個螢幕或其他視窗。"
+#if COMPANION_SAFE
+        + "API Key 以目前 Windows 帳戶加密儲存在這台電腦。"
+#else
+        + "API Key 以目前 Windows 帳戶加密儲存在這台電腦，不提供給 MCP 和 Agent。"
+#endif
+        + "各服務依用量收費，建議在服務的主控台設定花費上限，並為魚魚建立一把專用的 API Key。";
+
+    // Before 模型來源 turns to the cloud AI service: which service gets what, where the key stays, and how to keep the
+    // spending in hand. 取消 (or closing the window) keeps the source as it was.
+    private bool ConfirmCloudSource(Window owner, string provider)
+    {
+        var info = CompanionCloud.Info(provider);
+        var dialog = new ModernWindow("改用雲端 AI 服務", "改用雲端 AI 服務？",
+            $"之後魚魚說話時，會把下列內容傳送到 {info.DisplayName}，由它寫出魚魚要說的話：", 620, 600) { ShowInTaskbar = false };
+        if (owner.IsVisible) { dialog.Owner = owner; dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner; }
+        string screenshot = preferences.ScreenImages ? "目前已開啟" : "目前關閉";
+        dialog.Body.Children.Add(ModernUI.Text(string.Join("\n",
+            "• 魚魚的說話設定和目前時間",
+            "• 前景視窗的程式名稱、標題、視窗類別與介面元件名稱",
+#if COMPANION_OCR
+            $"• 在這台電腦上 OCR 辨識的前景視窗文字；開啟「傳送前景視窗截圖」時改傳截圖（{screenshot}）",
+#else
+            $"• 開啟「傳送前景視窗截圖」時，前景視窗的截圖（{screenshot}）",
+#endif
+            "• 開啟天氣和新聞時，天氣地點與預報、新聞內容")));
+#if COMPANION_SAFE
+        dialog.Body.Children.Add(ModernUI.Text("之後在「服務」換成其他服務時，就改傳到那個服務。API Key 以目前 Windows 帳戶加密儲存在這台電腦。"));
+#else
+        dialog.Body.Children.Add(ModernUI.Text("之後在「服務」換成其他服務時，就改傳到那個服務。API Key 以目前 Windows 帳戶加密儲存在這台電腦，不提供給 MCP 和 Agent。"));
+#endif
+        dialog.Body.Children.Add(ModernUI.Text("各服務依用量收費。建議先在服務的主控台設定花費上限，並為魚魚建立一把專用的 API Key；設定裡的「每天最多」也能限制每天的請求次數。"));
+        bool accepted = false;
+        dialog.Actions.Children.Add(ModernUI.Button("改用雲端 AI 服務", () => { accepted = true; dialog.Close(); }, true));
+        dialog.Actions.Children.Add(ModernUI.Button("取消", dialog.Close));
+        dialog.ShowDialog();
+        return accepted;
     }
 
     private void ActivateCompanionSettings(Window window)

@@ -321,86 +321,15 @@ internal static class CompanionScreenSearch
                 yield return new() { X = (int)x, Y = (int)y };
     }
 
-    internal static bool Matches(IReadOnlyList<string> terms, params string?[] texts) =>
-        terms.Any(term => texts.Any(text => text != null && Contains(text, term)));
-
-    // Ignoring case. A term's letters start and end on a word's edge, so tar is not found in Star nor doc in Docker
-    // (a camelCase hump counts: Report in MyReportFinal), and its digits start on a number's edge (2026 finds
-    // 20260911, 005 does not find PC2005). Chinese has no word edges and matches anywhere.
-    internal static bool Contains(string text, string term)
-    {
-        for (int at = text.IndexOf(term, StringComparison.OrdinalIgnoreCase); at >= 0; at = text.IndexOf(term, at + 1, StringComparison.OrdinalIgnoreCase))
-            if (Edge(text, at, term[0], true) && Edge(text, at + term.Length, term[^1], false)) return true;
-        return false;
-    }
-
-    private static bool Edge(string text, int at, char side, bool start)
-    {
-        if (at == 0 || at == text.Length || !char.IsAsciiLetterOrDigit(side)) return true;
-        char before = text[at - 1], after = text[at];
-        if (char.IsAsciiDigit(side)) return !start || !char.IsAsciiDigit(before);
-        return !char.IsAsciiLetter(before) || !char.IsAsciiLetter(after) || char.IsAsciiLetterLower(before) && char.IsAsciiLetterUpper(after);
-    }
-
-    // Nested matches name one thing once: an Explorer item and its label, a window and its title bar or page.
-    internal static List<Match> Distinct(IEnumerable<Match> matches)
-    {
-        // Only within one window: an item in a window in front is not the title of a larger one behind it.
-        var kept = new List<Match>();
-        foreach (var match in matches.OrderByDescending(m => m.Bounds.Width * m.Bounds.Height))
-            if (!kept.Any(k => k.Source == match.Source && Rect.Inflate(k.Bounds, 2, 2).Contains(match.Bounds) && k.Name.Contains(match.Name, StringComparison.OrdinalIgnoreCase)))
-                kept.Add(match);
-        return kept;
-    }
-
-    // Top to bottom in rows, left to right within a row: the order the fish visits them and the answer lists them.
-    internal static List<Match> ReadingOrder(IEnumerable<Match> matches)
-    {
-        var rows = new List<List<Match>>();
-        foreach (var match in matches.OrderBy(m => Middle(m.Bounds).Y))
-        {
-            var first = rows.LastOrDefault()?[0];
-            if (first != null && Middle(match.Bounds).Y - Middle(first.Bounds).Y <= Math.Max(4, Math.Min(first.Bounds.Height, match.Bounds.Height) / 2)) rows[^1].Add(match);
-            else rows.Add([match]);
-        }
-        return rows.SelectMany(row => row.OrderBy(m => Middle(m.Bounds).X)).ToList();
-    }
-
-    // Names a slip or two away from a term, for an answer that found nothing (資源回收桶 for 資源回收筒).
-    internal static List<string> Similar(IEnumerable<string> names, IReadOnlyList<string> terms)
-    {
-        static int Reach(string term) => Math.Max(1, term.Length / 3);
-        return names.Distinct(StringComparer.OrdinalIgnoreCase)
-            .Select(n => (Name: n, Over: terms.Where(t => Math.Abs(n.Length - t.Length) <= Reach(t)).Select(t => EditDistance(n, t) - Reach(t)).DefaultIfEmpty(1).Min()))
-            .Where(n => n.Over <= 0).OrderBy(n => n.Over).Take(8).Select(n => n.Name).ToList();
-    }
-
-    // Without the extension Explorer hides: a short tail of letters and digits after the last dot, with a letter in
-    // it (docx, mp4, 7z). "Python 3.12" keeps its version number.
-    internal static string Stem(string name)
-    {
-        int dot = name.LastIndexOf('.');
-        if (dot <= 0 || name.Length - dot - 1 is < 1 or > 5) return name;
-        var tail = name[(dot + 1)..];
-        return tail.All(char.IsAsciiLetterOrDigit) && tail.Any(char.IsAsciiLetter) ? name[..dot] : name;
-    }
-
-    internal static int EditDistance(string a, string b)
-    {
-        a = a.ToLowerInvariant(); b = b.ToLowerInvariant();
-        var row = Enumerable.Range(0, b.Length + 1).ToArray();
-        for (int i = 1; i <= a.Length; i++)
-        {
-            int diagonal = row[0]; row[0] = i;
-            for (int j = 1; j <= b.Length; j++)
-            {
-                int above = row[j];
-                row[j] = Math.Min(Math.Min(above + 1, row[j - 1] + 1), diagonal + (a[i - 1] == b[j - 1] ? 0 : 1));
-                diagonal = above;
-            }
-        }
-        return row[b.Length];
-    }
+    // The text and layout rules are shared with the macOS app (CompanionScreenMatching); these keep their Windows types.
+    internal static bool Matches(IReadOnlyList<string> terms, params string?[] texts) => CompanionScreenMatching.Matches(terms, texts);
+    internal static bool Contains(string text, string term) => CompanionScreenMatching.Contains(text, term);
+    internal static List<Match> Distinct(IEnumerable<Match> matches) => CompanionScreenMatching.Distinct(matches, m => Box(m.Bounds), m => m.Source.ToInt64(), m => m.Name);
+    internal static List<Match> ReadingOrder(IEnumerable<Match> matches) => CompanionScreenMatching.ReadingOrder(matches, m => Box(m.Bounds));
+    internal static List<string> Similar(IEnumerable<string> names, IReadOnlyList<string> terms) => CompanionScreenMatching.Similar(names, terms);
+    internal static string Stem(string name) => CompanionScreenMatching.Stem(name);
+    internal static int EditDistance(string a, string b) => CompanionScreenMatching.EditDistance(a, b);
+    internal static ScreenBox Box(Rect r) => new(r.X, r.Y, r.Width, r.Height);
 
     private static string ProcessName(uint id, Dictionary<uint, string> known)
     {
@@ -411,7 +340,6 @@ internal static class CompanionScreenSearch
     }
 
     private static bool Same(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
-    private static Point Middle(Rect r) => new(r.X + r.Width / 2, r.Y + r.Height / 2);
     private static CompanionNative.Point Pixel(Rect r) => new() { X = (int)Math.Round(r.X + r.Width / 2), Y = (int)Math.Round(r.Y + r.Height / 2) };
     private static string Normalize(string? text) => string.Join(" ", (text ?? "").Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
     private static string Short(string text, int limit) => text.Length <= limit ? text : text[..limit] + "…";

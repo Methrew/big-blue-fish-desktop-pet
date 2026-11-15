@@ -33,14 +33,14 @@ internal sealed partial class HermesChat : IDisposable
         + "絕對不要呼叫 big-blue-fish 的 say 或 say_next 工具，想說的話直接寫在回答裡。"
         + "只能用台灣繁體中文和台灣用語回答；使用者用英文問時可以用英文回答。絕對不要出現簡體字，引用簡體資料或提到動作名稱時也要寫成繁體。"
         + "不要使用 Markdown 標記、程式碼區塊或表格；盡量簡短（約 150 字內），內容很長時先講重點。"
-        + "可以用 play_action 讓魚魚做動作；呼叫時動作名稱必須和 list_actions 回傳的名稱（簡體字）一字不差，"
+        + "可以用 play_action 讓魚魚做動作；呼叫時動作名稱必須和 list_actions 回傳的名稱一字不差（原文是簡體字，寫成繁體也認得），"
         + "播放失敗就放棄，不要一直重試。"
         + "只有在使用者這則訊息要求你看螢幕、在畫面上找東西或操作電腦時才可以截圖（包括 computer_use 的截圖）；只是看目前的視窗時優先使用 capture_foreground，一般聊天不要截圖。"
-        + "需要操作視窗或應用程式（點擊、輸入、切換或開關視窗）時，優先用 computer_use 直接操作滑鼠鍵盤，不要寫終端機腳本模擬操作。";
+        + "需要操作視窗或應用程式（點選、輸入、切換或開關視窗）時，優先用 computer_use 直接操作滑鼠鍵盤，不要寫終端機腳本模擬操作。";
     // Windows PowerShell 5.1 reads a UTF-8 script as Big5 here; a model working round it wrote Chinese as
     // code points from memory, got 畜 wrong and renamed 15 files three times over.
     private const string WindowsShell = "這台電腦是繁體中文版 Windows：要跑 PowerShell 時用 pwsh（PowerShell 7），不要用 powershell（Windows PowerShell 5.1 會把腳本裡的中文讀成亂碼）；"
-        + "指令和腳本裡的中文照原樣寫，絕對不要自己換算成 Unicode 編碼或 [char] 代碼（很容易記錯字）；只是改名、搬移、複製檔案時，直接用 bash 的 mv、cp。"
+        + "指令和腳本裡的中文照原樣寫，絕對不要自己換算成 Unicode 編碼或 [char] 字碼（很容易記錯字）；只是改名、搬移、複製檔案時，直接用 bash 的 mv、cp。"
         // A scenario test (2026-10-28): bash expanded $_ inside a double-quoted pwsh -Command and the Chinese output came back garbled.
         + "在終端機（bash）裡呼叫 pwsh 時，-Command 的內容一律用單引號包起來（雙引號會讓 bash 先把 $_、$env 這些變數展開掉），並在最前面加上 [Console]::OutputEncoding=[Text.Encoding]::UTF8; 否則輸出的中文會變成亂碼；";
     // macOS: no PowerShell, Finder instead of File Explorer, the Trash; the privacy settings (TCC) stop a process that may
@@ -96,7 +96,7 @@ internal sealed partial class HermesChat : IDisposable
     private const string Plugins = "需要工具時，先用 tool_search 查找可用的工具（包括使用者自己安裝的 MCP 外掛工具），不要沒查就說沒有、沒有連線或做不到。"
         + "找到符合需求的外掛工具時優先使用它，不要改用終端機指令或自行安裝其他程式繞過；外掛工具失敗時，才改用其他方法並說明原因。"
         + "下載檔案、影片或串流時，優先使用 Divebird 下載管理員的工具；它回報需要確認時，請使用者到 Divebird 視窗確認。"
-        + "下載前先確認對象（影片標題或網址）就是使用者要的那一個：從瀏覽器偵測到的影音可能是預覽、廣告或其他分頁的內容，對不上就不要下載；下載完成後回報標題、檔名與存放位置。";
+        + "下載前先確認要下載的目標（影片標題或網址）就是使用者要的那一個：從瀏覽器偵測到的影音可能是預覽、廣告或其他分頁的內容，對不上就不要下載；下載完成後回報標題、檔名與存放位置。";
     // get_context answers "what time is it, am I on battery, is it going to rain" without a screenshot or a web search.
     private const string Context = "要知道現在幾點、使用者用電腦多久沒休息、在不在電腦前、有沒有插電或電量、魚魚快取的天氣預報時，先用 mcp__big_blue_fish__get_context，不要為這些截圖或上網查。";
     private const string NoContext = "要知道現在幾點幾分時用終端機的 date；使用者多久沒碰鍵盤滑鼠，看 mcp__big_blue_fish__get_settings 的 state.idleSeconds；不要為這些截圖或上網查。";

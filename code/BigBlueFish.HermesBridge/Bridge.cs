@@ -118,7 +118,7 @@ internal sealed class Bridge(BridgeOptions options)
         // Only the running Hermes gateway fires cron jobs; the bridge just tells what they leave behind.
         int active = CronReports.ActiveJobs(options.HermesHome);
         if (active > 0)
-            Log.Write(up ? $"Hermes 有 {active} 個啟用中的排程，執行結果出來時魚魚會說出來（輸入 /jobs 查看）。"
+            Log.Write(up ? $"Hermes 有 {active} 個啟用中的排程，執行結果出來時魚魚會說出來（輸入 /jobs 檢視）。"
                 : $"注意：Hermes 有 {active} 個啟用中的排程，但 Hermes 現在連不上，排程到時間也不會執行；請先啟動 Hermes gateway。");
         var worker = Task.Run(() => AnswerAsync(hermes, token), CancellationToken.None);
         var dispatcher = Task.Run(() => DispatchAsync(hermes, token), CancellationToken.None);
@@ -137,7 +137,7 @@ internal sealed class Bridge(BridgeOptions options)
                 pet = link;
                 // The user may already be sitting there (the fish or the bridge just started): see whether a briefing is due.
                 events.Writer.TryWrite(new PetEvent("linked", default));
-                Log.Write("已連上魚魚。雙擊魚魚輸入訊息就會交給 Hermes；輸入 /new 開始新的對話，/stop 停止目前的工作，/jobs 查看排程。");
+                Log.Write("已連上魚魚。雙擊魚魚輸入訊息就會交給 Hermes；輸入 /new 開始新的對話，/stop 停止目前的工作，/jobs 檢視排程。");
                 await link.Closed.WaitAsync(token);
                 Log.Write("和魚魚的連線中斷了（桌寵關閉，或 MCP 介面被關掉）。");
             }

@@ -41,7 +41,7 @@ internal static partial class ToolStatus
         return tool switch
         {
             "tool_search" => "正在查找可用的工具",
-            "tool_describe" => "正在查看工具的用法",
+            "tool_describe" => "正在看工具的用法",
             "tool_call" => "正在使用外掛工具",
             "web_search" => With("正在上網搜尋", detail),
             "web_extract" => "正在閱讀網頁",
@@ -61,7 +61,7 @@ internal static partial class ToolStatus
             "send_message" => "正在傳送訊息",
             _ when tool.StartsWith("cronjob", StringComparison.Ordinal) => "正在設定排程",
             _ when tool.StartsWith("todo", StringComparison.Ordinal) => "正在規劃步驟",
-            _ when tool.StartsWith("skill", StringComparison.Ordinal) => "正在查看技能",
+            _ when tool.StartsWith("skill", StringComparison.Ordinal) => "正在看技能說明",
             _ => Action(Words(tool)) is { } action ? "正在" + action : "正在處理中"
         };
     }

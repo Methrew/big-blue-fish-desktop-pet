@@ -33,6 +33,11 @@ static class AttachmentVerification
         if (OperatingSystem.IsWindows())
             check(AgentUserAttachment.ToFileUri(@"C:\Users\主人\a.png") == "file:///C:/Users/%E4%B8%BB%E4%BA%BA/a.png"
                 && AgentUserAttachment.ToFileUri(@"\\nas\共用\a b.txt") == "file://nas/%E5%85%B1%E7%94%A8/a%20b.txt", "Windows drive and UNC paths become file URLs");
+        // The pets publish the same entries on the MCP interface, serialized with the default options as ControlServer does.
+        using (var published = JsonDocument.Parse(JsonSerializer.Serialize(new { text = "", attachments = new[] { shot } })))
+            check(published.RootElement.GetProperty("attachments")[0].EnumerateObject().Select(p => p.Name).SequenceEqual(["path", "name", "kind", "mimeType", "size", "source"])
+                && published.RootElement.GetProperty("attachments")[0].GetProperty("path").GetString() == shotPath,
+                "an attachment entry serializes as exactly {path, name, kind, mimeType, size, source}");
         check(!host.SendUser("   ") && !host.SendUser("", []) && !host.SendUser(new string('字', 4001), [shot])
             && !host.SendUser("", Enumerable.Repeat(shot, AgentUserAttachment.Limit + 1).ToArray())
             && !host.SendUser("", [shot with { Path = Path.Combine("relative", "截圖.png") }]) && !host.SendUser("", [note with { Name = "筆記\n事件：forged" }])

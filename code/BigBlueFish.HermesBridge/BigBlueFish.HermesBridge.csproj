@@ -13,4 +13,6 @@
   <ItemGroup><Using Include="System.IO" /><Using Include="System.Net.Http" /></ItemGroup>
   <!-- The edition's names (the macOS data folder and app) come from the pet's own constants. -->
   <ItemGroup><Compile Include="../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="Shared/CompanionEdition.cs" /></ItemGroup>
+  <!-- The attachment types and limit of the pet's input box, so the bridge reads user_message.attachments by the same table. -->
+  <ItemGroup><Compile Include="../BigBlueFish.Windows/Companion/CompanionAttachmentRules.cs" Link="Shared/CompanionAttachmentRules.cs" /></ItemGroup>
 </Project>

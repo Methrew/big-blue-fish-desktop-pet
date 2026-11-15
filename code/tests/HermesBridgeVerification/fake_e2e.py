@@ -3,10 +3,11 @@
 # The Hermes bridge end to end on macOS or Linux without the real pet or Hermes: a fake pet (an MCP server on a Unix
 # socket, reached through the real BigBlueFish.Mcp --pipe, listing only the tools a macOS pet has) and a fake Hermes API
 # server that streams one tool progress event and an answer. Checks that the answer reaches say once, that progress lines
-# go with transient=true, that the prompt is the macOS/Linux one naming only listed tools, and that SIGTERM ends the bridge.
+# go with transient=true, that the prompt is the macOS/Linux one naming only listed tools, that the attachments of the
+# macOS and Linux input box (user_message.attachments, by local path) reach Hermes, and that SIGTERM ends the bridge.
 # Python 3.9+. Build both first (run-hermes-bridge.sh --build, and dotnet publish BigBlueFish.Mcp -r osx-arm64), then:
 #   python3 tests/HermesBridgeVerification/fake_e2e.py [BigBlueFish.HermesBridge.dll] <BigBlueFish.Mcp>
-import http.server, json, os, shutil, signal, socket, socketserver, subprocess, sys, tempfile, threading, time, uuid
+import base64, http.server, json, os, shutil, signal, socket, socketserver, subprocess, sys, tempfile, threading, time, uuid
 from pathlib import Path
 
 if len(sys.argv) not in (2, 3):
@@ -16,7 +17,14 @@ mcp = sys.argv[-1]
 dotnet = os.environ.get("DOTNET") or (os.path.expanduser("~/.dotnet/dotnet") if os.path.exists(os.path.expanduser("~/.dotnet/dotnet")) else shutil.which("dotnet") or "dotnet")
 work = tempfile.mkdtemp(prefix="bbf-e2e-")
 sock_path = "/tmp/bbf-e2e-" + uuid.uuid4().hex[:10]
-says, prompts, failures = [], [], []
+says, prompts, users, failures = [], [], [], []
+# What the macOS input box sends with a pasted picture and a dropped note: {path, name, kind, mimeType, size, source}.
+PNG = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB9sAAAAASUVORK5CYII=")
+shot, note = os.path.join(work, "截圖 1.png"), os.path.join(work, "筆記.txt")
+with open(shot, "wb") as f: f.write(PNG)
+with open(note, "w", encoding="utf-8") as f: f.write("附件內容")
+ATTACHMENTS = [{"path": shot, "name": "截圖 1.png", "kind": "image", "mimeType": "image/png", "size": len(PNG), "source": "clipboard"},
+               {"path": note, "name": "筆記.txt", "kind": "file", "mimeType": "text/plain", "size": os.path.getsize(note), "source": "drop"}]
 done = threading.Event()
 
 class Hermes(http.server.BaseHTTPRequestHandler):
@@ -32,7 +40,7 @@ class Hermes(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         if not self.path.endswith("/v1/chat/completions"): return self._json(404, {})
-        prompts.append(body["messages"][0]["content"])
+        prompts.append(body["messages"][0]["content"]); users.append(body["messages"][1]["content"])
         self.send_response(200); self.send_header("Content-Type", "text/event-stream"); self.send_header("Connection", "close"); self.end_headers()
         def send(text): self.wfile.write(text.encode()); self.wfile.flush()
         send("event: hermes.tool.progress\ndata: " + json.dumps({"tool": "web_search", "status": "running", "label": "台北天氣"}) + "\n\n")
@@ -64,7 +72,7 @@ def pet():
             if not sent_message:
                 sent_message = True
                 send({"jsonrpc": "2.0", "method": "notifications/message", "params": {"level": "info", "logger": "bigbluefish.interaction",
-                      "data": {"sequence": 1, "kind": "user_message", "detail": {"text": "今天天氣如何？"}}}})
+                      "data": {"sequence": 1, "kind": "user_message", "detail": {"text": "今天天氣如何？", "attachments": ATTACHMENTS}}}})
         elif method == "tools/call":
             name, args = request["params"]["name"], request["params"].get("arguments", {})
             if name == "say":
@@ -99,6 +107,13 @@ final = [s for s in says if "晴天" in s.get("text", "")]
 check(len(final) == 1 and "transient" not in final[0], "the answer is sent once, without transient")
 check(len(prompts) == 1 and "macOS" in prompts[0] and "Finder" in prompts[0] and "pwsh（PowerShell 7）" not in prompts[0], "the prompt describes macOS, not Windows")
 check(len(prompts) == 1 and "mcp__big_blue_fish__walk_to" not in prompts[0] and "find_on_screen" not in prompts[0] and "get_context" not in prompts[0], "the prompt names no tool the pet did not list")
+content = users[0] if users else None
+parts = content if isinstance(content, list) else []
+text_parts = [p.get("text", "") for p in parts if p.get("type") == "text"]
+images = [p for p in parts if p.get("type") == "image_url"]
+check(len(text_parts) == 1 and "今天天氣如何？" in text_parts[0] and shot in text_parts[0] and note in text_parts[0],
+      "the typed text and every attachment's local path reach Hermes")
+check(len(images) == 1 and images[0]["image_url"]["url"].startswith("data:image/png;base64,"), "the attached picture goes inline as an image")
 check(bridge.returncode == 0 and "橋接程式結束" in out, "SIGTERM ends the bridge cleanly (exit %s)" % bridge.returncode)
 hermes.shutdown()
 try: os.unlink(sock_path)

@@ -18,7 +18,7 @@ internal sealed record PetEvent(string Kind, JsonElement Detail);
 // image, video or file.
 internal sealed record Attachment(string Path, string Name, string Kind, string MimeType, long Size, string Source)
 {
-    internal const int Limit = 10; // the pet's input box takes no more
+    internal const int Limit = BigBlueFish.Windows.CompanionAttachmentRules.Limit; // the pet's input box takes no more
 
     internal static Attachment FromFile(string path, string source)
     {
@@ -27,19 +27,11 @@ internal sealed record Attachment(string Path, string Name, string Kind, string 
         return new(info.FullName, info.Name, KindOf(mime), mime, info.Exists ? info.Length : -1, source);
     }
 
-    // The same table as the pet's, for the few places that only know a path.
-    internal static string MimeOf(string extension) => extension.ToLowerInvariant() switch
-    {
-        ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".gif" => "image/gif", ".webp" => "image/webp", ".bmp" => "image/bmp",
-        // iPhone photos and macOS screenshots saved as TIFF: sent as a JPEG made from them (ImageShrink).
-        ".heic" or ".heif" => "image/heic", ".tif" or ".tiff" => "image/tiff",
-        ".mp4" => "video/mp4", ".mov" => "video/quicktime", ".mkv" => "video/x-matroska", ".webm" => "video/webm",
-        ".avi" => "video/x-msvideo", ".m4v" => "video/x-m4v",
-        _ => "application/octet-stream"
-    };
+    // The pet's own table (CompanionAttachmentRules.cs, linked in), for the few places that only know a path. iPhone
+    // photos (HEIC) and TIFF screenshots are sent as a JPEG made from them (ImageShrink).
+    internal static string MimeOf(string extension) => BigBlueFish.Windows.CompanionAttachmentRules.Type("file" + extension).Mime;
 
-    internal static string KindOf(string mime) =>
-        mime.StartsWith("image/", StringComparison.Ordinal) ? "image" : mime.StartsWith("video/", StringComparison.Ordinal) ? "video" : "file";
+    internal static string KindOf(string mime) => BigBlueFish.Windows.CompanionAttachmentRules.KindOf(mime);
 }
 
 // One MCP session with the pet through BigBlueFish.Mcp (.exe on Windows): newline-delimited JSON-RPC 2.0 on stdio.

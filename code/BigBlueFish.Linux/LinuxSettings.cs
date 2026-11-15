@@ -90,7 +90,7 @@ internal sealed partial class LinuxPetWindow
         Action selectedPage = General;
         void Navigate(Action page) { selectedPage = page; page(); }
         void Title(string text) { disposeLogConsole?.Invoke(); disposeLogConsole = null; body.Children.Clear(); body.Children.Add(new TextBlock { Text = text, FontSize = 25, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 16) }); }
-        void Toggle(string text, bool value, Action<bool> set) { var box = new CheckBox { Content = text, IsChecked = value, Margin = new Thickness(0, 4) }; box.IsCheckedChanged += (_, _) => { set(box.IsChecked == true); Save(); }; body.Children.Add(box); }
+        CheckBox Toggle(string text, bool value, Action<bool> set) { var box = new CheckBox { Content = text, IsChecked = value, Margin = new Thickness(0, 4) }; box.IsCheckedChanged += (_, _) => { set(box.IsChecked == true); Save(); }; body.Children.Add(box); return box; }
         void Slider(string text, double value, double low, double high, Action<double> set, double tick = 1) {
             var label = new TextBlock { Text = text + "：" + value.ToString("0.##"), Margin = new Thickness(0, 12, 0, 0) };
             var slider = new Avalonia.Controls.Slider { Minimum = low, Maximum = high, Value = value, TickFrequency = tick, IsSnapToTickEnabled = true };
@@ -108,47 +108,26 @@ internal sealed partial class LinuxPetWindow
             AddPlatformGeneralOptions(body);
         }
         void Model() {
-            Title("模型与信息"); Toggle("启用本地大模型", Preferences.ModelEnabled, value => { Preferences.ModelEnabled = value; ApplySettings(); });
-            Toggle("使用 GPU 加速", Preferences.GpuEnabled, value => { Preferences.GpuEnabled = value; ApplySettings(); });
+            Title("模型與資訊"); Toggle("啟用模型說話", Preferences.ModelEnabled, value => { Preferences.ModelEnabled = value; ApplySettings(); });
+            BuildModelSourceSettings(body);
+            LocalModelOnly(Toggle("使用 GPU 加速（只對本機模型有效）", Preferences.GpuEnabled, value => { Preferences.GpuEnabled = value; ApplySettings(); }));
             var deviceStatus = Paragraph(""); body.Children.Add(deviceStatus);
             var deviceClock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            void UpdateDevice() => deviceStatus.Text = "推理设备：" + brain.ExecutionDevice;
+            void UpdateDevice() => deviceStatus.Text = "推理裝置：" + brain.ExecutionDevice;
             deviceClock.Tick += (_, _) => UpdateDevice();
             deviceStatus.AttachedToVisualTree += (_, _) => { UpdateDevice(); deviceClock.Start(); };
             deviceStatus.DetachedFromVisualTree += (_, _) => deviceClock.Stop();
-            Toggle("笔记本离电时暂停模型", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); });
+            LocalModelOnly(Toggle("筆電使用電池時暫停模型（只對本機模型有效）", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); }));
             Toggle("联网获取天气和科技新闻", Preferences.PublicInfo, value => Preferences.PublicInfo = value);
             Toggle("感知当前前台应用", Preferences.ForegroundEnabled, value => Preferences.ForegroundEnabled = value);
 #if !COMPANION_SAFE
-            body.Children.Add(Paragraph("本地吐字在本机读取屏幕；由 Agent 编写日常关心时，会向它提供前台截图。"));
+            body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型時，會傳送到上面填寫的伺服器。由 Agent 編寫日常關心時，會提供前景視窗截圖給 Agent。"));
 #endif
             body.Children.Add(ActionButton(brain.ModelAvailable ? "管理本地模型" : "安装模型", async () => await InstallModel()));
             var frequency = Select("自动说话间隔", CompanionPreferences.SpeechRanges.Select(r => $"{r.Min}–{r.Max} 分钟").ToArray(), Preferences.SpeechRangeIndex, value => { Preferences.SpeechMinMinutes = CompanionPreferences.SpeechRanges[value].Min; nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); });
             frequency.IsEnabled = !Puppet;
-            body.Children.Add(Paragraph(Puppet ? "日常关心的触发时机已交给 Agent，此时说话间隔不可调节。关闭接管触发后恢复使用此设置。" : AgentDailyActive ? "鱼鱼按此间隔触发日常关心，由 Agent 编写吐字。" : "鱼鱼按此间隔触发日常关心，由本地模型编写吐字。"));
-            body.Children.Add(new TextBlock { Text = "天气地区", Margin = new Thickness(0,12,0,4) });
-            var regions = new StackPanel { Spacing = 8 }; body.Children.Add(regions);
-            var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = CompanionRegions.Countries.Select(c => c.Name).ToArray() };
-            regions.Children.Add(country);
-            var levels = Enumerable.Range(0, 3).Select(_ => new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch }).ToArray();
-            foreach (var level in levels) regions.Children.Add(level);
-            var options = new CompanionRegion[levels.Length][];
-            // Countries start with 臺灣 (縣市 → 鄉鎮市區); Linux collects no CWA authorization code, so Taiwan always gets the Open-Meteo estimate.
-            var selected = CompanionRegions.District(Preferences.WeatherRegionCode); var current = CompanionRegions.Country(selected); bool changing = true;
-            void Fill(int from, string parentCode, CompanionRegion[] keep) {
-                for (int i = from; i < levels.Length; i++) {
-                    levels[i].IsVisible = i <= current.LeafLevel;
-                    options[i] = i <= current.LeafLevel ? CompanionRegions.Children(parentCode) : [];
-                    levels[i].ItemsSource = options[i].Select(r => r.Name).ToArray();
-                    levels[i].SelectedIndex = options[i].Length == 0 ? -1 : Math.Max(0, Array.FindIndex(options[i], r => i < keep.Length && r.Code == keep[i].Code));
-                    if (levels[i].SelectedIndex >= 0) parentCode = options[i][levels[i].SelectedIndex].Code;
-                }
-            }
-            country.SelectedIndex = Array.IndexOf(CompanionRegions.Countries, current); Fill(0, current.Root, CompanionRegions.Chain(selected)); changing = false;
-            void RegionChanged() { var leaf = levels[current.LeafLevel]; if (leaf.SelectedIndex >= 0 && leaf.SelectedIndex < options[current.LeafLevel].Length) { Preferences.WeatherRegionCode = options[current.LeafLevel][leaf.SelectedIndex].Code; ApplySettings(); } }
-            country.SelectionChanged += (_,_) => { if (changing || country.SelectedIndex < 0 || CompanionRegions.Countries[country.SelectedIndex] == current) return; changing = true; current = CompanionRegions.Countries[country.SelectedIndex]; Fill(0, current.Root, CompanionRegions.DefaultChain(current)); changing = false; RegionChanged(); };
-            for (int level = 0; level < levels.Length; level++) { var at = level; levels[at].SelectionChanged += (_,_) => { if (changing || levels[at].SelectedIndex < 0) return; changing = true; if (at < current.LeafLevel) Fill(at + 1, options[at][levels[at].SelectedIndex].Code, []); changing = false; RegionChanged(); }; }
-            body.Children.Add(Paragraph("天氣來自 Open-Meteo（Weather data by Open-Meteo.com），依所選地點中心附近估算；臺灣地點以鄉鎮市區中心估算（Linux 版沒有中央氣象署授權碼欄位），美國地點使用華氏度和英里/小時。海外城市資料來自 GeoNames（CC BY 4.0）。臺灣鄉鎮市區中心座標由內政部國土測繪中心「鄉(鎮、市、區)界線(TWD97經緯度)」計算；此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license"));
+            body.Children.Add(Paragraph(Puppet ? "日常关心的触发时机已交给 Agent，此时说话间隔不可调节。关闭接管触发后恢复使用此设置。" : AgentDailyActive ? "鱼鱼按此间隔触发日常关心，由 Agent 编写吐字。" : "魚魚依這個間隔觸發日常關心，由模型編寫要說的話。"));
+            BuildWeatherSettings(body);
         }
         void Animation() {
             Title("动作与作息"); Slider("动作触发间隔（秒）", Preferences.AnimationIntervalSeconds, 30, 300, value => { Preferences.AnimationIntervalSeconds = (int)value; nextEvent = DateTime.UtcNow.AddSeconds(value); });

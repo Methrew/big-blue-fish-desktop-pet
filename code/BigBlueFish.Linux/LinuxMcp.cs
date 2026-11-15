@@ -116,7 +116,7 @@ internal sealed partial class LinuxPetWindow
     {
         token.ThrowIfCancellationRequested();
         if (!Preferences.AgentEnabled || AgentDailyActive) throw new InvalidOperationException("本地吐字需要连接 Agent 并关闭 AgentDailySpeech。");
-        if (!Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower) throw new InvalidOperationException("本地模型未启用、尚未安装或已按供电设置暂停。");
+        if (!Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower) throw new InvalidOperationException("「啟用模型說話」未開啟、尚未安裝本機模型，或已依供電設定暫停。");
         if (generating || closed || phase == "Exit" || modelInstalling || hidden || fullscreenHidden) throw new InvalidOperationException("鱼鱼当前忙碌或隐藏，请稍后再触发本地吐字。");
         using var registration = token.Register(() => Dispatcher.UIThread.Post(() => { speechVersion++; brain.CancelGeneration(); }));
         await Speak(false, true); token.ThrowIfCancellationRequested();
@@ -171,7 +171,8 @@ internal sealed partial class LinuxPetWindow
         var values = new Dictionary<string, object?>();
         foreach (var property in patch.EnumerateObject())
         {
-            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(property.Name == "McpEnabled" ? "MCP 接口只能由用户在设置中开启或关闭。" : "未知设置：" + property.Name);
+            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(property.Name == "McpEnabled" ? "MCP 接口只能由用户在设置中开启或关闭。"
+                : CompanionPreferences.PrivateSettings.Contains(property.Name) ? "API Key 與授權碼只能由使用者在設定中填寫。" : "未知设置：" + property.Name);
             var type = property.Name == "StartupEnabled" ? typeof(bool) : typeof(CompanionPreferences).GetProperty(property.Name)!.PropertyType;
             values[property.Name] = JsonSerializer.Deserialize(property.Value.GetRawText(), type);
         }
@@ -186,7 +187,7 @@ internal sealed partial class LinuxPetWindow
                 "LateReminderHour" => item.Value is int late && CompanionPreferences.LateReminderChoices.Contains(late),
                 "WelcomeBackMinutes" => item.Value is int away && CompanionPreferences.WelcomeBackChoices.Contains(away),
                 "EventReminderMinutes" => item.Value is int ahead && CompanionPreferences.EventReminderChoices.Contains(ahead),
-                // Taiwan townships too: without a CWA authorization code (Linux has none) they get the Open-Meteo estimate.
+                // 臺灣 townships and China's 台湾省 alike; a 臺灣 township uses CWA when macOS has an authorization code, else the estimate.
                 "WeatherRegionCode" => item.Value is string region && CompanionRegions.District(region).Code == region,
                 "LastBrushDate" => item.Value == null || item.Value is string date && DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
                 "Left" or "Top" => item.Value == null || Range(-1000000, 1000000), _ => item.Value is bool };

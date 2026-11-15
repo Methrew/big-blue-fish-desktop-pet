@@ -44,7 +44,7 @@ public static class ControlTools
           "HideOnFullscreen":{"type":"boolean","description":"外部全螢幕時隱藏桌寵；不限制 MCP 截圖。"},
           "CheckUpdatesOnStartup":{"type":"boolean","description":"啟動時檢查更新。"},
           "ChatLogShowAll":{"type":"boolean","description":"Windows版對話輸入框的聊天記錄是否顯示魚魚說過的所有話；false時只列出主人的訊息及前後相鄰的魚魚話語。"},
-          "WeatherRegionCode":{"type":"string","pattern":"^([0-9]{6}|[0-9]{9}|TW-[0-9]{3}-[0-9]{2}|[A-Z]{2}-[0-9]+)$","description":"內建地區表中存在的最下層地點代碼：中國為6位區縣代碼，如340104（包含原有清單的臺灣省各區，如710101；部分直轄縣級行政區為9位代碼，如419001000）；另外的「臺灣」選項為鄉鎮市區代碼，如臺北市中正區 TW-061-01；美國為US-加5位郡FIPS代碼，如US-06037；其他國家為國家代碼-GeoNames城市ID，如JP-1850147。不是地名，也不是縣市、省、州或一級行政區代碼。「臺灣」選項的地點在Windows版填了中央氣象署授權碼時使用氣象署的鄉鎮預報；沒有授權碼時（以及Linux與macOS版）改用Open-Meteo在鄉鎮中心點的估計。"},
+          "WeatherRegionCode":{"type":"string","pattern":"^([0-9]{6}|[0-9]{9}|TW-[0-9]{3}-[0-9]{2}|[A-Z]{2}-[0-9]+)$","description":"內建地區表中最下層地點的代碼，不是地名，也不是縣市、省、州或一級行政區代碼：中國為6位區縣代碼，如340104（含原有清單的臺灣省各區，如710101，天氣為縣市層級的Open-Meteo估計、北京時間），部分直轄縣級行政區為9位代碼，如419001000；國家「臺灣」為鄉鎮市區代碼TW-三位資料集編號-兩位序號，如臺北市中正區TW-061-01；美國為US-加5位郡FIPS代碼，如US-06037；其他國家為國家代碼-GeoNames城市ID，如JP-1850147。新安裝與無效代碼使用TW-061-01，已儲存的有效地點不會被改動。國家「臺灣」的鄉鎮在Windows與macOS版填了中央氣象署授權碼時使用氣象署鄉鎮預報；沒有授權碼時（以及Linux版）為Open-Meteo在鄉鎮市區中心的估計。"},
           "Scale":{"type":"number","minimum":0.5,"maximum":2,"description":"角色大小倍率；1為100%。"},
           "BubbleScale":{"type":"number","minimum":0.5,"maximum":2,"description":"獨立氣泡大小倍率；不改變角色大小。"},
           "SpeechMinMinutes":{"type":"integer","enum":[2,3,5,10,15,20],"description":"說話區間檔位：2對應2–3分鐘，3對應3–5，5對應5–8，10對應10–16，15對應15–23，20對應20–30；不是任意分鐘數。"},

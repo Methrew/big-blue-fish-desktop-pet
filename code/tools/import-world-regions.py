@@ -5,8 +5,8 @@ Usage: python tools/import-world-regions.py <dir>
 <dir> holds GeoNames cities15000.txt (unzipped), admin1CodesASCII.txt, countryInfo.txt
 (https://download.geonames.org/export/dump/, CC BY 4.0) and CLDR zh territories.json
 (https://cdn.jsdelivr.net/npm/cldr-localenames-full@47.0.0/main/zh/territories.json, Unicode License v3).
-Taiwan (taiwan-regions.json), China and the US have their own finer datasets; HK/MO are under China
-and PR under the US.
+China and the US have their own finer datasets; TW/HK/MO are already under China and PR under the US.
+GeoNames' TW stays out: the country 臺灣 comes from taiwan-regions.json instead.
 Codes: country "JP", division "JP.40", city "JP-1850147" (GeoNames id).
 """
 import hashlib

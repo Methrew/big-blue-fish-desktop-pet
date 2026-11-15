@@ -30,7 +30,7 @@ Windows 使用 `Local\BlueWhaleCompanion` 互斥量限制同一登录会话中�
 | AgentRespondToClick | false | 点击事件是否主动提交ACP轮次 |
 | AgentRespondToDrag | false | 拖动结束事件是否主动提交ACP轮次 |
 | ChatLogShowAll | false | Windows输入框的历史显示全部鱼鱼话语；关闭时仅显示主人输入及其相邻鱼鱼话语 |
-| WeatherRegionCode | 340104 | 天气区县；必须为内置地区数据中的叶级代码：中国为6位区县代码，美国为 US-加5位县 FIPS（如 US-06037），其他国家为国家代码-GeoNames 城市 ID（如 JP-1850147） |
+| WeatherRegionCode | TW-061-01（新安裝） | 天氣地點；必須是內建地區資料中的最下層代碼：中國為6位或9位區縣代碼（含臺灣省，例如 710101），國家「臺灣」為 TW-061-01 這類鄉鎮市區代碼，美國為 US-加5位郡 FIPS（如 US-06037），其他國家為國家代碼-GeoNames 城市 ID（如 JP-1850147）；無效代碼改用 TW-061-01，已儲存的有效地點不變 |
 | Scale | 1 | 桌宠尺寸，0.5–2.0；界面以5%为步长 |
 | BubbleScale | 1 | 独立文字气泡尺寸，0.5–2.0；界面以5%为步长 |
 | SpeechMinMinutes | 10 | 选中说话随机区间的下限：2、3、5、10、15、20 |

@@ -57,6 +57,7 @@ internal sealed partial class LinuxPetWindow : Window
         DiagnosticLog.Write(DiagnosticEvent.AppStarted, kind: "Linux", directory: Environment.CurrentDirectory);
         DiagnosticLog.ObserveSettings(Preferences);
         brain = new() { UseGpu = Preferences.GpuEnabled, StopOnBattery = Preferences.StopModelOnBattery, WeatherRegionCode = Preferences.WeatherRegionCode };
+        LoadPlatformSecrets(); ApplyModelSource(); // before Opened asks whether a local model is installed
         Title = "蓝色大肥鱼"; WindowDecorations = WindowDecorations.None; ShowInTaskbar = false; ShowActivated = false;
         Topmost = true; CanResize = false; Background = Brushes.Transparent; TransparencyLevelHint = [WindowTransparencyLevel.Transparent];
         var canvas = new Grid(); canvas.Children.Add(sprite); canvas.Children.Add(loading); Content = canvas;
@@ -293,8 +294,8 @@ internal sealed partial class LinuxPetWindow : Window
         DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: weather ? "weather" : "local", state: agentTriggered ? "manual" : "automatic");
         if (Puppet && !agentTriggered || generating || closed || phase == "Exit" || modelInstalling) { DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, state: "blocked"); return; }
         if (!brain.ModelAvailable) { await InstallModel(); return; }
-        if (!Preferences.ModelEnabled) { ShowText("主人，请先在设置里启用本地大模型哦~", false); return; }
-        if (!brain.CanRunOnCurrentPower) { ShowText("主人，当前设置为笔记本离电暂停模型，可以在设置里调节哦。", false); return; }
+        if (!Preferences.ModelEnabled) { ShowText("主人，請先在設定裡開啟「啟用模型說話」哦～", false); return; }
+        if (!brain.CanRunOnCurrentPower) { ShowText("主人，目前設定為筆電使用電池時暫停本機模型，可以到設定裡調整喔。", false); return; }
         generating = true; long version = ++speechVersion; streamed = false; loading.IsVisible = true;
         try
         {

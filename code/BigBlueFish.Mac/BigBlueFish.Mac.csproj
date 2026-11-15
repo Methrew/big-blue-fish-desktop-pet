@@ -13,6 +13,9 @@
     <Compile Include="../BigBlueFish.Linux/LinuxProcesses.cs" Link="Linux/LinuxProcesses.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMcp.cs" Link="Linux/LinuxMcp.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxSettings.cs" Link="Linux/LinuxSettings.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxWeatherSettings.cs" Link="Linux/LinuxWeatherSettings.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxModelSettings.cs" Link="Linux/LinuxModelSettings.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxRemoteScreen.cs" Link="Linux/LinuxRemoteScreen.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMaintenance.cs" Link="Linux/LinuxMaintenance.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxTestCommands.cs" Link="Linux/LinuxTestCommands.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxLogConsole.cs" Link="Linux/LinuxLogConsole.cs" />
@@ -48,6 +51,7 @@
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/world-countries.json" LogicalName="BigBlueFish.Windows.assets.regions.world-countries.json" />
     <!-- OpenCC 1.4.2 dictionaries for CompanionTraditional; the names must match its resource prefix. -->
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/opencc/*.txt" LogicalName="BigBlueFish.Windows.assets.opencc.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/region-display-names.json" LogicalName="BigBlueFish.Windows.assets.regions.region-display-names.json" />
     <AvaloniaResource Include="../BigBlueFish.Windows/Res/Font/jf-openhuninn-2.1.ttf" Link="Assets/jf-openhuninn-2.1.ttf" />
     <!-- macOS has no hardware VP9 alpha decoder in the bundled GStreamer, so it always plays the 640x360 compatibility clips; the 1280x720 clips are left out. -->
     <Content Include="../BigBlueFish.Windows/assets/fish/animations.json" Link="assets/fish/animations.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

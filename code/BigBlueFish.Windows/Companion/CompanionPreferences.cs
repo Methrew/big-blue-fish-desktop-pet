@@ -1,6 +1,7 @@
 // Modified by acer1204 on 2026-10-26 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
 // Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -129,18 +130,61 @@ internal sealed class CompanionPreferences
     public bool ScreenImages { get; set; }
     public string? CwaApiKeyProtected { get; set; }
 
-    // Secrets never appear in MCP get_settings (which also leaves out every [JsonIgnore] alias above);
-    // any process of this user could decrypt them.
+    // Secrets never appear in MCP get_settings (which also leaves out every [JsonIgnore] alias above), and update_settings
+    // refuses them; any process of this user could still read them.
     internal static readonly string[] PrivateSettings = [nameof(RemoteApiKeyProtected), nameof(CwaApiKeyProtected)];
-    internal string CwaApiKey { get => Reveal(CwaApiKeyProtected); set => CwaApiKeyProtected = Conceal(value); }
     internal bool UseRemoteModel => ModelSource == "Remote" && Uri.TryCreate(RemoteUrl.Trim(), UriKind.Absolute, out var url) && url.Scheme is "http" or "https";
+#if COMPANION_MAC
+    // macOS keeps both secrets in the login keychain (MacKeychain); preferences.json only says "keychain" for a stored one.
+    // LoadSecrets reads them into memory once, off the UI thread, and the getters return those values without blocking.
+    // Setting one writes the keychain at once and blocks for up to a few seconds, so the settings page sets it off the
+    // UI thread and saves afterwards; a refused write throws, keeps the old value and never leaves a copy in the file.
+    internal const string KeychainMarker = "keychain";
+    private readonly Dictionary<string, string> revealed = new();
+    internal string CwaApiKey { get => Revealed(MacKeychain.CwaAccount); set => CwaApiKeyProtected = Conceal(value, MacKeychain.CwaAccount); }
+    internal string RemoteApiKey { get => Revealed(MacKeychain.RemoteAccount); set => RemoteApiKeyProtected = Conceal(value, MacKeychain.RemoteAccount); }
+    private string Revealed(string account) { lock (revealed) return revealed.GetValueOrDefault(account, ""); }
+    private string? Conceal(string value, string account)
+    {
+        value = value.Trim();
+        MacKeychain.Write(account, value);
+        lock (revealed) revealed[account] = value;
+        return value.Length == 0 ? null : KeychainMarker;
+    }
+    private static string Reveal(string? stored, string account) => stored == KeychainMarker ? MacKeychain.Read(account) : "";
+
+    // Blocking: reads the stored secrets from the keychain. A value an earlier build kept in the file (Base64) moves into
+    // the keychain; the result then says to save. The first failure is returned (it carries no secret); that secret reads
+    // as empty, so the weather uses its estimate until the keychain answers.
+    internal (bool Moved, Exception? Error) LoadSecrets()
+    {
+        bool moved = false;
+        Exception? error = null;
+        foreach (var account in new[] { MacKeychain.CwaAccount, MacKeychain.RemoteAccount })
+            try
+            {
+                var stored = account == MacKeychain.CwaAccount ? CwaApiKeyProtected : RemoteApiKeyProtected;
+                if (stored is null or KeychainMarker) { var value = Reveal(stored, account); lock (revealed) revealed[account] = value; continue; }
+                var legacy = Encoding.UTF8.GetString(Convert.FromBase64String(stored)).Trim();
+                lock (revealed) revealed[account] = legacy;
+                var marker = Conceal(legacy, account);
+                if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = marker; else RemoteApiKeyProtected = marker;
+                moved = true;
+            }
+            catch (Exception e) when (e is IOException or ArgumentException or FormatException or InvalidOperationException
+                or System.ComponentModel.Win32Exception)
+            { error ??= e; }
+        return (moved, error);
+    }
+#else
+    internal string CwaApiKey { get => Reveal(CwaApiKeyProtected); set => CwaApiKeyProtected = Conceal(value); }
     internal string RemoteApiKey { get => Reveal(RemoteApiKeyProtected); set => RemoteApiKeyProtected = Conceal(value); }
     internal static string? Conceal(string value)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
         var bytes = Encoding.UTF8.GetBytes(value.Trim());
-#if COMPANION_LINUX || COMPANION_MAC
-        // No DPAPI off Windows: Linux and macOS keep the value in the user's own data directory.
+#if COMPANION_LINUX
+        // No DPAPI on Linux: the value stays in the user's own data directory, unencrypted; Save makes the files 0600.
         return Convert.ToBase64String(bytes);
 #else
         return Convert.ToBase64String(ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser));
@@ -151,7 +195,7 @@ internal sealed class CompanionPreferences
         if (string.IsNullOrEmpty(stored)) return "";
         try
         {
-#if COMPANION_LINUX || COMPANION_MAC
+#if COMPANION_LINUX
             return Encoding.UTF8.GetString(Convert.FromBase64String(stored));
 #else
             return Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(stored), null, DataProtectionScope.CurrentUser));
@@ -159,6 +203,7 @@ internal sealed class CompanionPreferences
         }
         catch { return ""; }
     }
+#endif
 
     public static CompanionPreferences Read()
     {
@@ -234,13 +279,25 @@ internal sealed class CompanionPreferences
         node[nameof(AgentEnabled)] = standardAgent.AgentEnabled;
         node[nameof(PuppetMode)] = standardAgent.PuppetMode;
         node[nameof(AgentDailySpeech)] = standardAgent.AgentDailySpeech;
-        File.WriteAllText(t, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+        string json = node.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
 #else
-        File.WriteAllText(t, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+        string json = JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true });
+#endif
+#if COMPANION_LINUX
+        // The Linux secrets are only Base64, so the file (and the backup File.Replace leaves) is for this user alone.
+        File.Delete(t);
+        using (var file = new FileStream(t, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite }))
+        using (var writer = new StreamWriter(file))
+            writer.Write(json);
+#else
+        File.WriteAllText(t, json);
 #endif
         if (File.Exists("preferences.json"))
             File.Replace(t, "preferences.json", "preferences.json.bak");
         else
             File.Move(t, "preferences.json");
+#if COMPANION_LINUX
+        if (File.Exists("preferences.json.bak")) File.SetUnixFileMode("preferences.json.bak", UnixFileMode.UserRead | UnixFileMode.UserWrite);
+#endif
     }
 }

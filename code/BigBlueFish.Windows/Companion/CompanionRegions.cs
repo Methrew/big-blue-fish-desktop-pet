@@ -7,48 +7,52 @@ using System.Text.Json;
 
 namespace BigBlueFish.Windows;
 
-// AreaCityCode, on Taiwan rows only, is the code of the same county or township under China's 台湾省 (71) in china-regions.json,
-// the AreaCity row it was generated from (code/tools/import-taiwan-regions.py); Kinmen and Lienchiang have none.
-internal sealed record CompanionRegion(string Code, string ParentCode, int Level, string Name, double? Latitude, double? Longitude, string? AreaCityCode = null);
+internal sealed record CompanionRegion(string Code, string ParentCode, int Level, string Name, double? Latitude, double? Longitude)
+{
+    // The name pickers show and search (Traditional script); Name stays the data's own.
+    public string Display => CompanionRegions.DisplayName(this);
+}
 
-// Country root: Taiwan is county → township (root "TW"); China is province → city → district (root "0"); the US is
-// state → county (root "US"); other countries are first-level division → city (root = ISO code, from GeoNames cities15000).
-internal sealed record CompanionCountry(string Code, string Name, string Root, int LeafLevel, string[] Captions);
+// Country root: China is province → city → district (root "0", 台湾省 71 included as in the original list); the US is
+// state → county (root "US"); 臺灣 is county → township (root "TW", taiwan-regions.json); other countries are
+// first-level division → city (root = ISO code, from GeoNames cities15000).
+internal sealed record CompanionCountry(string Code, string Name, string Root, int LeafLevel, string[] Captions)
+{
+    public string Display => CompanionRegions.DisplayName(this);
+}
 
 internal static class CompanionRegions
 {
-    // New installs start at 臺北市中正區.
-    internal const string DefaultCode = "TW-061-01", TaiwanDefaultCode = DefaultCode;
-    // Taiwan townships use CWA township forecasts when an authorization code is set, otherwise an Open-Meteo estimate
-    // near the township centre; codes are TW-<F-D0047 dataset>-<index>.
+    // New installs, and a saved code that is no place of the lists, start at 臺北市中正區; a saved place is never changed.
+    internal const string DefaultCode = "TW-061-01";
+    // Where the picker starts after switching to China (合肥市蜀山區, the original edition's default).
+    internal const string ChinaDefaultCode = "340104";
+    // 臺灣 townships use CWA township forecasts when an authorization code is set, otherwise an Open-Meteo estimate
+    // near the township centre; codes are TW-<F-D0047 dataset>-<index>. China's own 台湾省 (71…) stays as it was:
+    // city-level Open-Meteo points in Beijing time.
     internal const string TaiwanRoot = "TW";
-    // China's own list keeps 台湾省 (71); pickers list Taiwan as its own country instead, and District moves a code saved
-    // under 71 to the same Taiwan county and township.
-    private const string ChinaTaiwanProvince = "71", ChinaDefaultCode = "340104", TaiwanName = "臺灣";
-    internal static readonly CompanionCountry Taiwan = new("TW", TaiwanName + " Taiwan", TaiwanRoot, 1, ["縣市", "鄉鎮市區"]);
+    internal static readonly CompanionCountry Taiwan = new("TW", "臺灣 Taiwan", TaiwanRoot, 1, ["縣市", "鄉鎮市區"]);
     internal static readonly CompanionCountry China = new("CN", "中國 China", "0", 2, ["省 / 自治區 / 直轄市", "市 / 州", "縣 / 區"]);
     internal static readonly CompanionCountry UnitedStates = new("US", "美國 United States", "US", 1, ["州", "郡 (County)"]);
-    // Taiwan first, then China, then every other country by English name.
+    // China first, then every other country by English name, as in the original; 臺灣 Taiwan is one of them (after Syria).
     internal static readonly CompanionCountry[] Countries = LoadCountries();
     private static readonly Dictionary<string, CompanionCountry> ByCountry = Countries.ToDictionary(x => x.Code);
     internal static readonly IReadOnlyList<CompanionRegion> All = Load();
     private static readonly Dictionary<string, CompanionRegion> ByCode = All.ToDictionary(x => x.Code);
-    private static readonly ILookup<string, CompanionRegion> ByParent = All.Where(x => x.Code != ChinaTaiwanProvince).ToLookup(x => x.ParentCode);
-    // AreaCity code under 71 (a county or a township) → the Taiwan code made from it.
-    private static readonly Dictionary<string, string> FromAreaCity = All.Where(x => x.AreaCityCode != null).ToDictionary(x => x.AreaCityCode!, x => x.Code);
+    private static readonly ILookup<string, CompanionRegion> ByParent = All.ToLookup(x => x.ParentCode);
 
     // taiwan-regions.json keeps its own root row (TW, level 0) above counties (1) and townships (2). As for the other
     // countries, the root is the country itself: the row is left out, counties become level 0 and townships level 1.
     private static CompanionRegion[] Load() =>
-        [.. Read<CompanionRegion>("taiwan-regions.json").Where(x => x.Code != TaiwanRoot).Select(x => x with { Level = x.Level - 1 }),
-         .. Read<CompanionRegion>("china-regions.json"), .. Read<CompanionRegion>("us-regions.json"), .. Read<CompanionRegion>("world-regions.json")];
+        [.. Read<CompanionRegion>("china-regions.json"), .. Read<CompanionRegion>("us-regions.json"), .. Read<CompanionRegion>("world-regions.json"),
+         .. Read<CompanionRegion>("taiwan-regions.json").Where(x => x.Code != TaiwanRoot).Select(x => x with { Level = x.Level - 1 })];
 
     private sealed record WorldCountry(string Code, string Name, string EnglishName);
 
     private static CompanionCountry[] LoadCountries() =>
-        [Taiwan, China, .. Read<WorldCountry>("world-countries.json").Append(new("US", UnitedStates.Name, "United States"))
+        [China, .. Read<WorldCountry>("world-countries.json").Append(new("US", UnitedStates.Name, "United States")).Append(new("TW", Taiwan.Name, "Taiwan"))
             .OrderBy(c => c.EnglishName, StringComparer.OrdinalIgnoreCase)
-            .Select(c => c.Code == "US" ? UnitedStates : new CompanionCountry(c.Code, c.Name + " " + c.EnglishName, c.Code, 1, ["一級行政區", "城市"]))];
+            .Select(c => c.Code == "US" ? UnitedStates : c.Code == "TW" ? Taiwan : new CompanionCountry(c.Code, c.Name + " " + c.EnglishName, c.Code, 1, ["一級行政區", "城市"]))];
 
     private static T[] Read<T>(string file)
     {
@@ -63,25 +67,14 @@ internal static class CompanionRegions
         char.IsAsciiDigit(region.Code[0]) ? China : ByCountry[region.Code[..2]];
 
     internal static bool IsUs(CompanionRegion region) => Country(region) == UnitedStates;
-    // Only the Taiwan list (TW-…); District never returns a row of China's 台湾省.
+    // Only the 臺灣 list (TW-…); China's 台湾省 rows are China's.
     internal static bool IsTaiwan(CompanionRegion region) => region.Code.StartsWith(TaiwanRoot + "-", StringComparison.Ordinal);
     internal static string CwaDataset(CompanionRegion district) => "F-D0047-" + district.ParentCode[3..];
 
     internal static CompanionRegion District(string? code) =>
-        code != null && ByCode.TryGetValue(Current(code), out var region) && region.Level == Country(region).LeafLevel ? region : ByCode[DefaultCode];
-
-    // A code saved under China's 台湾省 (picked in the original edition, 71…) becomes the same Taiwan township, else the first
-    // township of the same county, else the default, so that pickers show the place whose weather is used.
-    private static string Current(string code)
-    {
-        if (!code.StartsWith(ChinaTaiwanProvince, StringComparison.Ordinal) || !code.All(char.IsAsciiDigit)) return code;
-        if (FromAreaCity.TryGetValue(code, out var same) && ByCode[same].Level == Taiwan.LeafLevel) return same;
-        return code.Length >= 4 && FromAreaCity.TryGetValue(code[..4], out var county) && ByParent[county].FirstOrDefault() is { } first
-            ? first.Code : DefaultCode;
-    }
+        code != null && ByCode.TryGetValue(code, out var region) && region.Level == Country(region).LeafLevel ? region : ByCode[DefaultCode];
 
     internal static CompanionRegion Parent(CompanionRegion region) => ByCode[region.ParentCode];
-    // What the location pickers list under a code; China's 台湾省 is not offered.
     internal static CompanionRegion[] Children(string code) => ByParent[code].ToArray();
 
     // Root-to-leaf chain, e.g. [臺北市, 中正區], [安徽省, 合肥市, 蜀山区], [加利福尼亚州 CA, Los Angeles County] or [Tokyo, Shinjuku].
@@ -93,16 +86,43 @@ internal static class CompanionRegions
         return [.. chain];
     }
 
-    // Where a picker starts after switching country: 臺北市中正區 for Taiwan, 合肥市蜀山區 for China, the first entries elsewhere.
+    // Where a picker starts after switching country: 臺北市中正區 for 臺灣, 合肥市蜀山區 for China, the first entries elsewhere.
     internal static CompanionRegion[] DefaultChain(CompanionCountry country) =>
         country == Taiwan ? Chain(ByCode[DefaultCode]) : country == China ? Chain(ByCode[ChinaDefaultCode]) : [];
 
-    // 臺灣 · 臺北市 · 中正區 (as the CWA weather text has always read), 安徽省 · 合肥市 · 蜀山区, 日本 Japan · Tokyo · Shinjuku.
+    // In the names the pickers show: 臺灣 · 臺北市 · 中正區 (as the CWA weather text has always read), 安徽省 · 合肥市 · 蜀山區,
+    // 臺灣省 · 臺北市 · 中正區 for China's own 台湾省 (China places never name the country), 日本 Japan · Tokyo · Shinjuku.
     internal static string FullName(CompanionRegion district)
     {
-        var names = Chain(district).Select(x => x.Name);
+        var names = Chain(district).Select(DisplayName);
         var country = Country(district);
-        if (country != China) names = names.Prepend(country == Taiwan ? TaiwanName : country.Name);
+        if (country != China) names = names.Prepend(country == Taiwan ? "臺灣" : DisplayName(country));
         return string.Join(" · ", names.Distinct());
+    }
+
+    // The names pickers and weather text show, in Traditional script. The data files keep their own (Simplified) names,
+    // codes and order; region-display-names.json, made by code/tools/make-region-display-names.py (OpenCC s2tw without
+    // TWPhrases, so script only, plus reviewed corrections such as 湖里區 and 巨鹿縣), maps a code to its source name and
+    // the name shown. An entry counts only while the data still has that source name. 臺灣 rows are Traditional already.
+    internal static string DisplayName(CompanionRegion region) =>
+        Names.Value.Regions.TryGetValue(region.Code, out var pair) && pair.Length == 2 && pair[0] == region.Name ? pair[1] : region.Name;
+
+    // China, the US and 臺灣 are named here; another country is "<Chinese name> <English name>" with the Chinese part shown.
+    internal static string DisplayName(CompanionCountry country) =>
+        Names.Value.Countries.TryGetValue(country.Code, out var pair) && pair.Length == 2 && country.Name.StartsWith(pair[0] + " ", StringComparison.Ordinal)
+            ? pair[1] + country.Name[pair[0].Length..] : country.Name;
+
+    private sealed record DisplayNames(Dictionary<string, string[]> Regions, Dictionary<string, string[]> Countries);
+    private static readonly Lazy<DisplayNames> Names = new(LoadNames);
+
+    private static DisplayNames LoadNames()
+    {
+        using var stream = typeof(CompanionRegions).Assembly.GetManifestResourceStream("BigBlueFish.Windows.assets.regions.region-display-names.json");
+        // A build without the table still works: the pickers then show the data's own names.
+        if (stream == null) return new([], []);
+        using var json = JsonDocument.Parse(stream);
+        Dictionary<string, string[]> Section(string name) =>
+            json.RootElement.TryGetProperty(name, out var section) ? section.Deserialize<Dictionary<string, string[]>>() ?? [] : [];
+        return new(Section("regions"), Section("countries"));
     }
 }

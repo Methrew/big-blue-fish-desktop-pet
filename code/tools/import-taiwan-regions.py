@@ -32,11 +32,11 @@ explicit = {
 # OpenCC turns the official 庄 of 南庄鄉 into 莊; CWA and the Ministry of the Interior use 南庄鄉.
 official = {"南莊鄉": "南庄鄉"}
 source = {convert(r["Name"]): r["Code"] for r in rows if r["ParentCode"] == "71"}
-# The root stays outside the mainland province list ("0"), which already has its own entry for code 71.
-# CompanionRegions treats the root as the country (like "US" or "JP"): Taiwan is listed first with
-# counties and townships one level up, and pickers no longer offer China's 71.
-# AreaCityCode is the AreaCity row (under 71) a county or township was made from, so that a code saved
-# under China's 71 resolves to the same county and township; Kinmen and Lienchiang have none.
+# The root stays outside the mainland province list ("0"), which keeps its own entry for code 71.
+# CompanionRegions treats the root as the country (like "US" or "JP"), sorted by its English name among
+# the others, with counties and townships one level up; China's 71 is still offered as it was.
+# AreaCityCode only records the AreaCity row (under 71) a county or township was made from; the app never
+# maps codes with it. Kinmen and Lienchiang have none.
 result = [dict(Code="TW", ParentCode="", Level=0, Name="臺灣", Latitude=None, Longitude=None, AreaCityCode=None)]
 for county, dataset in counties:
     code = "TW-" + dataset

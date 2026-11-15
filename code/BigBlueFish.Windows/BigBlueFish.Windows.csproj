@@ -39,6 +39,7 @@
     <EmbeddedResource Include="assets/regions/us-regions.json" />
     <EmbeddedResource Include="assets/regions/world-regions.json" />
     <EmbeddedResource Include="assets/regions/world-countries.json" />
+    <EmbeddedResource Include="assets/regions/region-display-names.json" />
   </ItemGroup>
   <Target Name="EnsureGpuAnimationDecoder" BeforeTargets="PrepareForBuild">
     <Exec Command="powershell.exe -NoProfile -NonInteractive -File &quot;$(MSBuildProjectDirectory)/../../tools/Setup-Gstreamer.ps1&quot;" />

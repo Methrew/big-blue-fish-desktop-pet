@@ -121,7 +121,8 @@ internal static class WeatherCacheVerification
         now = now.AddDays(-1);
         Check(corrupt.CachedContext("350622") == "", "clock rollback rejects future-dated cache");
 
-        // Region table: 臺灣 first and the default, then China, the US and the GeoNames world.
+        // Region table: the original lists and order (China first, the rest by English name) with 臺灣 Taiwan added as one
+        // more country; new installs and invalid codes get 臺北市中正區, a valid saved code is kept as it is.
         var taipei = CompanionRegions.District(null);
         Check(CompanionRegions.DefaultCode == "TW-061-01" && taipei.Code == "TW-061-01" && CompanionRegions.FullName(taipei) == "臺灣 · 臺北市 · 中正區"
             && CompanionRegions.Country(taipei) == CompanionRegions.Taiwan && CompanionRegions.IsTaiwan(taipei) && CompanionRegions.CwaDataset(taipei) == "F-D0047-061",
@@ -135,8 +136,10 @@ internal static class WeatherCacheVerification
             && CompanionRegions.District("TW-061").Code == CompanionRegions.DefaultCode && CompanionRegions.District("TW").Code == CompanionRegions.DefaultCode,
             "Taiwan picks a county, then a township; county and root codes fall back");
         var la = CompanionRegions.District("US-06037");
-        Check(la.Code == "US-06037" && CompanionRegions.FullName(la) == "美國 United States · 加利福尼亚州 CA · Los Angeles County", "US county is a valid weather leaf");
-        Check(CompanionRegions.District("US-06").Code == CompanionRegions.DefaultCode && CompanionRegions.District("340100").Code == CompanionRegions.DefaultCode, "state and city codes fall back to default");
+        Check(la.Code == "US-06037" && CompanionRegions.FullName(la) == "美國 United States · 加利福尼亞州 CA · Los Angeles County", "US county is a valid weather leaf, named in Traditional script");
+        Check(CompanionRegions.District("US-06").Code == CompanionRegions.DefaultCode && CompanionRegions.District("340100").Code == CompanionRegions.DefaultCode
+            && CompanionRegions.District("bogus").Code == CompanionRegions.DefaultCode && CompanionRegions.District("").Code == CompanionRegions.DefaultCode,
+            "state, city and unknown codes fall back to the default");
         Check(CompanionRegions.Children("0").All(r => !CompanionRegions.IsUs(r)) && CompanionRegions.Children("US").Length == 52, "China provinces and 52 US states stay separate");
         Check(CompanionRegions.Children("US").All(s => CompanionRegions.Children(s.Code).Length > 0 && CompanionRegions.Children(s.Code).All(c => c.Latitude != null)), "every US state has located counties");
         feed.Now = now;
@@ -145,29 +148,26 @@ internal static class WeatherCacheVerification
         Check(feed.LastUrl.Contains("temperature_unit=fahrenheit") && feed.LastUrl.Contains("wind_speed_unit=mph") && feed.LastUrl.Contains("timezone=auto"), "US request asks for imperial units and local time zone");
         Check(us.Contains("21℉") && us.Contains("英里/小時") && us.Contains("當地時間") && us.Contains("Los Angeles County"), "US weather context uses Fahrenheit, mph and local time");
         var countries = CompanionRegions.Countries;
-        Check(countries[0] == CompanionRegions.Taiwan && countries[1] == CompanionRegions.China && countries.Length == 241 && countries.Contains(CompanionRegions.UnitedStates)
-            && countries.Skip(2).All(c => c.Code is not ("TW" or "CN" or "HK" or "MO" or "PR")) && countries.Select(c => c.Code).Distinct().Count() == countries.Length,
-            "臺灣 first, China second, then 239 other countries without duplicating Taiwan, China or US data");
-        Check(!CompanionRegions.Children("0").Any(r => r.Code == "71") && new[] { "81", "82" }.All(code => CompanionRegions.Children("0").Any(r => r.Code == code))
-            && CompanionRegions.All.All(r => r.Code[..2] is not ("HK" or "MO")), "pickers offer Taiwan only as its own country; Hong Kong and Macau stay under China");
+        int at = Array.IndexOf(countries, CompanionRegions.Taiwan);
+        Check(countries[0] == CompanionRegions.China && countries.Length == 241 && countries.Contains(CompanionRegions.UnitedStates)
+            && at > 0 && countries[at - 1].Code == "SY" && countries[at + 1].Code == "TJ"
+            && countries.Skip(1).All(c => c.Code is not ("CN" or "HK" or "MO" or "PR")) && countries.Select(c => c.Code).Distinct().Count() == countries.Length,
+            "China first, then 240 countries by English name, 臺灣 Taiwan between Syria and Tajikistan");
+        Check(new[] { "71", "81", "82" }.All(code => CompanionRegions.Children("0").Any(r => r.Code == code))
+            && CompanionRegions.All.All(r => r.Code[..2] is not ("HK" or "MO")), "China keeps 台湾省, Hong Kong and Macau as in the original");
+        var province = CompanionRegions.All.Where(r => r.Code.StartsWith("71") && r.Code.Length == 6 && char.IsAsciiDigit(r.Code[0])).ToArray();
+        Check(province.Length == 358 && province.All(r => CompanionRegions.District(r.Code) == r && CompanionRegions.Country(r) == CompanionRegions.China && !CompanionRegions.IsTaiwan(r) && r.Latitude != null),
+            "every 台湾省 district stays a valid China code, never moved to the 臺灣 list");
         var saved = CompanionRegions.District("710101");
-        Check(saved.Code == "TW-061-01" && CompanionRegions.IsTaiwan(saved) && CompanionRegions.Country(saved) == CompanionRegions.Taiwan
-            && CompanionRegions.FullName(saved) == "臺灣 · 臺北市 · 中正區", "a saved 台湾省 district becomes the same Taiwan township");
-        var formerTaiwan = CompanionRegions.All.Where(r => r.Code.StartsWith("71") && r.Code.Length == 6).ToArray();
-        var moved = formerTaiwan.Select(r => CompanionRegions.District(r.Code)).ToArray();
-        Check(formerTaiwan.Length == 358 && moved.All(CompanionRegions.IsTaiwan) && moved.Select(r => r.Code).Distinct().Count() == 358
-            && formerTaiwan.Zip(moved).All(p => CompanionRegions.Parent(p.Second).AreaCityCode == p.First.ParentCode),
-            "every saved 台湾省 district moves to its own township in the same Taiwan county");
-        Check(CompanionRegions.District("7101").Code == "TW-061-01" && CompanionRegions.District("710299").Code == "TW-065-01"
-            && CompanionRegions.District("71").Code == CompanionRegions.DefaultCode && CompanionRegions.District("719999").Code == CompanionRegions.DefaultCode,
-            "other 台湾省 codes fall back to their county's first township, else the default");
+        Check(saved.Code == "710101" && CompanionRegions.FullName(saved) == "臺灣省 · 臺北市 · 中正區" && CompanionRegions.District("7101").Code == CompanionRegions.DefaultCode
+            && CompanionRegions.District("71").Code == CompanionRegions.DefaultCode, "a saved 台湾省 district keeps its code; its city and province fall back");
         Check(CompanionRegions.DefaultChain(CompanionRegions.Taiwan).Select(r => r.Code).SequenceEqual(["TW-061", "TW-061-01"])
             && CompanionRegions.DefaultChain(CompanionRegions.China).Select(r => r.Code).SequenceEqual(["34", "3401", "340104"])
             && CompanionRegions.DefaultChain(CompanionRegions.UnitedStates).Length == 0, "switching country starts at 臺北市中正區, 合肥市蜀山區 or the first entries");
         await corrupt.RefreshIfDue("710101");
-        Check(corrupt.CachedContext("710101") == corrupt.CachedContext("TW-061-01") && corrupt.CachedContext("710101").Contains("臺灣 · 臺北市 · 中正區")
-            && corrupt.CachedContext("710101").Contains("臺灣時間") && feed.LastUrl.Contains("Asia%2FTaipei") && feed.LastUrl.Contains("latitude=25.03245"),
-            "a saved 台湾省 district gets the Taiwan township's weather");
+        Check(corrupt.CachedContext("710101").Contains("臺灣省 · 臺北市 · 中正區（區縣中心附近的天氣估算）") && corrupt.CachedContext("710101").Contains("北京時間")
+            && feed.LastUrl.Contains("Asia%2FShanghai") && corrupt.CachedContext("710101") != corrupt.CachedContext("TW-061-01"),
+            "a saved 台湾省 district keeps China-style weather, apart from the 臺灣 township");
         var tokyo = CompanionRegions.District("JP-1850147");
         Check(tokyo.Code == "JP-1850147" && CompanionRegions.FullName(tokyo).StartsWith("日本 Japan · ") && CompanionRegions.District("JP.40").Code == CompanionRegions.DefaultCode, "world city is a valid leaf and divisions fall back");
         Check(countries.Where(c => c != CompanionRegions.Taiwan && c != CompanionRegions.China && c != CompanionRegions.UnitedStates).All(c => CompanionRegions.Children(c.Root).Length > 0
@@ -177,6 +177,7 @@ internal static class WeatherCacheVerification
         Check(feed.LastUrl.Contains("timezone=auto") && !feed.LastUrl.Contains("fahrenheit") && world.Contains("21℃") && world.Contains("當地時間") && world.Contains("公里/小時"), "world weather uses Celsius, km/h and local time");
         await corrupt.RefreshIfDue("350623");
         Check(corrupt.CachedContext("350623").Contains("℃") && corrupt.CachedContext("350623").Contains("北京時間") && feed.LastUrl.Contains("Asia%2FShanghai"), "China weather keeps Celsius and Beijing time");
+        Check(CompanionWeather.Description(2) == "局部多雲" && CompanionWeather.Description(0) == "晴朗", "weather codes read in Taiwan wording");
 
         // Taiwan: without a CWA authorization code an Open-Meteo estimate at the township centre, with one the CWA township
         // forecast; the two never share an entry or a retry spacing.

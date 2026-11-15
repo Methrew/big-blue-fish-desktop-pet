@@ -4,8 +4,7 @@
 Usage (after import-regions.py): python tools/fill-taiwan-coordinates.py cities15000.txt
 The AreaCity source has no Taiwan coordinates. Names and codes are left unchanged; every city/county
 and its districts get the GeoNames point of its seat, so the forecast is at city level, not district level.
-Pickers now list Taiwan from taiwan-regions.json and hide 台湾省, and a code saved under it resolves to the
-same Taiwan township (its AreaCityCode), so the app no longer reads these points.
+台湾省 stays in China's list as in the original; the country 臺灣 (taiwan-regions.json) has township centres.
 """
 import hashlib
 import json

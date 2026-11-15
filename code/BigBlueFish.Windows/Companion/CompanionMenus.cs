@@ -149,23 +149,6 @@ public partial class MainWindow
 
     private const string OpenMeteoWeatherSource = "天氣來自 Open-Meteo（Weather data by Open-Meteo.com），依所選地點中心附近估算；美國地點使用華氏溫度和英里／小時。海外城市資料來自 GeoNames（CC BY 4.0）。";
 
-    // The China, US and world lists keep their data files' Simplified names (the codes and the weather text are untouched);
-    // the location pickers show them in Taiwan Traditional, like the rest of the Windows edition. One template per picker,
-    // made on the UI thread that shows it.
-    private static readonly TraditionalNameConverter TraditionalName = new();
-    private static DataTemplate TraditionalNameTemplate()
-    {
-        var text = new FrameworkElementFactory(typeof(TextBlock));
-        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Name") { Converter = TraditionalName });
-        return new DataTemplate { VisualTree = text };
-    }
-    private sealed class TraditionalNameConverter : System.Windows.Data.IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) =>
-            value is string name ? CompanionTraditional.Convert(name) : value;
-        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new NotSupportedException();
-    }
-
     private void AddCompanionRegionSelectors(Panel panel)
     {
         panel.Children.Add(new TextBlock { Text = "天氣地點", Margin = new Thickness(0, 10, 0, 4) });
@@ -178,16 +161,19 @@ public partial class MainWindow
             var columnPanel = new StackPanel { Margin = new Thickness(column == 0 ? 0 : 6, 0, 0, 0) };
             var label = new TextBlock { Text = caption, FontSize = 12, Margin = new Thickness(0, 0, 0, 4) };
             columnPanel.Children.Add(label);
-            var combo = new ComboBox { Name = name, ItemTemplate = TraditionalNameTemplate(), SelectedValuePath = "Code", MinHeight = 30 };
-            TextSearch.SetTextPath(combo, "Name");
+            // The lists keep their data files' Simplified names, codes and order; pickers show and search the Traditional
+            // script form (CompanionRegions.DisplayName), as on macOS and Linux.
+            var combo = new ComboBox { Name = name, DisplayMemberPath = "Display", SelectedValuePath = "Code", MinHeight = 30 };
+            TextSearch.SetTextPath(combo, "Display");
             System.Windows.Automation.AutomationProperties.SetName(combo, caption);
             columnPanel.Children.Add(combo);
             Grid.SetColumn(columnPanel, column);
             grid.Children.Add(columnPanel);
             return (combo, label, columnPanel);
         }
-        // Country first (臺灣 first), then that country's levels: 臺灣 縣市 → 鄉鎮市區, 中國 three levels, the US and the
-        // rest two. The captions below are placeholders; Configure shows the chosen country's own.
+        // Country first (China first, then by English name with 臺灣 Taiwan among them, as in the original), then that
+        // country's levels: 臺灣 縣市 → 鄉鎮市區, 中國 three levels, the US and the rest two. The captions below are
+        // placeholders; Configure shows the chosen country's own.
         var countrySelector = Selector("WeatherCountry", "國家", 0);
         var country = countrySelector.Combo;
         Grid.SetColumnSpan(countrySelector.Column, 3);
@@ -221,7 +207,7 @@ public partial class MainWindow
             Foreground = System.Windows.Media.Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0) });
         var source = new TextBlock { FontSize = 11, Foreground = System.Windows.Media.Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 4) };
         bool changing = false;
-        CompanionCountry current = CompanionRegions.Taiwan;
+        CompanionCountry current = CompanionRegions.China;
         void Configure(CompanionCountry target)
         {
             current = target;
@@ -242,8 +228,7 @@ public partial class MainWindow
                 : OpenMeteoWeatherSource;
         }
         // Fill level `from` and below; keep the matching chain entry when present, else the first item.
-        // Children leaves out the China list's 台湾省 (臺灣 has its own entry); a code saved inside it resolves to the same
-        // Taiwan township (CompanionRegions.District), which is what the pickers then show.
+        // China's own 台湾省 stays listed (city-level Open-Meteo points); 臺灣 is the country with township forecasts.
         void Fill(int from, string parentCode, CompanionRegion[] keep)
         {
             for (int i = from; i <= current.LeafLevel; i++)

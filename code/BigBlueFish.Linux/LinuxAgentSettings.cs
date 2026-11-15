@@ -27,6 +27,11 @@ internal sealed partial class LinuxPetWindow
             refreshing = false;
         }
         Detect(); extra.Children.Add(select);
+#if COMPANION_MAC
+        // CLIs that npm, Homebrew or a version manager installed are found only once the login shell's PATH is in (MacLoginPath).
+        if (!MacLoginPath.Ready.IsCompleted)
+            _ = MacLoginPath.Ready.ContinueWith(_ => Dispatcher.UIThread.Post(() => { if (TopLevel.GetTopLevel(select) != null) Detect(); }), TaskScheduler.Default);
+#endif
         var buttons = new WrapPanel(); buttons.Children.Add(ActionButton("重新偵測", Detect));
         buttons.Children.Add(ActionButton("安裝與登入說明", () => OpenUrl(HarnessCatalog.Get(Preferences.AgentHarnessId).Website)));
         extra.Children.Add(buttons);

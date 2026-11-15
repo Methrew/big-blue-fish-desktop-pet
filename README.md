@@ -135,7 +135,7 @@ Hugging Face 來源是 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface
 ### 連線方法
 
 1. 依所選 Agent 自己的說明把它裝好，並完成登入和模型設定。
-2. 打開魚魚的設定，進入「連線 Agent」頁面，打開「連線本機相容的 CLI Harness」，閱讀並確認跳出的權限說明。
+2. 打開魚魚的設定，進入「連線 Agent」頁面，打開「連線本機相容的 Agent 命令列工具」，閱讀並確認跳出的權限說明。
 3. 從下拉選單選一個 Agent。電腦上偵測到的 Agent 排在前面；剛裝好新的 Agent 時，按一下「重新偵測」。
 4. 等頁面顯示連線狀態、Agent 版本、模型和對話編號，就可以開始用了。
 

@@ -1072,7 +1072,7 @@ internal static class Program
     static int VerifyAgentConnection(System.Windows.Application app, Window settings, string[] args, string sandbox)
     {
         Descendants<Button>(settings).Single(b => b.Content?.ToString() == "連線 Agent").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); Pump();
-        var toggle = Descendants<CheckBox>(settings).Single(c => c.Content?.ToString()?.Contains("CLI Harness") == true);
+        var toggle = Descendants<CheckBox>(settings).Single(c => c.Content?.ToString()?.Contains("Agent 命令列工具") == true);
         // Found by its notice, whichever wording its title has.
         Window? Consent() => app.Windows.Cast<Window>().FirstOrDefault(w => w != settings && w != pet && Descendants<TextBlock>(w).Any(t => t.Text == ControlTools.PrivacyWarning));
         bool sawWarning = false;

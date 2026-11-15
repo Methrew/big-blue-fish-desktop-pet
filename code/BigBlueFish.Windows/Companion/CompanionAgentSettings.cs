@@ -21,12 +21,12 @@ public partial class MainWindow
     // The 連線 Agent page: a local CLI harness over ACP, with its workspace, options, daily care and persona.
     private Action AddAgentConnectionSettings(StackPanel panel, Window owner)
     {
-        var enabled = new CheckBox { Content = "連線本機相容的 CLI Harness", IsChecked = preferences.AgentEnabled, Margin = new(0, 12, 0, 5) };
+        var enabled = new CheckBox { Content = "連線本機相容的 Agent 命令列工具", IsChecked = preferences.AgentEnabled, Margin = new(0, 12, 0, 5) };
         panel.Children.Add(enabled);
         panel.Children.Add(ModernUI.Text("透過已安裝的 Agent 與魚魚對話，並控制魚魚的行為。"));
         var extra = new StackPanel { Visibility = preferences.AgentEnabled ? Visibility.Visible : Visibility.Collapsed };
         panel.Children.Add(extra);
-        extra.Children.Add(new TextBlock { Text = "選擇 Harness", FontWeight = FontWeights.SemiBold, Margin = new(0, 8, 0, 8) });
+        extra.Children.Add(new TextBlock { Text = "選擇 Agent", FontWeight = FontWeights.SemiBold, Margin = new(0, 8, 0, 8) });
         var select = new ComboBox { MinHeight = 38, HorizontalContentAlignment = HorizontalAlignment.Stretch };
         var adapters = new AgentAdapterStore(Path.Combine(Environment.CurrentDirectory, "agent"));
         bool updating = false;

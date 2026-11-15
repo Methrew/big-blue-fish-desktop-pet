@@ -11,10 +11,10 @@ internal sealed partial class LinuxPetWindow
 {
     void BuildAgentSettings(StackPanel body)
     {
-        var enabled = new CheckBox { Content = "連線本機相容的 CLI Harness", IsChecked = Preferences.AgentEnabled };
+        var enabled = new CheckBox { Content = "連線本機相容的 Agent 命令列工具", IsChecked = Preferences.AgentEnabled };
         body.Children.Add(enabled); body.Children.Add(Paragraph("透過已安裝的 Agent 與魚魚對話，並控制魚魚的行為。"));
         var extra = new StackPanel { IsVisible = Preferences.AgentEnabled, Spacing = 8 }; body.Children.Add(extra);
-        extra.Children.Add(new TextBlock { Text = "選擇 Harness" });
+        extra.Children.Add(new TextBlock { Text = "選擇 Agent" });
         var select = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
         var adapters = new AgentAdapterStore(Path.Combine(Environment.CurrentDirectory, "agent"));
         bool refreshing = false;

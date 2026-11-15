@@ -146,6 +146,7 @@ internal sealed partial class LinuxPetWindow : Window
     partial void ApplyPlatformSettings();
     partial void ConfigurePlatformWindow(Window window);
     partial void AddPlatformGeneralOptions(Avalonia.Controls.Panel body);
+    partial void OpenedSettingsPlatform();
     void Rescale()
     {
         Width = SpriteSize * 640 / 360; Height = SpriteSize; sprite.Width = Width; sprite.Height = Height;

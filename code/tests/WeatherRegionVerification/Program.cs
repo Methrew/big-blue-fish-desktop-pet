@@ -196,7 +196,11 @@ void Keychain()
     var locked = CompanionPreferences.Read();
     var (_, readError) = locked.LoadSecrets();
     Check(readError is IOException && locked.CwaApiKey == "", "an unreadable keychain leaves the code empty (the estimate is used)");
+    Check(locked.StateOf(MacKeychain.CwaAccount) == CompanionPreferences.SecretState.Failed && locked.SecretsPending && locked.SecretProblem(MacKeychain.CwaAccount) is { Length: > 0 }
+        && locked.CwaApiKeyProtected == CompanionPreferences.KeychainMarker, "an unread code is told apart from a removed one, and kept for a retry");
     Mode("locked", false);
+    Check(locked.LoadSecrets() == (false, null) && locked.CwaApiKey == Cwa && locked.RemoteApiKey == Remote && !locked.SecretsPending
+        && locked.StateOf(MacKeychain.RemoteAccount) == CompanionPreferences.SecretState.Loaded, "a retry once the keychain answers reads both secrets");
     Mode("drop", true);
     try { reread.CwaApiKey = "CWA-NEW-0002"; throw new Exception("FAIL an unconfirmed write was accepted"); }
     catch (IOException) { Check(reread.CwaApiKey == Cwa && File.ReadAllText(Item(MacKeychain.CwaAccount)) == Cwa, "a write the keychain does not read back is reported"); }
@@ -218,6 +222,28 @@ void Keychain()
     var (moved, legacyError) = legacy.LoadSecrets();
     Check(moved && legacyError == null && legacy.CwaApiKey == "CWA-LEGACY-0001" && legacy.CwaApiKeyProtected == CompanionPreferences.KeychainMarker
         && File.ReadAllText(Item(MacKeychain.CwaAccount)) == "CWA-LEGACY-0001" && legacy.WeatherRegionCode == "340104", "a Base64 code from the file moves into the keychain");
+    // A locked keychain keeps a legacy value in memory and in the file until a retry can move it.
+    string Legacy(string value) => Convert.ToBase64String(Encoding.UTF8.GetBytes(value));
+    File.WriteAllText("preferences.json", JsonSerializer.Serialize(new { CwaApiKeyProtected = Legacy("CWA-LEGACY-0002") }));
+    Mode("locked", true);
+    var pending = CompanionPreferences.Read();
+    Check(pending.LoadSecrets() is (false, IOException) && pending.CwaApiKey == "CWA-LEGACY-0002" && pending.CwaApiKeyProtected == Legacy("CWA-LEGACY-0002")
+        && pending.StateOf(MacKeychain.CwaAccount) == CompanionPreferences.SecretState.Legacy && pending.SecretsPending, "a legacy code the locked keychain cannot take yet waits for a retry");
+    Mode("locked", false);
+    Check(pending.LoadSecrets() is (true, null) && pending.CwaApiKeyProtected == CompanionPreferences.KeychainMarker && File.ReadAllText(Item(MacKeychain.CwaAccount)) == "CWA-LEGACY-0002"
+        && !pending.SecretsPending, "the retry moves it into the keychain");
+    // A legacy key the keychain refuses for good is used for this run only and leaves the file.
+    File.WriteAllText("preferences.json", JsonSerializer.Serialize(new { RemoteApiKeyProtected = Legacy("pass phrase!") }));
+    var refused = CompanionPreferences.Read();
+    Check(refused.LoadSecrets() is (true, ArgumentException) && refused.RemoteApiKey == "pass phrase!" && refused.RemoteApiKeyProtected == null
+        && refused.StateOf(MacKeychain.RemoteAccount) == CompanionPreferences.SecretState.Unsaved && refused.SecretProblem(MacKeychain.RemoteAccount) is { Length: > 0 } && !refused.SecretsPending,
+        "a legacy key the keychain refuses stays in memory, leaves the file and asks to be entered again");
+    refused.Save(); refused.Save();
+    Check(!File.ReadAllText("preferences.json").Contains(Legacy("pass phrase!")) && !File.ReadAllText("preferences.json.bak").Contains(Legacy("pass phrase!")),
+        "neither preferences.json nor its backup keeps the refused key");
+    Throws<ArgumentException>(() => refused.RemoteApiKey = refused.RemoteApiKey, "saving the refused key again names why the keychain refuses it");
+    refused.RemoteApiKey = "pass-phrase";
+    Check(refused.StateOf(MacKeychain.RemoteAccount) == CompanionPreferences.SecretState.Loaded && refused.RemoteApiKeyProtected == CompanionPreferences.KeychainMarker, "a key the keychain accepts replaces it");
 }
 
 // --- The shared weather checks: CWA forecast with a code, Open-Meteo estimate without, separate caches and retries.

@@ -80,31 +80,38 @@ internal sealed partial class LinuxPetWindow
         var reveal = new CheckBox { Content = "顯示授權碼" };
         reveal.IsCheckedChanged += (_, _) => key.RevealPassword = reveal.IsChecked == true;
         panel.Children.Add(reveal);
-        var status = Paragraph(macSecretsLoaded ? "填入授權碼後，臺灣鄉鎮使用中央氣象署的鄉鎮天氣預報；沒有授權碼時，改用 Open-Meteo 估計鄉鎮市區中心附近的天氣。授權碼可在中央氣象署氣象資料開放平臺免費申請。"
-            : "正在讀取 macOS 鑰匙圈…");
+        const string hint = "填入授權碼後，臺灣鄉鎮使用中央氣象署的鄉鎮天氣預報；沒有授權碼時，改用 Open-Meteo 估計鄉鎮市區中心附近的天氣。授權碼可在中央氣象署氣象資料開放平臺免費申請。";
+        bool ready = macSecretsLoaded && !macSecretsReading;
+        var status = Paragraph(!ready ? "正在讀取 macOS 鑰匙圈…" : SecretNote(MacKeychain.CwaAccount, "授權碼") ?? hint);
         var buttons = new WrapPanel();
         Button? save = null, remove = null;
         async Task Store(string value, bool test)
         {
-            if (value.Length > 0 && !CwaKeyPattern().IsMatch(value)) { status.Text = "授權碼格式不正確：只能有英文字母、數字和連字號，例如 CWA-1234ABCD-…。"; return; }
+            if (value.Length > 0 && !CwaKeyPattern().IsMatch(value)) { status.Text = "授權碼格式不正確：要有 8 到 64 個字元，只能有英文字母、數字和連字號，例如 CWA-1234ABCD-…。"; return; }
+            var state = Preferences.StateOf(MacKeychain.CwaAccount);
+            // An unread keychain shows an empty field: only 移除授權碼 removes what it may still hold.
+            if (value.Length == 0 && test && state != CompanionPreferences.SecretState.Loaded) { status.Text = "請先填入授權碼；要刪除鑰匙圈裡的授權碼，請按「移除授權碼」。"; return; }
             save!.IsEnabled = remove!.IsEnabled = false;
             try
             {
-                if (value != Preferences.CwaApiKey)
+                // Only a loaded, unchanged code skips the keychain; any other state ends in a real write or removal.
+                bool unchanged = state == CompanionPreferences.SecretState.Loaded && value == Preferences.CwaApiKey;
+                if (!unchanged)
                 {
-                    status.Text = "正在存入 macOS 鑰匙圈…";
+                    status.Text = value.Length == 0 ? "正在從 macOS 鑰匙圈移除…" : "正在存入 macOS 鑰匙圈…";
                     try { await Task.Run(() => Preferences.CwaApiKey = value); }
                     catch (Exception error) when (error is IOException or ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
                     {
                         // The weather keeps the code it had; nothing is written to preferences.json instead.
                         DiagnosticLog.Write(DiagnosticEvent.WeatherFailed, kind: "write", error: error);
-                        status.Text = "無法存入 macOS 鑰匙圈，授權碼沒有變更：" + error.Message;
+                        status.Text = (value.Length == 0 ? "無法從 macOS 鑰匙圈移除授權碼：" : "無法存入 macOS 鑰匙圈，授權碼沒有變更：") + error.Message;
                         return;
                     }
                     Save(); brain.CwaApiKey = value;
                 }
-                if (value.Length == 0) { key.Text = ""; status.Text = "已從鑰匙圈移除授權碼，臺灣鄉鎮改用 Open-Meteo 估計。"; return; }
-                status.Text = test ? "已存入鑰匙圈，正在向中央氣象署查詢…" : "已存入鑰匙圈。";
+                if (value.Length == 0) { key.Text = ""; status.Text = unchanged ? "鑰匙圈裡沒有授權碼，臺灣鄉鎮使用 Open-Meteo 估計。" : "已從鑰匙圈移除授權碼，臺灣鄉鎮改用 Open-Meteo 估計。"; return; }
+                string stored = unchanged ? "授權碼沒有變更，已在鑰匙圈裡" : "已存入鑰匙圈";
+                status.Text = stored + (test ? "，正在向中央氣象署查詢…" : "。");
                 if (!test) return;
                 var district = CompanionRegions.District(Preferences.WeatherRegionCode);
                 if (!CompanionRegions.IsTaiwan(district)) district = CompanionRegions.District(CompanionRegions.DefaultCode);
@@ -117,16 +124,18 @@ internal sealed partial class LinuxPetWindow
                 }
                 catch (Exception error) when (error is IOException or HttpRequestException or OperationCanceledException)
                 {
-                    status.Text = "授權碼已存入，但測試沒有成功：" + error.Message;
+                    status.Text = stored + "，但測試沒有成功：" + error.Message;
                 }
             }
             finally { save.IsEnabled = remove.IsEnabled = true; }
         }
         save = ActionButton("儲存並測試", async () => await Store(key.Text?.Trim() ?? "", true));
         remove = ActionButton("移除授權碼", async () => await Store("", false));
-        // Until the keychain has answered at startup, a save could be overwritten by the value read before it.
-        save.IsEnabled = remove.IsEnabled = macSecretsLoaded;
+        // Until the keychain has answered, a save could be overwritten by the value read before it.
+        save.IsEnabled = remove.IsEnabled = ready;
         buttons.Children.Add(save); buttons.Children.Add(remove);
+        if (ready && Preferences.StateOf(MacKeychain.CwaAccount) == CompanionPreferences.SecretState.Failed)
+            buttons.Children.Add(ActionButton("重新讀取鑰匙圈", () => { status.Text = "正在讀取 macOS 鑰匙圈…"; save.IsEnabled = remove.IsEnabled = false; ReadSecrets(); }));
         panel.Children.Add(buttons);
         panel.Children.Add(status);
         return panel;

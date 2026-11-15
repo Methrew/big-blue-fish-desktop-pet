@@ -28,8 +28,9 @@ internal sealed partial class LinuxPetWindow
 #endif
     }
 
-    // Every 40 ms: who is frontmost (for handing the keyboard back) and click-through even while no new frame arrives.
-    partial void TickPlatform() { CompanionNative.TrackActivation(); CompanionNative.UpdatePointerPassThrough(); }
+    // Every 40 ms: who is frontmost (for handing the keyboard back), click-through even while no new frame arrives, and a
+    // keychain read to retry once the screen is unlocked (MacSecrets.cs).
+    partial void TickPlatform() { CompanionNative.TrackActivation(); CompanionNative.UpdatePointerPassThrough(); WatchSecretUnlock(); }
 
     // A left press remembers the app the user was working in; any other press, or a lost drag, forgets it.
     partial void RememberFocusPlatform(bool remember) { if (remember) CompanionNative.RememberFrontmost(); else CompanionNative.ForgetFrontmost(); }

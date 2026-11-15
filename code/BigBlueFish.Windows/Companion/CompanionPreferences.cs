@@ -128,44 +128,90 @@ internal sealed class CompanionPreferences
     internal bool UseRemoteModel => ModelSource == "Remote" && Uri.TryCreate(RemoteUrl.Trim(), UriKind.Absolute, out var url) && url.Scheme is "http" or "https";
 #if COMPANION_MAC
     // macOS keeps both secrets in the login keychain (MacKeychain); preferences.json only says "keychain" for a stored one.
-    // LoadSecrets reads them into memory once, off the UI thread, and the getters return those values without blocking.
+    // LoadSecrets reads them into memory off the UI thread, and the getters return those values without blocking.
     // Setting one writes the keychain at once and blocks for up to a few seconds, so the settings page sets it off the
     // UI thread and saves afterwards; a refused write throws, keeps the old value and never leaves a copy in the file.
     internal const string KeychainMarker = "keychain";
+    // What memory holds for each secret. Loaded: the keychain's value (or none). Failed: the keychain could not be read
+    // (locked, or security did not answer); the secret reads as empty but is still stored, so nothing may take that empty
+    // value for a removal. Legacy: a value an earlier build kept in the file (Base64), not yet moved into the keychain.
+    // Unsaved: such a value the keychain refuses (a character outside MacKeychain.IsValid); it is used for this run only
+    // and has left the file, so the user has to enter a key the keychain accepts.
+    internal enum SecretState { Unread, Loaded, Failed, Legacy, Unsaved }
     private readonly Dictionary<string, string> revealed = new();
+    private readonly Dictionary<string, (SecretState State, string? Problem)> secretStates = new();
     internal string CwaApiKey { get => Revealed(MacKeychain.CwaAccount); set => CwaApiKeyProtected = Conceal(value, MacKeychain.CwaAccount); }
     internal string RemoteApiKey { get => Revealed(MacKeychain.RemoteAccount); set => RemoteApiKeyProtected = Conceal(value, MacKeychain.RemoteAccount); }
     private string Revealed(string account) { lock (revealed) return revealed.GetValueOrDefault(account, ""); }
+    internal SecretState StateOf(string account) { lock (revealed) return secretStates.GetValueOrDefault(account).State; }
+    // Why the secret is not simply loaded, for the settings page; null when it is.
+    internal string? SecretProblem(string account) { lock (revealed) return secretStates.GetValueOrDefault(account) is { State: not (SecretState.Loaded or SecretState.Unread) } entry ? entry.Problem : null; }
+    // A secret a later read may still bring back: the keychain did not answer, or a legacy value has not moved yet.
+    internal bool SecretsPending { get { lock (revealed) return secretStates.Values.Any(entry => entry.State is SecretState.Failed or SecretState.Legacy); } }
     private string? Conceal(string value, string account)
     {
         value = value.Trim();
         MacKeychain.Write(account, value);
-        lock (revealed) revealed[account] = value;
+        lock (revealed) { revealed[account] = value; secretStates[account] = (SecretState.Loaded, null); }
         return value.Length == 0 ? null : KeychainMarker;
     }
     private static string Reveal(string? stored, string account) => stored == KeychainMarker ? MacKeychain.Read(account) : "";
 
-    // Blocking: reads the stored secrets from the keychain. A value an earlier build kept in the file (Base64) moves into
-    // the keychain; the result then says to save. The first failure is returned (it carries no secret); that secret reads
-    // as empty, so the weather uses its estimate until the keychain answers.
+    // Blocking: reads every secret that is not loaded yet (all of them the first time, later only those whose read failed).
+    // A legacy value moves into the keychain; Moved then says to save. A read that fails leaves the secret Failed for a later
+    // call, and a later read never replaces a value the user saved meanwhile. The first failure is returned (it carries no
+    // secret).
     internal (bool Moved, Exception? Error) LoadSecrets()
     {
         bool moved = false;
         Exception? error = null;
         foreach (var account in new[] { MacKeychain.CwaAccount, MacKeychain.RemoteAccount })
+        {
+            if (StateOf(account) is SecretState.Loaded or SecretState.Unsaved) continue;
+            var stored = account == MacKeychain.CwaAccount ? CwaApiKeyProtected : RemoteApiKeyProtected;
             try
             {
-                var stored = account == MacKeychain.CwaAccount ? CwaApiKeyProtected : RemoteApiKeyProtected;
-                if (stored is null or KeychainMarker) { var value = Reveal(stored, account); lock (revealed) revealed[account] = value; continue; }
-                var legacy = Encoding.UTF8.GetString(Convert.FromBase64String(stored)).Trim();
-                lock (revealed) revealed[account] = legacy;
-                var marker = Conceal(legacy, account);
-                if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = marker; else RemoteApiKeyProtected = marker;
-                moved = true;
+                if (stored is null or KeychainMarker)
+                {
+                    var value = Reveal(stored, account);
+                    lock (revealed) if (secretStates.GetValueOrDefault(account).State is not SecretState.Loaded) { revealed[account] = value; secretStates[account] = (SecretState.Loaded, null); }
+                    continue;
+                }
+                string legacy;
+                try { legacy = Encoding.UTF8.GetString(Convert.FromBase64String(stored)).Trim(); }
+                catch (FormatException unreadable)
+                {
+                    // Not Base64 (an edited or damaged file): nothing to move, so it leaves the file as well.
+                    lock (revealed) if (secretStates.GetValueOrDefault(account).State is not SecretState.Loaded) secretStates[account] = (SecretState.Unsaved, "設定檔裡舊版的內容無法讀取。");
+                    if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = null; else RemoteApiKeyProtected = null;
+                    moved = true;
+                    error ??= unreadable;
+                    continue;
+                }
+                lock (revealed) { if (secretStates.GetValueOrDefault(account).State is SecretState.Loaded) continue; revealed[account] = legacy; secretStates[account] = (SecretState.Legacy, null); }
+                try
+                {
+                    var marker = Conceal(legacy, account);
+                    if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = marker; else RemoteApiKeyProtected = marker;
+                    moved = true;
+                }
+                catch (ArgumentException refused)
+                {
+                    // For good: the value stays usable in memory for this run, and the file stops carrying it.
+                    lock (revealed) secretStates[account] = (SecretState.Unsaved, refused.Message);
+                    if (account == MacKeychain.CwaAccount) CwaApiKeyProtected = null; else RemoteApiKeyProtected = null;
+                    moved = true;
+                    error ??= refused;
+                }
             }
-            catch (Exception e) when (e is IOException or ArgumentException or FormatException or InvalidOperationException
-                or System.ComponentModel.Win32Exception)
-            { error ??= e; }
+            catch (Exception e) when (e is IOException or InvalidOperationException or System.ComponentModel.Win32Exception)
+            {
+                lock (revealed)
+                    if (secretStates.GetValueOrDefault(account).State is not SecretState.Loaded)
+                        secretStates[account] = (stored is null or KeychainMarker ? SecretState.Failed : SecretState.Legacy, e.Message);
+                error ??= e;
+            }
+        }
         return (moved, error);
     }
 #else

@@ -68,6 +68,15 @@ internal sealed partial class LinuxPetWindow
         var reveal = new CheckBox { Content = "顯示 API Key" };
         reveal.IsCheckedChanged += (_, _) => key.RevealPassword = reveal.IsChecked == true;
         panel.Children.Add(reveal);
+#if COMPANION_MAC
+        bool secretsReady = macSecretsLoaded && !macSecretsReading;
+        if (secretsReady && SecretNote(MacKeychain.RemoteAccount, "API Key") is { } keyNote)
+        {
+            panel.Children.Add(Paragraph(keyNote));
+            if (Preferences.StateOf(MacKeychain.RemoteAccount) == CompanionPreferences.SecretState.Failed)
+                panel.Children.Add(ActionButton("重新讀取鑰匙圈", ReadSecrets));
+        }
+#endif
         var model = Field("模型名稱", remoteModelDraft ?? Preferences.RemoteModel, "留空則使用伺服器提供的第一個模型", text => remoteModelDraft = text);
         var images = new CheckBox { Content = "模型支援圖片時，直接傳送視窗截圖（取代 OCR 文字）", IsChecked = Preferences.ScreenImages, Margin = new Thickness(0, 8, 0, 0) };
         panel.Children.Add(images);
@@ -85,7 +94,7 @@ internal sealed partial class LinuxPetWindow
             ));
         var result = Paragraph(
 #if COMPANION_MAC
-            !macSecretsLoaded ? "正在讀取 macOS 鑰匙圈…" :
+            !secretsReady ? "正在讀取 macOS 鑰匙圈…" :
 #endif
             "填好後按「儲存並測試連線」。");
         var state = Paragraph("");
@@ -96,17 +105,28 @@ internal sealed partial class LinuxPetWindow
         state.DetachedFromVisualTree += (_, _) => clock.Stop();
 
         // The key changes in the keychain first (off the UI thread, up to a few seconds); when that fails nothing is saved.
-        async Task<bool> SaveModelSource()
+        // explicitSave: 儲存並測試連線. A switch of the source or the image option leaves a key that is not loaded as it is:
+        // the field is empty then because the keychain did not answer, not because the user emptied it.
+        async Task<bool> SaveModelSource(bool explicitSave)
         {
             await modelSourceSaving.WaitAsync();
             try
             {
                 string keyText = key.Text?.Trim() ?? "";
-                if (keyText != Preferences.RemoteApiKey)
+#if COMPANION_MAC
+                var keyState = Preferences.StateOf(MacKeychain.RemoteAccount);
+                bool writeKey = keyState == CompanionPreferences.SecretState.Loaded ? keyText != Preferences.RemoteApiKey
+                    // Failed: only a key the user typed replaces the unread one. Legacy and Unsaved: an explicit save writes it,
+                    // which moves it into the keychain or says why the keychain refuses it.
+                    : explicitSave && (keyState != CompanionPreferences.SecretState.Failed || keyText.Length > 0);
+#else
+                bool writeKey = keyText != Preferences.RemoteApiKey;
+#endif
+                if (writeKey)
                 {
 #if COMPANION_MAC
-                    if (!macSecretsLoaded) { result.Text = "正在讀取 macOS 鑰匙圈，請稍候再儲存。"; return false; }
-                    result.Text = "正在存入 macOS 鑰匙圈…";
+                    if (!macSecretsLoaded || macSecretsReading) { result.Text = "正在讀取 macOS 鑰匙圈，請稍候再儲存。"; return false; }
+                    result.Text = keyText.Length == 0 ? "正在從 macOS 鑰匙圈移除 API Key…" : "正在存入 macOS 鑰匙圈…";
                     try { await Task.Run(() => Preferences.RemoteApiKey = keyText); }
                     catch (Exception error) when (error is IOException or ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception)
                     {
@@ -139,7 +159,7 @@ internal sealed partial class LinuxPetWindow
             test!.IsEnabled = false;
             try
             {
-                if (!await SaveModelSource()) return;
+                if (!await SaveModelSource(true)) return;
                 if (!brain.UseRemote) { result.Text = "網址無效：請填寫 http:// 或 https:// 開頭的網址，例如 http://192.168.1.10:8080。目前仍使用本機模型。"; return; }
                 result.Text = "正在測試連線…";
                 // Saving cancelled whatever the model was doing; it lets go within moments.
@@ -149,8 +169,8 @@ internal sealed partial class LinuxPetWindow
             finally { test.IsEnabled = true; }
         });
 #if COMPANION_MAC
-        // Until the keychain has answered at startup, a save could be overwritten by the value read before it.
-        test.IsEnabled = macSecretsLoaded;
+        // Until the keychain has answered, a save could be overwritten by the value read before it.
+        test.IsEnabled = secretsReady;
 #endif
         panel.Children.Add(test);
         panel.Children.Add(result);
@@ -159,8 +179,8 @@ internal sealed partial class LinuxPetWindow
         {
             if (source.SelectedIndex < 0) return;
             panel.IsVisible = source.SelectedIndex == 1;
-            if (await SaveModelSource() && source.SelectedIndex == 1 && !brain.UseRemote) result.Text = "填好伺服器網址後，按「儲存並測試連線」。";
+            if (await SaveModelSource(false) && source.SelectedIndex == 1 && !brain.UseRemote) result.Text = "填好伺服器網址後，按「儲存並測試連線」。";
         };
-        images.IsCheckedChanged += async (_, _) => await SaveModelSource();
+        images.IsCheckedChanged += async (_, _) => await SaveModelSource(false);
     }
 }

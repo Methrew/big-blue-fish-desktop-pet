@@ -153,6 +153,7 @@ internal sealed partial class LinuxPetWindow
         navigation.Children.Add(ActionButton("記錄主控台", () => Navigate(Logs)));
         DiagnosticLog.Write(DiagnosticEvent.SettingsOpened);
         General(); settings.Show(); settings.Activate();
+        OpenedSettingsPlatform();
     }
 }
 

@@ -29,7 +29,7 @@ internal sealed partial class LinuxPetWindow
         }));
         toolbar.Children.Add(follow); panel.Children.Add(toolbar);
         var count = Paragraph(""); panel.Children.Add(count);
-        var console = new TextBox { Name = "LogConsoleText", IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new FontFamily("DejaVu Sans Mono, Noto Sans CJK TC"), FontSize = 12, Height = 400 };
+        var console = new TextBox { Name = "LogConsoleText", IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = LinuxFonts.Log, FontSize = 12, Height = 400 };
         ScrollViewer.SetVerticalScrollBarVisibility(console, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto);
         ScrollViewer.SetHorizontalScrollBarVisibility(console, Avalonia.Controls.Primitives.ScrollBarVisibility.Auto); panel.Children.Add(console);
         long revision = -1;

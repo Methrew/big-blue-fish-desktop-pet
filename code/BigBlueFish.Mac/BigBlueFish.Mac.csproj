@@ -17,6 +17,7 @@
     <Compile Include="../BigBlueFish.Linux/LinuxLogConsole.cs" Link="Linux/LinuxLogConsole.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxAgentSettings.cs" Link="Linux/LinuxAgentSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxAgentWorkspaceSettings.cs" Link="Linux/LinuxAgentWorkspaceSettings.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxFonts.cs" Link="Linux/LinuxFonts.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionCaptureFallback.cs" Link="Shared/CompanionCaptureFallback.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionMedia.cs" Link="Shared/CompanionMedia.cs" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />

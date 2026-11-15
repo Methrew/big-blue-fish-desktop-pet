@@ -254,8 +254,14 @@ internal sealed partial class LinuxPetWindow
         if (mcpInput != null) { inputHiddenForWalk = false; mcpInput.Show(this); mcpInput.Activate(); return true; }
         const string hint = "透過魚魚和已連線的 Agent 說話";
         var text = new TextBox { AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxLength = 4000,
-            Height = 56, Padding = new Thickness(0, 2, 22, 0), FontSize = 14, Foreground = Hair,
+            Height = 56, Padding = new Thickness(6, 4, 24, 4), FontSize = 14, Foreground = Hair,
             Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0), PlaceholderText = hint };
+        // Fluent draws a white field with a 2 px focus border over the text when the box has focus or the pointer; the
+        // box sits on the frame's own background, so both stay transparent and the text keeps its first letters.
+        foreach (var (key, value) in new (string, object)[] { ("TextControlBorderThemeThicknessFocused", new Thickness(0)), ("TextControlBorderBrushFocused", Avalonia.Media.Brushes.Transparent),
+            ("TextControlBackgroundFocused", Avalonia.Media.Brushes.Transparent), ("TextControlBackgroundPointerOver", Avalonia.Media.Brushes.Transparent),
+            ("TextControlBorderBrushPointerOver", Avalonia.Media.Brushes.Transparent) })
+            text.Resources[key] = value;
         Avalonia.Automation.AutomationProperties.SetName(text, hint);
         var editor = new Grid(); editor.Children.Add(text);
         string ready = McpSendHint;

@@ -113,29 +113,7 @@ internal sealed partial class LinuxPetWindow
             var frequency = Select("自动说话间隔", CompanionPreferences.SpeechRanges.Select(r => $"{r.Min}–{r.Max} 分钟").ToArray(), Preferences.SpeechRangeIndex, value => { Preferences.SpeechMinMinutes = CompanionPreferences.SpeechRanges[value].Min; nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); });
             frequency.IsEnabled = !Puppet;
             body.Children.Add(Paragraph(Puppet ? "日常关心的触发时机已交给 Agent，此时说话间隔不可调节。关闭接管触发后恢复使用此设置。" : AgentDailyActive ? "鱼鱼按此间隔触发日常关心，由 Agent 编写吐字。" : "鱼鱼按此间隔触发日常关心，由本地模型编写吐字。"));
-            body.Children.Add(new TextBlock { Text = "天气地区", Margin = new Thickness(0,12,0,4) });
-            var regions = new StackPanel { Spacing = 8 }; body.Children.Add(regions);
-            var country = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = CompanionRegions.Countries.Select(c => c.Name).ToArray() };
-            regions.Children.Add(country);
-            var levels = Enumerable.Range(0, 3).Select(_ => new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch }).ToArray();
-            foreach (var level in levels) regions.Children.Add(level);
-            var options = new CompanionRegion[levels.Length][];
-            // Countries start with 臺灣 (縣市 → 鄉鎮市區); Linux collects no CWA authorization code, so Taiwan always gets the Open-Meteo estimate.
-            var selected = CompanionRegions.District(Preferences.WeatherRegionCode); var current = CompanionRegions.Country(selected); bool changing = true;
-            void Fill(int from, string parentCode, CompanionRegion[] keep) {
-                for (int i = from; i < levels.Length; i++) {
-                    levels[i].IsVisible = i <= current.LeafLevel;
-                    options[i] = i <= current.LeafLevel ? CompanionRegions.Children(parentCode) : [];
-                    levels[i].ItemsSource = options[i].Select(r => r.Name).ToArray();
-                    levels[i].SelectedIndex = options[i].Length == 0 ? -1 : Math.Max(0, Array.FindIndex(options[i], r => i < keep.Length && r.Code == keep[i].Code));
-                    if (levels[i].SelectedIndex >= 0) parentCode = options[i][levels[i].SelectedIndex].Code;
-                }
-            }
-            country.SelectedIndex = Array.IndexOf(CompanionRegions.Countries, current); Fill(0, current.Root, CompanionRegions.Chain(selected)); changing = false;
-            void RegionChanged() { var leaf = levels[current.LeafLevel]; if (leaf.SelectedIndex >= 0 && leaf.SelectedIndex < options[current.LeafLevel].Length) { Preferences.WeatherRegionCode = options[current.LeafLevel][leaf.SelectedIndex].Code; ApplySettings(); } }
-            country.SelectionChanged += (_,_) => { if (changing || country.SelectedIndex < 0 || CompanionRegions.Countries[country.SelectedIndex] == current) return; changing = true; current = CompanionRegions.Countries[country.SelectedIndex]; Fill(0, current.Root, CompanionRegions.DefaultChain(current)); changing = false; RegionChanged(); };
-            for (int level = 0; level < levels.Length; level++) { var at = level; levels[at].SelectionChanged += (_,_) => { if (changing || levels[at].SelectedIndex < 0) return; changing = true; if (at < current.LeafLevel) Fill(at + 1, options[at][levels[at].SelectedIndex].Code, []); changing = false; RegionChanged(); }; }
-            body.Children.Add(Paragraph("天氣來自 Open-Meteo（Weather data by Open-Meteo.com），依所選地點中心附近估算；臺灣地點以鄉鎮市區中心估算（Linux 版沒有中央氣象署授權碼欄位），美國地點使用華氏度和英里/小時。海外城市資料來自 GeoNames（CC BY 4.0）。臺灣鄉鎮市區中心座標由內政部國土測繪中心「鄉(鎮、市、區)界線(TWD97經緯度)」計算；此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license"));
+            BuildWeatherSettings(body);
         }
         void Animation() {
             Title("动作与作息"); Slider("动作触发间隔（秒）", Preferences.AnimationIntervalSeconds, 30, 300, value => { Preferences.AnimationIntervalSeconds = (int)value; nextEvent = DateTime.UtcNow.AddSeconds(value); });

@@ -171,7 +171,8 @@ internal sealed partial class LinuxPetWindow
         var values = new Dictionary<string, object?>();
         foreach (var property in patch.EnumerateObject())
         {
-            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(property.Name == "McpEnabled" ? "MCP 接口只能由用户在设置中开启或关闭。" : "未知设置：" + property.Name);
+            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(property.Name == "McpEnabled" ? "MCP 接口只能由用户在设置中开启或关闭。"
+                : CompanionPreferences.PrivateSettings.Contains(property.Name) ? "API Key 與授權碼只能由使用者在設定中填寫。" : "未知设置：" + property.Name);
             var type = property.Name == "StartupEnabled" ? typeof(bool) : typeof(CompanionPreferences).GetProperty(property.Name)!.PropertyType;
             values[property.Name] = JsonSerializer.Deserialize(property.Value.GetRawText(), type);
         }
@@ -186,7 +187,7 @@ internal sealed partial class LinuxPetWindow
                 "LateReminderHour" => item.Value is int late && CompanionPreferences.LateReminderChoices.Contains(late),
                 "WelcomeBackMinutes" => item.Value is int away && CompanionPreferences.WelcomeBackChoices.Contains(away),
                 "EventReminderMinutes" => item.Value is int ahead && CompanionPreferences.EventReminderChoices.Contains(ahead),
-                // Taiwan townships too: without a CWA authorization code (Linux has none) they get the Open-Meteo estimate.
+                // 臺灣 townships and China's 台湾省 alike; a 臺灣 township uses CWA when macOS has an authorization code, else the estimate.
                 "WeatherRegionCode" => item.Value is string region && CompanionRegions.District(region).Code == region,
                 "LastBrushDate" => item.Value == null || item.Value is string date && DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
                 "Left" or "Top" => item.Value == null || Range(-1000000, 1000000), _ => item.Value is bool };

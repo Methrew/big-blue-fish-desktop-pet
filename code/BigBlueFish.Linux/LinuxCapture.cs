@@ -263,7 +263,7 @@ internal static class CompanionOcr
             var cells = line.TrimEnd('\r').Split('\t'); if (cells.Length < 12 || cells[0] != "5" || string.IsNullOrWhiteSpace(cells[11])) continue;
             if (double.TryParse(cells[6], out var x) && double.TryParse(cells[7], out var y) && double.TryParse(cells[8], out var width) && double.TryParse(cells[9], out var height)) words.Add(new(cells[11], x, y, width, height));
         }
-        string context = identity + "\n" + (desktop ? "畫面是桌布與捷徑圖示，沒有展開的應用程式內容。" : CompanionOcrLayout.Format(words, image.Width, image.Height));
+        string context = identity + "\n" + (desktop ? "畫面是桌布與捷徑圖示，沒有展開的應用程式正文。" : CompanionOcrLayout.Format(words, image.Width, image.Height));
         return new(context, "chi_tra+chi_sim+eng", image.Width, image.Height, words.Count, captureMs, clock.Elapsed.TotalMilliseconds, words.ToArray(), IsDesktop: desktop);
     }
 }

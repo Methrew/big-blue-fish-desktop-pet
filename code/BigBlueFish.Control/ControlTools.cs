@@ -57,7 +57,7 @@ public static class ControlTools
           "Top":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗上座標，與Left相同的平臺語意；最終座標受螢幕工作區約束。"},
           "LastBrushDate":{"type":["string","null"],"pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}$","description":"有效本地日期yyyy-MM-dd或null，用於每日刷牙動作去重；通常無需修改。"},
           "StartupEnabled":{"type":"boolean","description":"目前使用者的開機時啟動設定（macOS為登入時自動開啟）。"},
-          "PuppetMode":{"type":"boolean","description":"提線木偶模式，內建Agent連線時即「把日常關心的觸發和日常的動作切換邏輯交給Agent」：完全外部接管，由Agent安排日常關心與動作。每次從false改true須等待使用者在桌面確認；視窗等待期間桌寵仍可拖曳。中斷連線不會自動關閉該模式。"},
+          "PuppetMode":{"type":"boolean","description":"提線木偶模式，內建Agent連線時即「把日常關心的觸發和日常的動作切換邏輯交給 Agent」：完全外部接管，由Agent安排日常關心與動作。每次從false改true須等待使用者在桌面確認；視窗等待期間桌寵仍可拖曳。中斷連線不會自動關閉該模式。"},
           "McpChatEnabled":{"type":"boolean","description":"設定頁的「雙擊輸入交給 MCP 介面（Hermes 橋接程式）」：雙擊輸入只交給一方。true且MCP介面有完成初始化的真實客戶端時，文字與附件路徑（圖片、影片或檔案）只透過user_message交給MCP介面的客戶端，內建Agent連線收不到；沒有客戶端連線時輸入交給內建Agent連線（開著時）。false時MCP介面的客戶端收不到user_message，輸入只交給內建Agent連線。"},
           "AgentDailySpeech":{"type":"boolean","description":"日常關心要說的話交給內建Agent編寫；普通模式由魚魚計時，提線木偶模式由Agent預約喚醒。"},
           "AgentRespondToClick":{"type":"boolean","description":"點選事件是否主動發起內建Agent輪次，預設false；事件仍可從互動資源讀取。"},

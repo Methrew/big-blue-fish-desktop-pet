@@ -26,7 +26,7 @@ macOS、Windows 與 Linux 使用同一份工具清單與事件；平台之間的
 
 `get_settings` 回傳 `settings` 與 `state`。settings 是會儲存下來的欄位與系統啟動設定；state 是視窗是否顯示、隱藏原因、目前動作、播放階段、動作佇列、待說文字、工具連線、輸入框、Agent 狀態和模型狀態的快照。`modelAvailable` 表示有模型檔，不等於推論程式已經載入。`connections` 是已初始化的客戶端總數，`mcpClients` 是其中經 MCP 介面連線的外部客戶端。各版本的 state 也有 `bubbleVisible`、`externalBubble`（目前氣泡來自 `say` 或 `say_next`）、`speechPending`（魚魚正在準備自己的說話或天氣）、`fullscreen`、`idleSeconds`、`activeMinutes`、`lastBreakMinutes`；Windows 與 macOS 版另有 `walk_to` 的 `walk`、`tour`、`lastWalk` 與 `walkBubble`；macOS 與 Linux 版另有 `platform`（`macos` 或 `linux`）。
 
-`update_settings` 的參數為 `{"settings":{...}}`，省略的欄位保留，欄位名稱區分大小寫，會先驗證整個補丁。`AgentEnabled`、`AgentHarnessId` 只能讀取，由使用者在連線頁選擇。`McpEnabled` 與遠端模型設定（`ModelSource`、`RemoteUrl`、`RemoteModel`、`ScreenImages`）同樣只能讀取；遠端模型的 API Key 與中央氣象署授權碼由使用者在設定中填寫（macOS 存在鑰匙圈，Windows 以目前的 Windows 帳戶加密），不會出現在 `get_settings`，也不能透過 `update_settings` 寫入，被拒絕的欄位只列出名稱、不回傳數值。以下是可以寫入的欄位：
+`update_settings` 的參數為 `{"settings":{...}}`，省略的欄位保留，欄位名稱區分大小寫，會先驗證整份修改。`AgentEnabled`、`AgentHarnessId` 只能讀取，由使用者在連線頁選擇。`McpEnabled` 與遠端模型設定（`ModelSource`、`RemoteUrl`、`RemoteModel`、`ScreenImages`）同樣只能讀取；遠端模型的 API Key 與中央氣象署授權碼由使用者在設定中填寫（macOS 存在鑰匙圈，Windows 以目前的 Windows 帳戶加密），不會出現在 `get_settings`，也不能透過 `update_settings` 寫入，被拒絕的欄位只列出名稱、不回傳數值。以下是可以寫入的欄位：
 
 | 欄位 | 類型與範圍 | 意義 |
 | --- | --- | --- |

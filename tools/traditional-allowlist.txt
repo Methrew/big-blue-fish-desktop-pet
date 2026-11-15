@@ -31,3 +31,7 @@ code/run-hermes-bridge.sh	蓝色大肥鱼.app	the original edition's app, search
 
 # Test input.
 tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble text proving the packaged app shows it in Taiwan Traditional
+
+# l4-tooling
+code/tests/LinuxVerification/verify.py	主人，我们一起干杯吧！	Simplified say text proving the Linux bubble shows it in Taiwan Traditional
+code/tests/LinuxVerification/verify.py	點擊回應-元氣揮手	Traditional spelling of an animation id, proving MCP accepts it for the Simplified clip

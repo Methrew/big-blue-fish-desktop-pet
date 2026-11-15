@@ -155,16 +155,16 @@ public static class DiagnosticLog
     public static void SaveText(string path) => File.WriteAllText(path, ExportText(), new UTF8Encoding(true));
     static string Message(DiagnosticEvent code) => code switch
     {
-        DiagnosticEvent.AppStarted => "桌寵啟動", DiagnosticEvent.AppStopped => "桌寵結束", DiagnosticEvent.AppFailed => "桌寵執行異常", DiagnosticEvent.TrayState => "系統匣圖示狀態變化",
+        DiagnosticEvent.AppStarted => "桌寵啟動", DiagnosticEvent.AppStopped => "桌寵結束", DiagnosticEvent.AppFailed => "桌寵執行異常", DiagnosticEvent.TrayState => "狀態圖示變化",
         DiagnosticEvent.SettingsOpened => "開啟設定", DiagnosticEvent.SettingsClosed => "關閉設定", DiagnosticEvent.SettingsChanged => "設定已儲存",
         DiagnosticEvent.VisibilityChanged => "桌寵顯示狀態變化", DiagnosticEvent.SessionRecovery => "恢復桌面工作階段並清理舊工作", DiagnosticEvent.Interaction => "收到桌寵互動",
         DiagnosticEvent.AnimationStarted => "開始播放動作", DiagnosticEvent.AnimationCompleted => "動作播放結束", DiagnosticEvent.AnimationFailed => "動畫播放失敗",
-        DiagnosticEvent.SpeechRequested => "收到吐字要求", DiagnosticEvent.SpeechSkipped => "這次吐字沒有執行", DiagnosticEvent.SpeechStarted => "開始準備吐字",
-        DiagnosticEvent.SpeechCompleted => "模型吐字產生完成", DiagnosticEvent.SpeechCancelled => "吐字已取消", DiagnosticEvent.SpeechFailed => "吐字產生失敗",
+        DiagnosticEvent.SpeechRequested => "收到說話要求", DiagnosticEvent.SpeechSkipped => "這次說話沒有執行", DiagnosticEvent.SpeechStarted => "開始準備說話",
+        DiagnosticEvent.SpeechCompleted => "模型已產生要說的話", DiagnosticEvent.SpeechCancelled => "說話已取消", DiagnosticEvent.SpeechFailed => "產生要說的話失敗",
         DiagnosticEvent.ScreenReadStarted => "開始讀取前景畫面", DiagnosticEvent.ScreenReadCompleted => "前景資料準備完成", DiagnosticEvent.ScreenReadFallback => "無法讀取畫面，改用其餘資料產生",
         DiagnosticEvent.BubbleShown => "文字已交給氣泡顯示", DiagnosticEvent.BubbleClosed => "氣泡已關閉",
-        DiagnosticEvent.RunnerStarting => "啟動本機推理程式", DiagnosticEvent.RunnerReady => "模型已就緒", DiagnosticEvent.RunnerStopped => "推理程式已停止",
-        DiagnosticEvent.RunnerFailed => "推理程式發生故障", DiagnosticEvent.RunnerCpuFallback => "切換到 CPU 相容模式",
+        DiagnosticEvent.RunnerStarting => "啟動本機推論程式", DiagnosticEvent.RunnerReady => "模型已就緒", DiagnosticEvent.RunnerStopped => "推論程式已停止",
+        DiagnosticEvent.RunnerFailed => "推論程式發生故障", DiagnosticEvent.RunnerCpuFallback => "切換到 CPU 相容模式",
         DiagnosticEvent.WeatherRefresh => "開始更新天氣", DiagnosticEvent.WeatherCached => "使用天氣快取", DiagnosticEvent.WeatherFailed => "天氣取得失敗",
         DiagnosticEvent.NewsFetch => "取得科技新聞", DiagnosticEvent.NewsSelected => "本輪選用新聞資料", DiagnosticEvent.NewsFailed => "新聞取得失敗",
         DiagnosticEvent.AgentConnecting => "開始連線 Agent", DiagnosticEvent.AgentConnected => "Agent 工作階段已連線", DiagnosticEvent.AgentDisconnected => "Agent 連線已關閉",

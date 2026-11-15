@@ -27,7 +27,6 @@ internal sealed partial class LinuxPetWindow : Window
     readonly LinuxLoadingRing loading = new() { IsVisible = false };
     readonly Stopwatch typingClock = new();
     readonly Queue<string> externalActions = new();
-    readonly Mutex mutex;
     string currentAction = "", phase = "Startup", fullText = "";
     string? nextExternalText;
     DateTime nextSpeech = DateTime.UtcNow.AddSeconds(45), nextEvent = DateTime.MaxValue, nextWarmup;
@@ -51,10 +50,8 @@ internal sealed partial class LinuxPetWindow : Window
 
     internal LinuxPetWindow()
     {
-        mutex = new Mutex(true, "BigBlueFish.Linux." + Environment.UserName, out var first);
-        if (!first) Environment.Exit(0);
         DiagnosticLog.ConfigureDirectories(AppContext.BaseDirectory, Environment.CurrentDirectory);
-        DiagnosticLog.Write(DiagnosticEvent.AppStarted, kind: "Linux", directory: Environment.CurrentDirectory);
+        DiagnosticLog.Write(DiagnosticEvent.AppStarted, kind: OperatingSystem.IsMacOS() ? "macOS" : "Linux", directory: Environment.CurrentDirectory);
         DiagnosticLog.ObserveSettings(Preferences);
         brain = new() { UseGpu = Preferences.GpuEnabled, StopOnBattery = Preferences.StopModelOnBattery, WeatherRegionCode = Preferences.WeatherRegionCode };
         LoadPlatformSecrets(); ApplyModelSource(); // before Opened asks whether a local model is installed
@@ -133,7 +130,7 @@ internal sealed partial class LinuxPetWindow : Window
             speechVersion++; brain.Stop(); moveRule = null; settings?.Close(); hidden = false; fullscreenHidden = false; Show(); player.Paused = false;
             Play(policy.Find("女仆屈膝礼仪"), "Exit"); ShowText("主人再見~魚魚喜歡主人喔", false, true);
         };
-        Closed += (_, _) => { DiagnosticLog.Write(DiagnosticEvent.AppStopped, kind: "Linux"); closed = true; timer.Stop(); StopMcp(); brain.Dispose(); player.Dispose(); bubbleWindow.Close(); settings?.Close(); Save(); mutex.Dispose(); (Avalonia.Application.Current!.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)!.Shutdown(); };
+        Closed += (_, _) => { DiagnosticLog.Write(DiagnosticEvent.AppStopped, kind: OperatingSystem.IsMacOS() ? "macOS" : "Linux"); closed = true; timer.Stop(); StopMcp(); brain.Dispose(); player.Dispose(); bubbleWindow.Close(); settings?.Close(); Save(); SingleInstance.Release(); (Avalonia.Application.Current!.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)!.Shutdown(); };
         timer.Tick += async (_, _) => await Tick();
         InitializePlatform();
     }

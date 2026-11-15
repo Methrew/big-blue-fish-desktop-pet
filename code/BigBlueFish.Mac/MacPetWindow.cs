@@ -17,6 +17,10 @@ internal sealed partial class LinuxPetWindow
         // Openings of the clips a click or a drag starts, from where Play starts them (the drag clip at 1.5 s): about 33 MB.
         foreach (var rule in policy.Rules.Where(r => r.Pool == "Click")) player.Preload(Path.Combine(AppContext.BaseDirectory, "assets/fish", rule.File));
         player.Preload(Path.Combine(AppContext.BaseDirectory, "assets/fish", policy.Find("被鼠标拖拽悬空反馈").File), 1.5);
+        // Opening the app again from Finder, Launchpad or Spotlight while it runs (LaunchServices reopens this copy): a
+        // hidden fish comes back, as the menu bar's 顯示桌寵 does.
+        if (Avalonia.Application.Current?.TryGetFeature<Avalonia.Controls.ApplicationLifetimes.IActivatableLifetime>() is { } lifetime)
+            lifetime.Activated += (_, e) => { if (e.Kind == Avalonia.Controls.ApplicationLifetimes.ActivationKind.Reopen && !closed && phase != "Exit") RestorePet(); };
     }
 
     partial void ConfigurePlatformWindow(Window window) => CompanionNative.ConfigureSpaces(window, Preferences.ShowOnAllSpaces, !Preferences.HideOnFullscreen);

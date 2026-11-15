@@ -27,8 +27,8 @@ internal static class MacDataImport
         if (SetUp(target) || !Directory.Exists(source) || Same(target, source)) return;
         // Built beside the target and renamed into place last, so an interrupted import is redone from the start.
         string parent = Path.GetDirectoryName(Path.GetFullPath(target))!, staging = Path.Combine(parent, "." + Path.GetFileName(target) + ".importing");
-        // Two copies started together (login item and a click) both get here before the single-instance check: the
-        // second waits for the first to finish instead of creating an empty folder under it.
+        // Two copies started together that do not share the single-instance lock (Program.Main), such as an older build
+        // beside this one: the second waits for the first to finish instead of creating an empty folder under it.
         string gatePath = Path.Combine(parent, "." + Path.GetFileName(target) + ".import-lock");
         FileStream? gate = null;
         for (var limit = DateTime.UtcNow.AddMinutes(2); gate == null && DateTime.UtcNow < limit;)

@@ -82,7 +82,8 @@ internal sealed partial class LinuxPetWindow
         var reveal = new CheckBox { Content = "顯示授權碼" };
         reveal.IsCheckedChanged += (_, _) => key.RevealPassword = reveal.IsChecked == true;
         panel.Children.Add(reveal);
-        const string hint = "填入授權碼後，臺灣鄉鎮使用中央氣象署的鄉鎮天氣預報；沒有授權碼時，改用 Open-Meteo 估計鄉鎮市區中心附近的天氣。授權碼可在中央氣象署氣象資料開放平臺免費申請。";
+        // Where the forecasts come from is the source paragraph below; this line only says where a code comes from.
+        const string hint = "授權碼可在中央氣象署氣象資料開放平臺免費申請。";
         bool ready = macSecretsLoaded && !macSecretsReading;
         var status = Paragraph(!ready ? "正在讀取 macOS 鑰匙圈…" : SecretNote(MacKeychain.CwaAccount, "授權碼") ?? hint);
         var buttons = new WrapPanel();

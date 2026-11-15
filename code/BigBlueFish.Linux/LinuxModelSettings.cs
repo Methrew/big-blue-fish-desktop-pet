@@ -168,7 +168,11 @@ internal sealed partial class LinuxPetWindow
                 result.Text = "正在測試連線…";
                 // Saving cancelled whatever the model was doing; it lets go within moments.
                 for (int i = 0; i < 30 && brain.Busy; i++) await Task.Delay(100);
-                result.Text = "連線測試：" + await brain.TestRemote();
+                // The reason is also the model status on the line below; it is not repeated here.
+                var reply = await brain.TestRemote();
+                result.Text = reply != brain.Status ? "連線測試：" + reply
+                    : reply.StartsWith("遠端模型就緒", StringComparison.Ordinal) ? "連線測試成功，詳情見下方的模型狀態。" : "連線測試沒有成功，原因見下方的模型狀態。";
+                UpdateState();
             }
             finally { test.IsEnabled = true; }
         });

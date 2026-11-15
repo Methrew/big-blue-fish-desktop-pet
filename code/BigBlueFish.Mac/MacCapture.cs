@@ -122,17 +122,12 @@ internal static partial class CompanionNative
         return new("data:image/png;base64," + Convert.ToBase64String(png.ToArray()), image.Width, image.Height);
     }
     // AppKit has no input-shape region like XShape: let clicks through whenever the cursor is over a transparent pixel.
+    // The frame's alpha is kept, so the 40 ms tick re-evaluates it while no new frame arrives (MacWindowBehavior.cs).
     internal static void SetInputShape(IntPtr handle, byte[] pixels, int width, int height, double scale, bool mirror)
     {
-        if (handle == IntPtr.Zero) return;
-        var window = SendBool(handle, "respondsToSelector:", Selector("setIgnoresMouseEvents:")) ? handle : Send(handle, "window");
-        if (window == IntPtr.Zero || Send(Class("NSEvent"), "pressedMouseButtons") != IntPtr.Zero) return; // never drop a press or drag in progress
-        var mouse = SendPoint(Class("NSEvent"), "mouseLocation"); var frame = SendRect(window, "frame");
-        if (frame.Width <= 0 || frame.Height <= 0) return;
-        int x = (int)Math.Floor((mouse.X - frame.X) * width / frame.Width), y = (int)Math.Floor((frame.Y + frame.Height - mouse.Y) * height / frame.Height);
-        if (mirror) x = width - 1 - x;
-        bool opaque = x >= 0 && y >= 0 && x < width && y < height && pixels[(y * width + x) * 4 + 3] >= 8;
-        SendBool(window, "setIgnoresMouseEvents:", !opaque);
+        if (handle == IntPtr.Zero || width <= 0 || height <= 0 || pixels.Length < width * height * 4) return;
+        KeepShape(handle, pixels, width, height, mirror);
+        UpdatePointerPassThrough();
     }
     static string Text(IntPtr value)
     {

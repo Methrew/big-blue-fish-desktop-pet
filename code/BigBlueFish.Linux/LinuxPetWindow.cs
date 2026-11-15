@@ -93,6 +93,7 @@ internal sealed partial class LinuxPetWindow : Window
         };
         PointerPressed += (_, e) => {
             var point = e.GetCurrentPoint(this);
+            RememberFocusPlatform(point.Properties.IsLeftButtonPressed);
             if (point.Properties.IsRightButtonPressed) { PublishInteraction("click", new { button = "right", Position.X, Position.Y }); OpenMenu(); e.Handled = true; return; }
             if (!point.Properties.IsLeftButtonPressed) return;
             if (e.ClickCount == 2 && TryOpenMcpInput()) { lastClickAt = 0; PublishInteraction("click", new { button = "left", count = 2, Position.X, Position.Y }); e.Handled = true; return; }
@@ -109,6 +110,7 @@ internal sealed partial class LinuxPetWindow : Window
             Position = new(windowOrigin.X + dx, windowOrigin.Y + dy); MoveBubble();
         };
         PointerReleased += (_, e) => {
+            ReturnFocusPlatform();
             if (!dragging) return; dragging = false; e.Pointer.Capture(null); Clamp(); Save();
             if (dragged) { lastClickAt = 0; PublishInteraction("drag_end", new { Position.X, Position.Y, cancelled = false }); if (!Puppet && !PlayQueued()) Idle(); }
             else {
@@ -121,7 +123,7 @@ internal sealed partial class LinuxPetWindow : Window
             }
             e.Handled = true;
         };
-        PointerCaptureLost += (_, _) => { if (dragging) { dragging = false; if (dragged) PublishInteraction("drag_end", new { Position.X, Position.Y, cancelled = true }); if (!Puppet) Idle(); } };
+        PointerCaptureLost += (_, _) => { if (dragging) { RememberFocusPlatform(false); dragging = false; if (dragged) PublishInteraction("drag_end", new { Position.X, Position.Y, cancelled = true }); if (!Puppet) Idle(); } };
         Closing += (_, e) => {
             Save();
             CloseModelInstaller();
@@ -132,8 +134,17 @@ internal sealed partial class LinuxPetWindow : Window
         };
         Closed += (_, _) => { DiagnosticLog.Write(DiagnosticEvent.AppStopped, kind: "Linux"); closed = true; timer.Stop(); StopMcp(); brain.Dispose(); player.Dispose(); bubbleWindow.Close(); settings?.Close(); Save(); mutex.Dispose(); (Avalonia.Application.Current!.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)!.Shutdown(); };
         timer.Tick += async (_, _) => await Tick();
+        InitializePlatform();
     }
     CompanionAnimationContext Context() => new(DateTime.Now, BreakfastHour: Preferences.BreakfastHour, LunchHour: Preferences.LunchHour, DinnerHour: Preferences.DinnerHour);
+    // Platform hooks the macOS edition implements (BigBlueFish.Mac/MacPetWindow.cs); without an implementation the calls compile away.
+    partial void InitializePlatform();
+    partial void TickPlatform();
+    partial void RememberFocusPlatform(bool remember);
+    partial void ReturnFocusPlatform();
+    partial void ApplyPlatformSettings();
+    partial void ConfigurePlatformWindow(Window window);
+    partial void AddPlatformGeneralOptions(Avalonia.Controls.Panel body);
     void Rescale()
     {
         Width = SpriteSize * 640 / 360; Height = SpriteSize; sprite.Width = Width; sprite.Height = Height;
@@ -249,6 +260,7 @@ internal sealed partial class LinuxPetWindow : Window
         await TestCommands(); if (closed || phase == "Exit") return;
         var now = DateTime.UtcNow;
         lastForeground = CompanionNative.ResolveForeground(CompanionNative.GetForegroundWindow(), lastForeground);
+        TickPlatform();
         if (Preferences.PublicInfo) brain.RefreshWeather();
         if (!brain.CanRunOnCurrentPower) {
             if (brain.RunnerPid != null || brain.Busy) { speechVersion++; brain.Stop(); loading.IsVisible = false; }

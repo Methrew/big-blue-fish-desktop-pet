@@ -54,7 +54,7 @@ internal static class CompanionOcr
         if (language == null)
             throw new IOException("Windows 尚未安裝文字辨識語言，請在語言設定中安裝中文（繁體或簡體）文字辨識");
         var engine = OcrEngine.TryCreateFromLanguage(new Language(language.LanguageTag))
-            ?? throw new IOException("無法啟動本地文字辨識");
+            ?? throw new IOException("無法啟動本機文字辨識");
         var bytes = Convert.FromBase64String(image.DataUrl[(image.DataUrl.IndexOf(',') + 1)..]);
         using var stream = new InMemoryRandomAccessStream();
         using (var writer = new DataWriter(stream.GetOutputStreamAt(0)))
@@ -82,7 +82,7 @@ internal static class CompanionOcr
         // Small shadowed labels produce unreliable OCR; keep the captured scene identity
         // rather than presenting those fragments as the owner's current topic.
         var context = desktop
-            ? identity + "\n畫面是桌布與捷徑圖示，沒有展開的應用正文。"
+            ? identity + "\n畫面是桌布與捷徑圖示，沒有展開的應用程式正文。"
             : identity + "\n" + CompanionOcrLayout.Format(words, bitmap.PixelWidth, bitmap.PixelHeight);
         return new CompanionOcrSnapshot(context, language.LanguageTag, bitmap.PixelWidth, bitmap.PixelHeight,
             words.Length, captureMs, recognizeMs, words, IsDesktop: desktop);

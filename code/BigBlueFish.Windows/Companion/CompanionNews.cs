@@ -15,7 +15,7 @@ internal static class CompanionNews
 
     internal sealed record Item(string Title, string Summary, DateTimeOffset Published)
     {
-        internal string Context => $"來源：IT之家\n釋出時間：{Published.ToLocalTime():yyyy-MM-dd HH:mm}\n標題：{Title}\n新聞摘要：{Summary}";
+        internal string Context => $"來源：IT之家\n發布時間：{Published.ToLocalTime():yyyy-MM-dd HH:mm}\n標題：{Title}\n新聞摘要：{Summary}";
     }
 
     internal static Item[] ReadFeed(string xml, DateTimeOffset now)

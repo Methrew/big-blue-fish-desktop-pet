@@ -108,9 +108,9 @@ internal static partial class CompanionNative
     }
     internal static string ForegroundIdentity(IntPtr handle)
     {
-        if (IsDesktopWindow(handle)) return "前台窗口：macOS 桌面\n画面是壁纸与快捷方式。";
+        if (IsDesktopWindow(handle)) return "前景視窗：macOS 桌面\n畫面是背景圖片與桌面圖示。";
         var window = Window(handle.ToInt64());
-        return $"前台应用：{window.Owner}\n窗口标题：{window.Title}";
+        return $"前景程式：{window.Owner}\n視窗標題：{window.Title}";
     }
     // The foreground window covers a whole display (kept as a cover test, which tolerates windows larger than the display).
     internal static bool IsFullscreen() { if (TestFullscreenOverride is { } forced) return forced; var current = Snapshot(); return current.Pid != 0 && current.Pid != Environment.ProcessId && current.Fullscreen; }
@@ -183,7 +183,7 @@ internal static class CompanionOcr
                 async () => await LinuxCapture.CaptureAsync(handle, 2560, false, token),
                 async () => await LinuxCapture.CaptureAsync(handle, 2560, true, token), token)
             : new CompanionCaptureResult<CompanionWindowImage>(await LinuxCapture.CaptureAsync(handle, 2560, false, token), false);
-        var image = captured.Image ?? throw new IOException("未能取得可用读屏画面");
+        var image = captured.Image ?? throw new IOException("未能取得可用的螢幕畫面");
         double captureTime = clock.Elapsed.TotalMilliseconds;
         var bytes = Convert.FromBase64String(image.DataUrl[(image.DataUrl.IndexOf(',') + 1)..]);
         // Apple Vision helper; it prints the same TSV layout as tesseract so parsing matches Linux.
@@ -193,7 +193,7 @@ internal static class CompanionOcr
         var output = process.StandardOutput.ReadToEndAsync(token); var error = process.StandardError.ReadToEndAsync(token);
         await process.StandardInput.BaseStream.WriteAsync(bytes, token); process.StandardInput.Close();
         await process.WaitForExitAsync(token); var text = await output;
-        if (process.ExitCode != 0) throw new IOException("本地 OCR 未完成：" + await error);
+        if (process.ExitCode != 0) throw new IOException("本機 OCR 未完成：" + await error);
         var words = new List<CompanionOcrWord>();
         foreach (var line in text.Split('\n').Skip(1))
         {
@@ -202,7 +202,7 @@ internal static class CompanionOcr
         }
         bool desktop = !captured.FullScreen && CompanionNative.IsDesktopWindow(handle);
         string identity = captured.FullScreen ? CompanionCaptureFallback.ScreenIdentity : CompanionNative.ForegroundIdentity(handle);
-        string context = identity + "\n" + (desktop ? "画面是壁纸与快捷方式图标，没有展开的应用正文。" : CompanionOcrLayout.Format(words, image.Width, image.Height));
+        string context = identity + "\n" + (desktop ? "畫面是背景圖片與桌面圖示，沒有展開的應用程式正文。" : CompanionOcrLayout.Format(words, image.Width, image.Height));
         return new(context, "zh-Hant+zh-Hans+en-US", image.Width, image.Height, words.Count, captureTime, clock.Elapsed.TotalMilliseconds - captureTime, words.ToArray(), captured.FullScreen ? 0 : handle.ToInt64(), desktop);
     }
 }

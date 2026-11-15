@@ -13,7 +13,7 @@ internal static class MacScreenHelper
     static int accessibilityAsked;
 
     internal static string AccessibilityNeeded(string what) =>
-        $"{what}需要「輔助使用」權限：請使用者到「系統設定 › 隱私權與安全性 › 輔助使用」打開「{CompanionEdition.DisplayName}」，打開後再呼叫一次。"
+        $"{what}需要「輔助使用」權限：請使用者到「系統設定 › 隱私權與安全性 › 輔助使用」打開「{CompanionEdition.AppName}」，打開後再呼叫一次。"
         + "如果已經打開還是不行，請先關掉再重新打開這個開關（臨時簽章的 App 更新後授權可能失效），再重新啟動魚魚。";
 
     internal static async Task<MacScreenSnapshot> FindAsync(string where, CancellationToken token, double budget = 6)

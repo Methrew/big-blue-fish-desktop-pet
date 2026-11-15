@@ -7,6 +7,13 @@ internal static class CompanionEdition
 {
     internal const string DisplayName = "藍色大肥魚";
     internal const string SafeDisplayName = "藍色大肥魚無MCP版";
+    // The name of the app that runs, for its windows, menu bar icon and notes: the Safe edition is 藍色大肥魚無MCP版.
+    internal static string AppName =>
+#if COMPANION_SAFE
+        SafeDisplayName;
+#else
+        DisplayName;
+#endif
     internal const string ReleaseRepository = "Methrew/big-blue-fish-desktop-pet";
     internal const string Homepage = "https://github.com/" + ReleaseRepository;
     internal const string ReleasesPage = Homepage + "/releases";

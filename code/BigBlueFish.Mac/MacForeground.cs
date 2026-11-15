@@ -47,11 +47,9 @@ internal static partial class CompanionNative
                 + "」。如果已經勾選，請先關閉再重新開啟（或移除後重新加入），然後重新啟動桌寵。每次重新建置或更新 App 後，macOS 可能需要這樣重新授權一次。");
         return new IOException("螢幕截圖沒有完成" + (detail.Length > 0 ? "：" + detail : "。"));
     }
-#if COMPANION_SAFE
-    static string EditionName => CompanionEdition.SafeDisplayName;
-#else
-    static string EditionName => CompanionEdition.DisplayName;
-#endif
+    static string EditionName => CompanionEdition.AppName;
+    // The settings pane is 螢幕與系統錄音 from macOS 15 on, 螢幕錄製 on macOS 14.
+    internal static string ScreenRecordingPane => OperatingSystem.IsMacOSVersionAtLeast(15) ? "螢幕與系統錄音" : "螢幕錄製";
 
     [DllImport(CoreGraphics)] [return: MarshalAs(UnmanagedType.I1)] static extern bool CGPreflightScreenCaptureAccess();
     [DllImport(CoreFoundation)] [return: MarshalAs(UnmanagedType.I1)] static extern bool CFNumberGetValue(IntPtr number, int type, out double value);

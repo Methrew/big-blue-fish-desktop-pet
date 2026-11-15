@@ -25,7 +25,7 @@ internal sealed partial class LinuxPetWindow
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock { Text = "安裝本機模型", FontSize = 24 });
         panel.Children.Add(Paragraph("選擇下載來源，或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"));
-        var dialog = Dialog(CompanionEdition.DisplayName + " · 安裝模型", panel, 680, 550);
+        var dialog = Dialog(CompanionEdition.AppName + " · 安裝模型", panel, 680, 550);
         var status = Paragraph("模型資料夾：" + Path.Combine(Environment.CurrentDirectory, "models")); panel.Children.Add(status);
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, Height = 8 }; panel.Children.Add(progress);
         var choices = new WrapPanel(); panel.Children.Add(choices); var retry = new WrapPanel { IsVisible = false }; panel.Children.Add(retry);
@@ -112,11 +112,7 @@ internal sealed partial class LinuxPetWindow
     // The settings page 關於與更新: edition, version, the credits to the original author and the Taiwan edition, and updates.
     void BuildAbout(StackPanel body)
     {
-#if COMPANION_SAFE
-        string name = CompanionEdition.SafeDisplayName;
-#else
-        string name = CompanionEdition.DisplayName;
-#endif
+        string name = CompanionEdition.AppName;
         string version = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(LinuxPetWindow).Assembly)?.InformationalVersion.Split('+')[0]
             ?? ReleaseVersion.Current(typeof(LinuxPetWindow).Assembly).ToString();
         body.Children.Add(new TextBlock { Text = name + " " + version, FontSize = 19, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 0, 0, 4) });
@@ -133,7 +129,11 @@ internal sealed partial class LinuxPetWindow
         string notices = Path.Combine(AppContext.BaseDirectory, "THIRD-PARTY.md");
         if (File.Exists(notices)) links.Children.Add(ActionButton("授權與第三方元件", () => OpenUrl(notices)));
         body.Children.Add(links);
+#if COMPANION_SAFE
+        body.Children.Add(Paragraph("設定和模型存放在：" + Environment.CurrentDirectory));
+#else
         body.Children.Add(Paragraph("設定、模型和 Agent 資料存放在：" + Environment.CurrentDirectory));
+#endif
 #if COMPANION_MAC
         if (File.Exists(MacDataImport.NoteName))
             body.Children.Add(Paragraph("第一次啟動時已經從原版的資料夾匯入設定，原版的資料沒有變動；匯入了哪些項目，記在這個資料夾的 " + MacDataImport.NoteName + "。"));
@@ -175,10 +175,11 @@ internal sealed partial class LinuxPetWindow
             string? Url(string name) => assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name) is { ValueKind: JsonValueKind.Object } found
                 && found.TryGetProperty("browser_download_url", out var value) ? value.GetString() : null;
 #if COMPANION_SAFE
-            string edition = "-Safe", app = CompanionEdition.SafeDisplayName; // the app the user runs and has to quit
+            string edition = "-Safe";
 #else
-            string edition = "", app = CompanionEdition.DisplayName;
+            string edition = "";
 #endif
+            string app = CompanionEdition.AppName; // the app the user runs and has to quit
 #if COMPANION_MAC
             // A DMG release: the app is never replaced from inside; the user downloads the DMG and replaces the app.
             string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-macOS-arm64.dmg";

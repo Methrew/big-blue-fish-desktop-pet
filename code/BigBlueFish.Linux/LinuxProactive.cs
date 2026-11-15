@@ -208,7 +208,11 @@ internal sealed partial class LinuxPetWindow
     void BuildReminderSettings(StackPanel body)
     {
         body.Children.Add(new TextBlock { Text = "主動提醒", FontSize = 18, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 20, 0, 0) });
+#if COMPANION_SAFE
+        body.Children.Add(Paragraph("魚魚自己會提醒，不需要模型。你不在電腦前、有程式全螢幕或正在拖曳魚魚時，提醒會先等一下。"));
+#else
         body.Children.Add(Paragraph("魚魚自己會提醒，不需要模型或 Agent。你不在電腦前、有程式全螢幕、正在拖曳魚魚或 Agent 剛說過話時，提醒會先等一下。"));
+#endif
         void Choice(string label, string[] choices, int selected, Action<int> set)
         {
             body.Children.Add(new TextBlock { Text = label, Margin = new Thickness(0, 10, 0, 4) });

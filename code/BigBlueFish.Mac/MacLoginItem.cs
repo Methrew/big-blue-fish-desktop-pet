@@ -50,11 +50,7 @@ internal static class MacLoginItem
             return EditionName + "目前是直接從磁碟映像（DMG）執行，退出映像後登入時會找不到它。請先把它拖到「應用程式」檔案夾，再從「應用程式」重新開啟後設定。";
         return null;
     }
-#if COMPANION_SAFE
-    static string EditionName => CompanionEdition.SafeDisplayName;
-#else
-    static string EditionName => CompanionEdition.DisplayName;
-#endif
+    static string EditionName => CompanionEdition.AppName;
 
     internal static void Set(bool on)
     {

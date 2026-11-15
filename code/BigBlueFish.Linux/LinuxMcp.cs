@@ -257,7 +257,7 @@ internal sealed partial class LinuxPetWindow
         var panel = new StackPanel { Spacing = 4 }; panel.Children.Add(editor);
         var frame = new Border { Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(255, 251, 244)),
             BorderBrush = Hair, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(12), Child = panel };
-        var dialog = new Window { Title = CompanionEdition.DisplayName + " · 輸入", Width = 354, Height = 120,
+        var dialog = new Window { Title = CompanionEdition.AppName + " · 輸入", Width = 354, Height = 120,
             WindowDecorations = WindowDecorations.None, CanResize = false, ShowInTaskbar = false, ShowActivated = false,
             Topmost = true, Background = Avalonia.Media.Brushes.Transparent, TransparencyLevelHint = [WindowTransparencyLevel.Transparent], Content = frame };
         var close = new Button { Content = "×", Width = 20, Height = 20, Padding = new Thickness(0), FontSize = 16,

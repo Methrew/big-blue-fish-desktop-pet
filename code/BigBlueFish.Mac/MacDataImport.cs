@@ -34,7 +34,7 @@ internal static class MacDataImport
             Discard(staging);
             Directory.CreateDirectory(staging);
             var note = new StringBuilder();
-            note.AppendLine(CompanionEdition.DisplayName + "在 " + DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
+            note.AppendLine(CompanionEdition.AppName + "在 " + DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture)
                 + " 第一次啟動時，從原版的資料夾複製了下列資料。原版的資料沒有被移動、修改或刪除。");
             note.AppendLine("來源：" + source).AppendLine();
             foreach (string name in new[] { "preferences.json", "preferences.json.bak" })

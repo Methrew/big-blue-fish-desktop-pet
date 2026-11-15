@@ -40,7 +40,7 @@ internal sealed partial class LinuxPetWindow
     {
         if (!on) { File.Delete(AutostartFile); return; }
         Directory.CreateDirectory(Path.GetDirectoryName(AutostartFile)!);
-        File.WriteAllText(AutostartFile, "[Desktop Entry]\nType=Application\nName=" + CompanionEdition.DisplayName + "\nExec=\"" + Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\nTerminal=false\n");
+        File.WriteAllText(AutostartFile, "[Desktop Entry]\nType=Application\nName=" + CompanionEdition.AppName + "\nExec=\"" + Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\nTerminal=false\n");
     }
 #endif
     void ApplySettings(PixelPoint? requestedPosition = null)

@@ -70,7 +70,11 @@ internal sealed partial class LinuxPetWindow
     StackPanel CwaKeySettings()
     {
         var panel = new StackPanel { Spacing = 6, Margin = new Thickness(0, 6, 0, 0) };
+#if COMPANION_SAFE
+        panel.Children.Add(new TextBlock { Text = "中央氣象署授權碼（存在 macOS 鑰匙圈）" });
+#else
         panel.Children.Add(new TextBlock { Text = "中央氣象署授權碼（存在 macOS 鑰匙圈，不提供給 MCP）" });
+#endif
         var key = new TextBox { Text = Preferences.CwaApiKey, PasswordChar = '•', PlaceholderText = "CWA-XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX", HorizontalAlignment = HorizontalAlignment.Stretch };
         panel.Children.Add(key);
         var reveal = new CheckBox { Content = "顯示授權碼" };

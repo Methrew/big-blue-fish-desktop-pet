@@ -55,8 +55,12 @@ internal sealed partial class LinuxPetWindow
             return box;
         }
         var url = Field("伺服器網址", remoteUrlDraft ?? Preferences.RemoteUrl, "http://192.168.1.10:8080 或 https://example.com", text => remoteUrlDraft = text);
-#if COMPANION_MAC
+#if COMPANION_MAC && COMPANION_SAFE
+        const string keyLabel = "API Key（存在 macOS 鑰匙圈；伺服器沒有設定金鑰時留空）";
+#elif COMPANION_MAC
         const string keyLabel = "API Key（存在 macOS 鑰匙圈，不提供給 MCP；伺服器沒有設定金鑰時留空）";
+#elif COMPANION_SAFE
+        const string keyLabel = "API Key（以 Base64 存在本機設定檔，沒有加密；伺服器沒有設定金鑰時留空）";
 #else
         const string keyLabel = "API Key（以 Base64 存在本機設定檔，沒有加密，不提供給 MCP；伺服器沒有設定金鑰時留空）";
 #endif

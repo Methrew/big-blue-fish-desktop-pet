@@ -6,6 +6,9 @@ namespace BigBlueFish.Windows;
 // Taiwan edition fonts of the Avalonia pet on Linux and macOS. The bubble uses the bundled jf open huninn 2.1
 // (Res/Font, linked as Assets/), and characters it lacks fall back to the system's Traditional Chinese face.
 // The avares URI is built from the assembly name, which is BigBlueFish.Linux or BigBlueFish.Mac.
+// The Traditional faces show their Taiwan forms only while the text is shaped without a Chinese language: Avalonia
+// passes the current culture's two-letter name to HarfBuzz, and "zh" (from zh-TW too) selects the faces' Simplified
+// ZHS locl forms, such as ，。 in the lower left. Program.Main sets the invariant culture for that.
 internal static class LinuxFonts
 {
     static string SystemChinese => OperatingSystem.IsMacOS() ? "PingFang TC" : "Noto Sans CJK TC";

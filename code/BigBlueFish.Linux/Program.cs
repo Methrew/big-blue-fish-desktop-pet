@@ -1,3 +1,4 @@
+using System.Globalization;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Themes.Fluent;
@@ -9,6 +10,11 @@ internal static class Program
     [STAThread] public static void Main(string[] args)
     {
         App.Args = args;
+        // Avalonia shapes text in the current culture, and HarfBuzz gets only its two-letter language: zh-TW turns into
+        // "zh", which OpenType reads as Simplified Chinese (ZHS), so PingFang TC (and Noto Sans CJK TC) would draw the
+        // Mainland forms of ，。：； (in the lower left) and of some characters. The invariant culture keeps the Taiwan
+        // forms (LinuxFonts.cs); dates and numbers the fish shows are formatted with explicit patterns.
+        CultureInfo.DefaultThreadCurrentCulture = CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
         if (args.Length == 2 && args[0] == "--wait-for-exit" && int.TryParse(args[1], out int pid)) {
             try { using var old = System.Diagnostics.Process.GetProcessById(pid); if (!old.WaitForExit(30000)) return; } catch (ArgumentException) { }
         }

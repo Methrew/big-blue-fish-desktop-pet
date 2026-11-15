@@ -67,7 +67,7 @@ internal static class ArtifactDownload
         if (await ModelStore.Hash(partial, token) != expectedHash)
         {
             File.Delete(partial);
-            throw new InvalidDataException("下載檔案驗證未通過，請重試。");
+            throw new InvalidDataException("下載的檔案驗證失敗，請重試。");
         }
         File.Move(partial, destination, true);
     }

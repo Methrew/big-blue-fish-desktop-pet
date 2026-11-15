@@ -24,7 +24,7 @@
 
 需要 Apple Silicon（M 系列晶片）的 Mac，以及 macOS 14 或更新版本。
 
-請到[本版的發布頁面](https://github.com/Methrew/big-blue-fish-desktop-pet/releases)下載 DMG，每個檔案都附有對應的 `.sha256` 校驗檔：
+請到[本版的發布頁面](https://github.com/Methrew/big-blue-fish-desktop-pet/releases)下載 DMG，每個檔案都附有對應的 `.sha256` 檢查碼檔：
 
 | 版本 | 檔案 |
 | --- | --- |
@@ -120,7 +120,7 @@
 
 魚魚使用 Qwen3.5-4B 的 Q4_K_M 量化 GGUF 模型，由隨附的 [llama.cpp](https://github.com/ggml-org/llama.cpp)（b10809，macOS 使用 Metal，Windows 與 Linux 使用 Vulkan）在這台電腦上推論，可以使用 GPU 加速，也可以改用 CPU 執行。兩個預設來源的模型有些不同，但都適合本程式，主人可以依自己的網路環境選擇。
 
-Hugging Face 來源是 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface.co/Biomanticus/Qwen3.5-4B-heretic-gguf/tree/b63ff4662e4863cfa005c9cd8ed34b87ed44b7e1)，它是 [p-e-w/Qwen3.5-4B-heretic](https://huggingface.co/p-e-w/Qwen3.5-4B-heretic) 的 GGUF 轉換版本，以 Qwen3.5-4B 為基礎。中國大陸鏡像來源是 ModelScope 上的 [diodel/Qwen3.5-4B-Q4_K_M-GGUF](https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/files)，是原版 [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) 的 Q4_K_M 轉換版本。兩個來源都使用固定的修訂版本，檔名、大小與校驗值見[第三方聲明](code/THIRD-PARTY.md)。自動下載的模型約 2.7 GB，下載完成後會核對 SHA-256，中途斷線也能從已有的進度繼續。
+Hugging Face 來源是 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface.co/Biomanticus/Qwen3.5-4B-heretic-gguf/tree/b63ff4662e4863cfa005c9cd8ed34b87ed44b7e1)，它是 [p-e-w/Qwen3.5-4B-heretic](https://huggingface.co/p-e-w/Qwen3.5-4B-heretic) 的 GGUF 轉換版本，以 Qwen3.5-4B 為基礎。中國大陸鏡像來源是 ModelScope 上的 [diodel/Qwen3.5-4B-Q4_K_M-GGUF](https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/files)，是原版 [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) 的 Q4_K_M 轉換版本。兩個來源都使用固定的修訂版本，檔名、大小與檢查碼見[第三方聲明](code/THIRD-PARTY.md)。自動下載的模型約 2.7 GB，下載完成後會核對 SHA-256，中途斷線也能從已有的進度繼續。
 
 模型會依目前裝置可用的顯示記憶體自動調整計算緩衝區，並由 llama.cpp 自動分配模型層，顯示記憶體較小的裝置也能順利載入；GPU 初始化失敗時，魚魚會自動改用 CPU 相容模式，並在設定中顯示實際的推論裝置。
 
@@ -228,4 +228,4 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET �
 - 天氣資料：[Open-Meteo](https://open-meteo.com/)，CC BY 4.0；臺灣鄉鎮天氣預報：中央氣象署開放資料，依政府資料開放授權條款第 1 版使用，中央氣象署並未推薦或背書本程式；科技新聞：[IT之家 RSS](https://www.ithome.com/rss/)；
 - 行政區資料：[AreaCity-JsSpider-StatsGov](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov)，MIT 授權，只內嵌層級與近似中心座標；美國州郡、全球城市與國名分別來自美國人口普查局 Gazetteer、GeoNames 與 Unicode CLDR；臺灣鄉鎮市區中心依內政部國土測繪中心的鄉（鎮、市、區）界線計算，依政府資料開放授權條款第 1 版使用。
 
-各元件的版本、修訂、校驗值和著作權說明見[第三方聲明](code/THIRD-PARTY.md)，完整授權條文見[授權檔案目錄](code/licenses)。
+各元件的版本、修訂、檢查碼和著作權說明見[第三方聲明](code/THIRD-PARTY.md)，完整授權條文見[授權檔案目錄](code/licenses)。

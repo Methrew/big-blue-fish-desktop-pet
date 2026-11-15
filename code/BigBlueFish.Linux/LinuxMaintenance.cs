@@ -192,7 +192,7 @@ internal sealed partial class LinuxPetWindow
             string? url = Url(asset), checksum = Url(asset + ".sha256"); if (url == null || checksum == null) throw new IOException("這個版本的 Linux 安裝套件還沒準備好，請稍後再試一次。");
             if (!await Confirm("發現新版本", app + " " + latest + " 已經發布，要下載並安裝更新嗎？", "下載更新", reject: "稍後再說")) return;
             string hash = (await client.GetStringAsync(checksum)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
-            if (!Regex.IsMatch(hash, "^[a-f0-9]{64}$")) throw new IOException("更新的驗證資訊無效。");
+            if (!Regex.IsMatch(hash, "^[a-f0-9]{64}$")) throw new IOException("更新的檢查碼資訊無效。");
             string package = Path.Combine(Environment.CurrentDirectory, "cache/updates", asset);
             await ArtifactDownload.Download(url, package, hash);
             var start = new ProcessStartInfo("/usr/bin/pkexec") { UseShellExecute = false };

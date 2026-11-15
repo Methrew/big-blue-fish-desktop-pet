@@ -9,7 +9,7 @@
 | 標準版 | `BigBlueFish-TW-v1.1.3-tw.1-macOS-arm64.dmg` |
 | 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.1-Safe-macOS-arm64.dmg` |
 
-每個 DMG 都附有 `.sha256` 校驗檔。打開 DMG 後把 App 拖到「應用程式」檔案夾；App 只有臨時簽章，第一次打開時請到「系統設定 › 隱私權與安全性」按「強制打開」。安裝、權限與解除安裝的說明見本版儲存庫的 `docs/MACOS.md`（[專案頁面](https://github.com/Methrew/big-blue-fish-desktop-pet)）。
+每個 DMG 都附有 `.sha256` 檢查碼檔。打開 DMG 後把 App 拖到「應用程式」檔案夾；App 只有臨時簽章，第一次打開時請到「系統設定 › 隱私權與安全性」按「強制打開」。安裝、權限與解除安裝的說明見本版儲存庫的 `docs/MACOS.md`（[專案頁面](https://github.com/Methrew/big-blue-fish-desktop-pet)）。
 
 本版不提供 Windows 與 Linux 的安裝程式或套件。
 

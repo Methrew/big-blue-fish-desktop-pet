@@ -114,7 +114,7 @@ Python 測試（Python 3.9 以上）：
 
 ## 地區資料
 
-中國的地區層級與中心座標以 MIT 授權的 [AreaCity](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov) `2025.251231.260403` 版為基礎，包含 34 個省級單位、392 個市級單位、3209 個縣區級單位，臺灣省縣市的座標結合 GeoNames 的縣市政府所在地座標補齊。美國的州郡資料來自美國人口普查局 2026 Gazetteer；全球其他地點的城市、行政區與座標來自 GeoNames，國家的中文名稱來自 Unicode CLDR 47。國家「臺灣」的縣市與鄉鎮市區清單（`taiwan-regions.json`）由 `tools/import-taiwan-regions.py` 產生，鄉鎮市區中心由 `tools/fill-taiwan-township-coordinates.py` 依內政部國土測繪中心的鄉（鎮、市、區）界線計算。來源、輸入校驗值與授權見地區資源中的來源記錄和[第三方聲明](THIRD-PARTY.md)。
+中國的地區層級與中心座標以 MIT 授權的 [AreaCity](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov) `2025.251231.260403` 版為基礎，包含 34 個省級單位、392 個市級單位、3209 個縣區級單位，臺灣省縣市的座標結合 GeoNames 的縣市政府所在地座標補齊。美國的州郡資料來自美國人口普查局 2026 Gazetteer；全球其他地點的城市、行政區與座標來自 GeoNames，國家的中文名稱來自 Unicode CLDR 47。國家「臺灣」的縣市與鄉鎮市區清單（`taiwan-regions.json`）由 `tools/import-taiwan-regions.py` 產生，鄉鎮市區中心由 `tools/fill-taiwan-township-coordinates.py` 依內政部國土測繪中心的鄉（鎮、市、區）界線計算。來源、輸入檔的檢查碼與授權見地區資源中的來源記錄和[第三方聲明](THIRD-PARTY.md)。
 
 本版不修改原版的地區資料檔：選單與天氣文字顯示的繁體地名來自 `assets/regions/region-display-names.json`，由 `python3 code/tools/make-region-display-names.py` 產生（只需要 Python 3.9 以上）。轉換方式是 OpenCC 1.4.2 的 s2tw，不套用 TWPhrases，所以只換字形、不換譯名；人工審過的例外寫在腳本的 `OVERRIDES`，加上 `--review` 會列出所有改到「繁體也合法的字」的地名。地區資料檔更新後要重跑腳本。
 

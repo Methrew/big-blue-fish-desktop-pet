@@ -1,550 +1,231 @@
-# 蓝色大肥鱼桌宠 / Big Blue Fish Desktop Pet
+# 藍色大肥魚桌寵（台灣繁體中文版）
 
 > [!NOTE]
-> **這是台灣版修改分支（`taiwan-edition`）與原作者 1.1.2 版合併後的版本，不是原作者的官方版本。**
+> **這是非官方的台灣繁體中文版，不是原作者發布的版本。**
 >
-> 本分支由 acer1204 於 2026 年 10 月 26 日起，以原作者 [Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet) 的 main 分支 commit `5eead98`（1.0.1 版標籤 `v1.0.1` 之後，只多了一個補上 LICENSE 著作權欄位的修正）為基礎修改。下方「台灣版修改說明」列出主要變更與所有修改過的檔案；說明結束處的分隔線以下是原作者的說明（簡體中文），描述的是原版的行為。
+> - 原作者：Bai-Cute（[Bai-Cute/big-blue-fish-desktop-pet](https://github.com/Bai-Cute/big-blue-fish-desktop-pet)）
+> - 台灣版：acer1204（[acer1204/big-blue-fish-desktop-pet 的 taiwan-edition 分支](https://github.com/acer1204/big-blue-fish-desktop-pet/tree/taiwan-edition)）
+> - 台灣 macOS 版整合：Methrew（[Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet)）
 >
-> 2026 年 11 月 9 日，Methrew 在 [Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet) 的 `feature/taiwan-sync-v1.1.2` 分支，把這個台灣版（commit `f5f17a6`）與原作者的 1.1.2 版（標籤 `v1.1.2`，commit `6281a90`）合併：以台灣版的功能為主，同時納入原作者 1.0.5～1.1.2 的修正與新功能。合併後的行為變化與合併時修改的檔案，見下方「與原作者 1.1.2 版合併」；分隔線以下的原作者說明已更新為 1.1.2 版。
+> 本版以原作者的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎，整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.3-tw.1`，意思是「原版 1.1.3 的台灣版第 1 次修訂」。本版不是由原作者或 acer1204 維護，內容也沒有經過他們審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
 
-## 與原作者 1.1.2 版合併
+藍色大肥魚是一款住在電腦桌面上的 AI 桌寵軟體。她是一位藍髮的小鯨魚娘，形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」。軟體內建 4B 本機大模型，透過 OCR 讀懂主人正在桌面上做的事情，每隔一段時間就從文字氣泡裡送來一句可愛的話，陪伴和關心主人；她也會看看天氣、瀏覽科技新聞，再用自己的方式講給主人聽。
 
-依 [Apache License 2.0](LICENSE) 第 4 條第 (b) 款，本節說明 Methrew 於 2026 年 11 月 9 日合併台灣版與原作者 1.1.2 版時所做的變更。合併時修改過的程式碼、專案檔與腳本（共 86 個），都在開頭的修改聲明下方多加一行合併聲明；文件與資料檔列在本節最後的清單中。原作者與 acer1204 的著作權聲明及授權條款維持不變，合併的修改同樣以 Apache-2.0 授權釋出。本分支並非由原作者或 acer1204 維護，合併內容也未經他們審閱或背書。
+魚魚準備了一百多種可愛的動作表情，平常會在桌面上呼吸、哼歌、伸懶腰、吃零食、玩耍，到了吃飯時間會認真吃飯，到了節日會換上應景的小活動，被點一下、被拎起來時也有專門設計的反應。每次啟動，她都會提起裙擺向主人行禮請安；關閉時，也會用同樣的禮儀和主人道別。標準版還能透過 ACP 一鍵連線 21 款主流 CLI Agent，陪主人進行穩定的長對話。
 
-### 合併原則
-
-- 台灣版的功能全部保留；兩邊做法直接衝突時，以台灣版的行為為主。
-- 原作者 1.0.5～1.1.2 的修正與新功能全部納入，包括：透過 ACP 連線本機 CLI Agent（Harness）、共用工作區與技能、把日常關心交給 Agent、1280×720／60 fps 動畫與新的透明動畫播放管線（GStreamer、硬體解碼與 GPU 合成）、全球天氣地點、記錄主控台（原作者稱「日志控制台」）、不同縮放比例的多螢幕修正、讀取畫面的備援，以及把資料移到安裝目錄的 `data` 子目錄。原作者在 1.1.0 已用 ACP 取代 MCP sampling，所以沒有另外保留 sampling。
-- 原作者支援的 21 款 CLI Agent 中，本分支移除其中一款，保留 20 款。
-- 原作者用來防止提交紀錄出現 AI 署名的檢查（`tools/Check-Attribution.py`、`.githooks/`、`.github/workflows/attribution.yml`）保留，並改寫成不在檔案中直接寫出所檢查的名稱。
-
-### 合併後的行為變化
-
-- **天氣地點**：先選國家，再選該國的行政區。「臺灣」排在第一個（縣市 → 鄉鎮市區，22 個縣市、368 個鄉鎮市區），新安裝的預設地點為臺北市中正區；後面是原作者的中國、美國與全球國家清單。Windows 版在設定中填入中央氣象署授權碼時，臺灣地點使用氣象署的鄉鎮天氣預報；沒有授權碼時（以及沒有授權碼欄位的 Linux 版），改用 Open-Meteo 估計鄉鎮市區中心附近的天氣（臺灣時間、攝氏與公里/小時）。鄉鎮市區中心依內政部國土測繪中心的鄉（鎮、市、區）界線計算。原作者放在中國清單中的「台湾省」不再出現在選單裡；先前存下的這類代碼會自動換成同一個臺灣鄉鎮市區。授權碼要在停止輸入 1 秒後才會生效，不會用打到一半的授權碼查詢。MCP 的 `WeatherRegionCode` 也接受臺灣代碼（例如 `TW-061-01`）。
-- **動畫**：改用原作者 1.1.1 的 GStreamer 播放管線，Windows 版不再附帶 FFmpeg。台灣版的 1 毫秒計時器解析度保留；預先解碼改用 GStreamer，範圍是 6 個點選與拖曳動作，以及開啟 MCP 介面或 Agent 連線時 `walk_to` 用到的 4 段走路片段，每段預先解碼開頭最多 6 幀（640×360，總上限 64 MB，10 段約 55 MB）。
-- **雙擊輸入框**：開啟「連線 Agent」（ACP）時，輸入的文字會交給該 Agent；開啟「MCP 介面」與「雙擊與魚魚對話」時，也會以 `user_message` 交給 Hermes 橋接等 MCP 客戶端。兩者都開啟時，兩邊都會收到，也可能都會回答；關閉「雙擊與魚魚對話」時，MCP 介面的客戶端不會收到打給內建 Agent 的輸入。附加檔案的功能保留，交給 ACP Agent 時，附件以本機路徑附在訊息後面。
-- **MCP 工具**：工具清單是兩邊的聯集，包括台灣版的 `get_context`、`find_on_screen`、`walk_to` 與原作者的工具。`get_operation_guide`、`get_wakeups`、`schedule_wakeup`、`cancel_wakeup` 只供內建的 Agent 連線使用，MCP 介面的外部客戶端呼叫時會收到錯誤。提線木偶模式由兩邊共用：已開啟提線木偶模式時再開啟 Agent 連線，會再確認一次；關閉 Agent 連線時，會清除該 Harness 的預約喚醒。
-- **遠端模型與讀取畫面**：原作者 1.1.2 的讀取畫面備援（前景視窗讀不到時改讀全螢幕，再失敗就只用時間等其他資料）保留給本機模型。使用遠端模型時只讀前景視窗，不會把全螢幕的 OCR 文字送到遠端伺服器。
-- **主動提醒**：內建 Agent 正在準備回應時，主動提醒也會先等等，不會剛出現就被 Agent 的話蓋掉。
-- **Agent 人設與技能**：原作者新增的 Agent 人設卡（`persona.md`）、技能說明（`SKILL.md`）與每輪指示改為台灣繁體與台灣語氣；已經存在的使用者人設檔不會被覆寫。Agent 連線、工作區、記錄主控台等原作者新增的 Windows 介面也改為台灣繁體。
-- **Hermes 簡報**：天氣來自 Open-Meteo 估計時，簡報會標明是估計值；華氏溫度的天氣也能讀取。
-- **Linux 版**：跟著原作者 1.1.x，MCP 只透過 Agent 連線的私有管道提供，沒有開放給其他 MCP 客戶端的介面；地點選單也列出臺灣（使用 Open-Meteo 估計）。
-- 修正台灣版地區資料中，官方名稱「南庄鄉」被 OpenCC 轉成「南莊鄉」、導致氣象署查不到的問題。
-
-### 尚未完成或尚未驗證
-
-- 地點選單中的國名與美國州名雖然顯示為繁體字，但仍是資料檔的大陸譯名（例如「意大利」「澳大利亞」）。原作者新增元件的部分內部錯誤訊息、Linux 版的設定與選單，以及安裝與解除安裝程式自己的文字，仍為簡體中文。
-- `docs/` 規格文件、`CHANGELOG.md` 與本 README 分隔線以下的說明仍是原作者 1.1.2 的原文。
-- 「檢查更新」的來源仍指向原作者的儲存庫，更新會換回原版；在改為指向本分支之前，本分支不提供編譯好的安裝檔。
-- 這次合併只在 macOS 上完成編譯與可跨平台的測試：38 個建置目標全部成功，繁簡轉換（8591 筆語料）、主動提醒（139 項）、MCP 通訊協定（111 項）、Agent（113 項）與天氣快取（62 項）等測試通過。Windows 介面、原生動畫合成、GStreamer 播放與 Linux 桌面的實際執行還沒有驗證。
-- 兩個上游原本就有的問題：以鎖定模式還原時，Windows Vision 版與 Safe＋Vision 版會因鎖定檔過期而失敗（NU1004）。
-
-### 合併時新增或修改的檔案
-
-以下檔案的內容與台灣版（`f5f17a6`）、原作者 1.1.2 版（`6281a90`）都不同，是合併時新增或修改的檔案；其餘檔案直接採用其中一方的版本。本分支以一筆提交納入合併結果，沒有帶入原作者在 `5eead98` 之後的個別提交（可到原作者的儲存庫查看）；要檢視完整差異，先用 `git fetch https://github.com/Bai-Cute/big-blue-fish-desktop-pet tag v1.1.2` 取得原作者的 1.1.2 版，再用 `git diff 6281a90 feature/taiwan-sync-v1.1.2` 與 `git diff f5f17a6 feature/taiwan-sync-v1.1.2` 檢視。
-
-<details>
-<summary>展開檔案清單</summary>
-
-**新增（2）**
-
-- `code/BigBlueFish.Windows/assets/regions/taiwan-source.json`
-- `code/tools/fill-taiwan-township-coordinates.py`
-
-**修改（96）**
-
-- `.gitattributes`
-- `.githooks/commit-msg`
-- `.githooks/pre-push`
-- `.github/CONTRIBUTING.md`
-- `.github/workflows/attribution.yml`
-- `README.md`
-- `code/BigBlueFish.Agent/AcpConnection.cs`
-- `code/BigBlueFish.Agent/AgentAdapterStore.cs`
-- `code/BigBlueFish.Agent/AgentAuthentication.cs`
-- `code/BigBlueFish.Agent/AgentCoordinator.cs`
-- `code/BigBlueFish.Agent/AgentSessionConfiguration.cs`
-- `code/BigBlueFish.Agent/AgentSpeechBrief.cs`
-- `code/BigBlueFish.Agent/AgentTerminalLogin.cs`
-- `code/BigBlueFish.Agent/AgentWakeups.cs`
-- `code/BigBlueFish.Agent/AgentWorkspaceStore.cs`
-- `code/BigBlueFish.Agent/HarnessCatalog.cs`
-- `code/BigBlueFish.Agent/Skills/SKILL.md`
-- `code/BigBlueFish.Agent/Skills/persona.md`
-- `code/BigBlueFish.Control/ControlServer.cs`
-- `code/BigBlueFish.Control/ControlTools.cs`
-- `code/BigBlueFish.Diagnostics/DiagnosticLog.cs`
-- `code/BigBlueFish.HermesBridge/Briefings.cs`
-- `code/BigBlueFish.Linux/BigBlueFish.Linux.csproj`
-- `code/BigBlueFish.Linux/LinuxCapture.cs`
-- `code/BigBlueFish.Linux/LinuxLogConsole.cs`
-- `code/BigBlueFish.Linux/LinuxMcp.cs`
-- `code/BigBlueFish.Linux/LinuxPetWindow.cs`
-- `code/BigBlueFish.Linux/LinuxSettings.cs`
-- `code/BigBlueFish.Linux/LinuxTestCommands.cs`
-- `code/BigBlueFish.Mcp/Program.cs`
-- `code/BigBlueFish.Windows/App.xaml.cs`
-- `code/BigBlueFish.Windows/BigBlueFish.Windows.csproj`
-- `code/BigBlueFish.Windows/Companion/CompanionAgentSettings.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionAgentWorkspaceSettings.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionAnimations.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionBrain.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionCaptureFallback.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionComposition.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionInferenceDevices.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionLogConsole.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionMaintenance.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionMcp.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionMcpAttachments.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionMenus.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionOcr.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionPreferences.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionProactive.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionRegions.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionReminders.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionSettings.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionTrayIcon.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionWalk.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionWeather.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionWindow.cs`
-- `code/BigBlueFish.Windows/assets/regions/taiwan-regions.json`
-- `code/THIRD-PARTY.md`
-- `code/test.ps1`
-- `code/tests/AgentVerification/LiveProbe.cs`
-- `code/tests/AgentVerification/Program.cs`
-- `code/tests/AgentVerification/SpeechAlignmentProbe.cs`
-- `code/tests/AgentVerification/WorkspaceVerification.cs`
-- `code/tests/AnimationUiVerification/MixedDpiVerification.cs`
-- `code/tests/AnimationUiVerification/Program.cs`
-- `code/tests/HermesScenarioVerification/scenarios.py`
-- `code/tests/InstallerVerification/DownloadInterruptionVerification.cs`
-- `code/tests/InstallerVerification/MarkdownVerification.cs`
-- `code/tests/LinuxVerification/verify.py`
-- `code/tests/McpProtocolVerification/Program.cs`
-- `code/tests/McpProtocolVerification/sdk-client.py`
-- `code/tests/McpUiVerification/Program.cs`
-- `code/tests/MediaVerification/Program.cs`
-- `code/tests/ReminderVerification/Program.cs`
-- `code/tests/RunnerVerification/CaptureFallbackVerification.cs`
-- `code/tests/RunnerVerification/InferenceDeviceVerification.cs`
-- `code/tests/RunnerVerification/LatencyVerification.cs`
-- `code/tests/RunnerVerification/MaintenanceVerification.cs`
-- `code/tests/RunnerVerification/NewsVerification.cs`
-- `code/tests/RunnerVerification/Program.cs`
-- `code/tests/RunnerVerification/SpeechFlowVerification.cs`
-- `code/tests/RunnerVerification/TrayVerification.cs`
-- `code/tests/RunnerVerification/WeatherCacheVerification.cs`
-- `code/tests/SafeEditionVerification/Program.cs`
-- `code/tools/fill-taiwan-coordinates.py`
-- `code/tools/import-taiwan-regions.py`
-- `code/tools/import-world-regions.py`
-- `deployment/ApplicationData.cs`
-- `deployment/UpdateWindow.cs`
-- `docs/ACP.md`
-- `docs/AGENT_FUNCTIONAL_SPEC.md`
-- `docs/MCP.md`
-- `docs/specs/1.1.0.md`
-- `docs/specs/1.1.1.md`
-- `tools/Check-Attribution.py`
-- `tools/Manage-AgentTestEnvironment.ps1`
-
-</details>
-
-## 台灣版修改說明
-
-以下是 acer1204 對台灣版的原始說明（相對於原作者 1.0.1 版）；與原作者 1.1.2 版合併後有變化的部分，以上方「與原作者 1.1.2 版合併」為準。
-
-
-依 [Apache License 2.0](LICENSE) 第 4 條第 (b) 款，本節列出這個分支新增、刪除或修改的檔案，以及修改者與修改日期。修改過的程式碼、專案檔、腳本與設定檔（.cs、.xaml、.csproj、.ps1、.py、.gitattributes，共 63 個）開頭都加註了修改聲明；`README.md` 與建置安裝檔時會一併打包的 [`code/THIRD-PARTY.md`](code/THIRD-PARTY.md) 則在開頭段落註明這是修改版。原作者的著作權聲明（Copyright 2026 Bai-Cute）與授權條款維持不變，本分支的修改同樣以 Apache-2.0 授權釋出。本分支並非由原作者維護，修改內容也未經原作者審閱或背書；使用時遇到問題，請到本分支的儲存庫 [acer1204/big-blue-fish-desktop-pet](https://github.com/acer1204/big-blue-fish-desktop-pet/issues) 回報，不要回報給原作者。
-
-### 主要變更
-
-- **動畫更順暢**：桌寵顯示期間把系統計時器解析度調到 1 毫秒（隱藏時釋放），讓每一幀都在預定時間顯示，避免幀間隔在約 31 與 47 毫秒之間跳動。點選與拖曳用到的 6 個動作會在啟動後預先解碼開頭 6 幀（約多佔用 33 MB 記憶體）；在修改者 acer1204 的電腦上，放開滑鼠或開始拖曳後約 10 毫秒就會出現第一幀（原本約 60–90 毫秒），實際時間依電腦而異。其他動作切換時仍需等待約 50–90 毫秒。
-- **可使用遠端模型**：設定頁「模型與供電」新增「模型來源」，可以改用遠端的 llama.cpp 伺服器（OpenAI 相容介面），填入網址、API Key 與模型名稱，也提供「儲存並測試連線」按鈕。使用遠端模型時，會傳送到該伺服器的內容包括：視窗文字（OCR 辨識結果）或視窗截圖、前景視窗的程式名稱、標題、視窗類別與介面元件名稱、目前時間，以及開啟天氣和新聞時的天氣地點與預報、新聞內容。原本的「啟用本機大模型」開關改名為「啟用模型說話」：它是讓魚魚用模型說話的總開關，使用遠端模型時也要開著，而且不會在本機載入模型；「拔掉電源時暫停模型並釋放記憶體」與「使用顯示卡加速」只對本機模型有效，使用電池時遠端模型會繼續執行。
-- **直接看截圖**：遠端伺服器在 `/v1/models` 回報該模型支援圖片輸入，並且勾選了「模型支援圖片時，直接傳送視窗截圖」時，才會改傳視窗截圖（長邊最多 1568 像素），不再傳 OCR 文字；截圖失敗或伺服器沒有回報支援圖片時，預設的 OCR 版會自動改回 OCR（以 Vision 模式自行編譯的版本沒有 OCR，只會傳視窗名稱等文字資訊）。
-- **繁體中文與台灣用語**：Windows 版介面、與主程式共用的模型安裝和更新視窗、MCP 工具說明與同意視窗，以及魚魚的說話語氣，都改為台灣繁體中文與台灣用語。氣泡字型由不含繁體字的「乐米小奶泡体」改為 [jf open 粉圓 2.1](https://github.com/justfont/open-huninn-font)（SIL OFL 1.1）；設定視窗、右鍵選單、系統匣選單與共用視窗改用微軟正黑體。106 個動作名稱同時用作動畫檔名與 MCP 動作名稱，因此仍維持原本的簡體中文。
-- **台灣天氣**：Windows 版的天氣地點改為「縣市 → 鄉鎮市區」兩層選單（22 個縣市、368 個鄉鎮市區），新安裝的預設地點為臺北市中正區。天氣資料改用[中央氣象署開放資料](https://opendata.cwa.gov.tw/)的鄉鎮天氣預報，需要自行申請並在設定中填入授權碼；填入之前，台灣地點（包括預設的臺北市中正區）不會有天氣資料，也不會改用 Open-Meteo。原本的 Open-Meteo 天氣仍保留給非台灣地點（先前儲存或透過 MCP 設定的）與 Linux 版使用。Linux 版沒有授權碼欄位，所以不會出現本分支新增的氣象署縣市清單，MCP 也不能把 Linux 版設成台灣鄉鎮；原有地區資料中的「台湾省」仍會出現，但和原版一樣沒有座標，選了也不會有天氣資料。
-- **金鑰保護**：遠端 API Key 與氣象署授權碼以目前的 Windows 帳戶加密（DPAPI）後儲存，而且不會出現在 MCP 的 `get_settings` 結果中。這可以防止設定檔被複製到其他帳戶或電腦後讀出金鑰，但同一個 Windows 帳戶下執行的其他程式仍然可以解密。
-- **測試同步**：`code/tests/` 中比對介面文字的測試程式也隨之改為繁體中文。
-- **氣泡不出現簡體字**：Windows 版魚魚的氣泡文字（自己的模型、天氣、MCP 的 `say`／`say_next`、Hermes 橋接）在顯示前都會經過新增的 `CompanionTraditional`，用 [OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 的字典把簡體字轉成台灣繁體。整段都是簡體時，結果和 OpenCC 的 `s2twp` 相同（包括軟件→軟體這類台灣用語），另外修正了 OpenCC 會轉錯的「一起干杯」（幹杯）與「的士兵、的士林」（計程車）；繁體句子裡夾雜的簡體字只改那幾個字，原本就是繁體或英文的內容維持不變。模型邊產生邊顯示時，需要轉換的句子會等最後一段文字完整再顯示，避免轉到一半的字一閃而過。已知的取捨：為了修正常見的「以后、然后」，罕見用法「選后」也會變成「選後」。MCP 工具回傳給 Agent 的仍是原文。新增的 `code/tests/TraditionalTextVerification` 以 8591 筆語料驗證轉換結果。
-- **Hermes 對話橋接**：新增 `code/BigBlueFish.HermesBridge`（C#）與 `code/run-hermes-bridge.ps1`。雙擊魚魚在輸入框打的字，會交給本機的 [Hermes Agent](https://github.com/NousResearch/hermes-agent) API 回答，回答再顯示在魚魚的氣泡裡。等待時魚魚會播放思考動作，氣泡也會即時顯示 Hermes 正在做什麼（例如「正在上網搜尋：…」「正在電腦上執行指令…」）和已經過的時間；MCP 外掛工具的進度會依伺服器與工具名稱自動產生，例如「正在用 Divebird 查詢下載」，之後新增的 MCP 伺服器也適用；同一個動作連續重複時會顯示次數（例如「第 12 次」），看得出 Hermes 是在重試而不是當掉。工作進行中輸入 `/stop` 會請 Hermes 立刻停止（連同它開出來的背景程序）；這時送出其他訊息，魚魚會先回覆一句，等目前的工作結束再處理。外部 Agent 的氣泡還在顯示時，魚魚不會自己開口把它蓋掉。Hermes 預設不會把 MCP 外掛工具全部直接列給模型，所以提示詞會要求它需要工具時先用 `tool_search` 查找、找到合適的外掛工具就優先使用，下載檔案或影片時優先使用 Divebird 下載管理員，下載前先核對標題或網址；同一個指令或工具失敗兩次就換方法，失敗三次就停下來詢問。同一段對話會延續上下文，連重新啟動橋接程式後也接得上；在輸入框打 `/new` 會開始新的對話，但 Hermes 寫進長期記憶的內容（例如被要求「記住」的事）不會因此清掉。
-- **魚魚自己的主動提醒**：Windows 版設定頁「說話與天氣」新增「主動提醒」：久坐（連續使用 30、45、60、90 或 120 分鐘後，預設 60 分鐘，也可以關閉）、用餐（三餐時間沿用「陪伴與外觀」的設定）、深夜（晚上 10 點到凌晨 2 點擇一，預設凌晨 0 點）、低電量（沒插電且電量剩 20%、10% 時）與下雨（需開啟天氣，6 小時內降雨機率 60% 以上）。提醒由魚魚本體依規則判斷，不需要模型或 Agent；使用者不在電腦前、前景是全螢幕程式、正在拖曳魚魚或 Agent 正在說話時，提醒會先等等。這些開關也能用 MCP 的 `update_settings` 調整。另外，原版在午餐時間播「吃晚餐」、晚餐時間播「吃午餐」，本分支改成各自在自己的用餐時間播放。
-- **新的 MCP 工具（Windows 版）**：`get_context` 讀取使用者此刻的狀況，包括時間、多久沒操作電腦、這次連續使用多久、電源與電量、前景程式（使用者關閉前景視窗偵測時不提供）、魚魚快取的天氣、畫面上開著的檔案總管資料夾，以及魚魚最近一次的主動提醒；它是唯讀的，不截圖也不連網。`find_on_screen` 依名稱找出畫面上看得到的桌面圖示（附對應的檔案）、視窗，以及視窗裡的按鈕、分頁、清單項目等介面元素，回傳位置與大小。`walk_to` 讓魚魚跑到畫面上的目標旁邊停下，不遮住目標，也可以一次依序跑過多個目標；使用者拖曳或點選魚魚時，她會停在當下的位置。使用者離開電腦 5 分鐘以上再回來時，MCP 會發出 `user_returned` 事件。Linux 版呼叫這三個工具時會回覆尚不支援，也沒有主動提醒。
-- **雙擊輸入框可以附加檔案**：用輸入框的附加按鈕、拖曳或 Ctrl+V 貼上，一次最多 10 個圖片、影片或檔案；貼上的圖片存在 `%LOCALAPPDATA%\BigBlueFish\attachments`。MCP 的 `user_message` 事件只帶本機路徑與檔案資訊，不帶檔案內容。Hermes 橋接程式會把每個檔案的路徑告訴 Hermes，圖片（最多 10 張）另外直接附給模型，太大的先縮小成 JPEG。
-- **Hermes 橋接：每日簡報、回來時的摘要、行程提醒與排程回報**：設定頁「Agent 與 MCP」新增「每天第一次坐下時講今日簡報」與「離開很久回來時說期間發生的事」（離開 30、60、120 或 240 分鐘以上，預設 60 分鐘）。簡報的內容由橋接程式自己蒐集：天氣、今天還要執行的 Hermes 排程、還沒說的排程結果、Hermes 在其他地方（例如 Telegram）的對話、離開期間錯過的用餐時間，以及今天剩下的 Google 日曆行程；Hermes 只負責把它們說成一段話，來不及或改去呼叫工具時，魚魚會改說橋接程式整理好的文字。離開期間大多開著全螢幕程式（看影片、玩遊戲）且沒有鎖定畫面時，不算離開。「說話與天氣」頁的「行程開始前提醒」（5、10、15 或 30 分鐘前，預設 10 分鐘）也由橋接程式在使用者在電腦前時說，整天的行程和已回覆不參加的邀請不提醒。Hermes 排程工作（cron）執行完的結果，橋接程式會讀出來讓魚魚說；使用者閒置 2 分鐘以上時先等，回來後由簡報先講。這些功能都只在執行橋接程式時才有。
-- **Google 日曆**：橋接程式透過 Hermes 的 `google-calendar` 技能讀取行程，授權沿用 Hermes 的 `google-workspace` 技能，只要日曆權限，橋接程式自己不保存 Google 的憑證。`google-calendar` 技能不在本儲存庫，需要另外替 Hermes 安裝並完成授權；沒有設定時，行程相關的功能會略過。
-- **橋接程式的安全閥與執行方式**：同一輪的工具呼叫失敗 6 次，或同一個呼叫重複 8 次，橋接程式就會請 Hermes 停下來，避免繞圈子。橋接程式改以 `dotnet BigBlueFish.HermesBridge.dll` 執行，不再產生 `.exe`，因為先前編譯出的 exe 曾被 Microsoft Defender 誤判為木馬並隔離。
-
-### 使用 Hermes 對話橋接
-
-1. 桌寵設定的「Agent 與 MCP」開啟「開啟 MCP 介面」與「雙擊與魚魚對話」。不需要開啟「提線木偶模式」；開了的話魚魚會停止自己說話和切換動作，橋接程式關閉後也要手動關掉才會恢復。
-2. Hermes 的 `.env` 設定一組 16 字元以上的 `API_SERVER_KEY`，重新啟動 Hermes gateway（`hermes gateway restart -y`），讓 API 介面在 `http://127.0.0.1:8642` 啟動。
-3. 執行 `./code/run-hermes-bridge.ps1`（會先編譯再啟動）。橋接程式會自動尋找 `BigBlueFish.Mcp.exe`，並從 Hermes 的 `.env` 讀取金鑰，不會把金鑰寫到其他地方或顯示出來。
-4. 雙擊魚魚輸入訊息，按「送出」或 Ctrl+Enter。輸入 `/new` 開始新的對話，輸入 `/stop`（或 `/停止`）停止目前的工作。
-
-在 Hermes 新增 MCP 伺服器後，Hermes gateway 會自動載入，不必重新啟動橋接程式；如果 Hermes 在先前的對話裡說過找不到某個工具，可以在輸入框打 `/new` 開始新的對話，或在訊息裡直接點名要用的工具。
-
-注意：Hermes 回答時可以使用它所有的工具，包括在這台電腦執行終端機指令與修改檔案；能在魚魚輸入框打字的人，就能請 Hermes 做這些事。橋接程式啟動時若發現 Hermes 開著這類工具組，會先顯示提醒。訊息也會送到 Hermes 設定的模型服務。請只在自己的電腦上使用，並視需要在 Hermes 的設定中限制 API 平台可用的工具。
-
-### 新增或移除的第三方內容
-
-- 新增 jf open 粉圓 2.1 字型（未修改）：著作權屬 justfont Co., LTD.，以 SIL Open Font License 1.1 授權；字型內含 Varela Round（SIL OFL 1.1）的拉丁字母，漢字部分衍生自 Kosugi Maru（Apache-2.0）。字型授權全文在 `code/licenses/jf-open-huninn-OFL.txt`，Apache-2.0 全文在 `code/licenses/Apache-2.0.txt`。
-- 移除「乐米小奶泡体」字型及其授權說明，本分支不再散布該字型。
-- 新增 OpenCC 1.4.2 字典（Apache-2.0，著作權屬 Carbo Kuo（BYVoid）與 OpenCC 貢獻者），放在 `code/BigBlueFish.Windows/assets/opencc/` 並嵌入程式：`STCharacters`、`STPhrases`、`TSCharacters`、`TWPhrases`、`TWVariants`、`TWVariantsPhrases` 與官方 `ver.1.4.2` 的原檔完全相同；`STPhrases_GeneratedFromRegionalPhrases.txt` 是 OpenCC 建置時產生的檔案，取自官方 Python 套件並加上註明來源的檔頭。授權全文在 `code/licenses/OpenCC-Apache-2.0.txt`，來源與 SHA-256 雜湊值記錄在同資料夾的 `source.json`。
-- 台灣天氣資料只在執行時向中央氣象署查詢，不隨程式附帶天氣資料。顯名聲明：中央氣象署 2026 鄉鎮天氣預報（F-D0047）。此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license 。中央氣象署並未推薦或背書本程式。
-- 台灣縣市與鄉鎮市區清單由新增的 `code/tools/import-taiwan-regions.py` 產生：從原有的 AreaCity 地區資料（MIT）取出台灣部分，以 OpenCC 轉換為繁體中文；金門縣與連江縣的鄉鎮因為 AreaCity 歸在福建省之下，直接寫在腳本中。
-- 補上角色動畫與形象的使用限制：106 段透明 WebM 動畫取自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)（commit `eb74267`，和原作者使用的版本相同）。dsh-pet 的程式碼採 MIT 授權，但它的 README「许可」一節另外規定：
-  - 動畫、提示詞與原始影片等素材「允許開源使用，禁止商用」（原文「允许开源使用，禁止商用」）。
-  - 角色形象採 [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/deed.zh-hant)（姓名標示、非商業性、相同方式分享），不可以任何形式商業化。這個形象是社群二創的 DeepSeek「大肥魚」（鯨魚娘），不是 DeepSeek 官方形象：原型「溟月」出自 B 站 [@上善无形](https://space.bilibili.com/4456176)，DeepSeek 版（女僕鯨魚娘）由 B 站 [@ZipZipPipe](https://space.bilibili.com/4168597) 設計。
-  - 衍生、改版或換皮的作品，要在 GitHub 儲存庫、產品網站等公開管道附上 dsh-pet 的網址 <https://github.com/PC2005-cloud/dsh-pet>。
-
-  原作者的 README 與 `code/BigBlueFish.Windows/assets/fish/LICENSE.txt` 只寫了 MIT，沒有提到這些限制，本分支在此補上。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象；依上述規定，包含這些動畫的程式與安裝檔不得用於商業用途。
-- 版本、SHA-256 雜湊值與授權的詳細資訊已更新於[第三方聲明](code/THIRD-PARTY.md)（英文）。
-
-### 尚未修改的部分
-
-- 安裝程式與解除安裝程式（`installer/`、`uninstaller/`）自己的文字，以及 Linux 版的設定、選單等介面仍為簡體中文；但它們共用的視窗框架、模型下載視窗、模型狀態與錯誤訊息，以及魚魚的回覆已改為繁體，所以畫面會繁簡混雜。Linux 版的氣泡字型也已改為 jf open 粉圓，對話框字型改為 Noto Sans CJK TC。Linux 版的氣泡沒有加上簡體轉繁體，也不會在外部 Agent 說話時暫停自己說話。Linux 版可以編譯，但沒有實際執行驗證。
-- 執行檔的產品名稱與檔案描述（工作管理員中顯示的名稱）、MCP 橋接程式 `BigBlueFish.Mcp` 的連線錯誤訊息，以及 `tools/` 底下建置與模型準備腳本的訊息仍為簡體中文（`Model-Helpers.ps1` 的模型來源名稱與錯誤訊息已改為繁體）。
-- 安裝後在 Windows「已安裝的應用程式」顯示的發行者與網址、Linux 套件的維護者與首頁，以及「檢查更新」的來源，目前仍指向原作者 Bai-Cute 及其儲存庫。在這些資訊改為指向本分支之前，本分支不提供編譯好的安裝檔，以免被誤認為原作者發行，或被「檢查更新」換回原版。
-- 本 README 分隔線以下的原作者說明、`docs/` 規格文件、`CHANGELOG.md`，以及建置安裝檔時附帶的 `release/README.md`（安裝說明）仍是原作者的內容，描述的是原版行為；其中「开源许可与第三方权利信息」一節仍列出原版的「乐米小奶泡体」字型，也只把角色動畫標為 MIT 授權；本分支實際附帶的字型、資料來源與素材的使用限制，請以上方「新增或移除的第三方內容」與 `code/THIRD-PARTY.md` 為準。
-- 科技新聞來源仍是 IT之家，提示詞會要求模型改寫成台灣繁體中文。
-
-### 修改過的檔案
-
-以下 121 個檔案由 acer1204 於 2026 年 10 月 26 日至 30 日新增、刪除或修改（相對於原作者儲存庫的 commit `5eead98`）。完整差異可以用 `git diff 5eead98 taiwan-edition` 檢視。
-
-<details>
-<summary>展開檔案清單</summary>
-
-**新增（52）**
-
-- `code/BigBlueFish.HermesBridge/BigBlueFish.HermesBridge.csproj`
-- `code/BigBlueFish.HermesBridge/Bridge.cs`
-- `code/BigBlueFish.HermesBridge/BridgeState.cs`
-- `code/BigBlueFish.HermesBridge/Briefings.cs`
-- `code/BigBlueFish.HermesBridge/Calendar.cs`
-- `code/BigBlueFish.HermesBridge/CronReports.cs`
-- `code/BigBlueFish.HermesBridge/HermesChat.cs`
-- `code/BigBlueFish.HermesBridge/HermesLog.cs`
-- `code/BigBlueFish.HermesBridge/ImageShrink.cs`
-- `code/BigBlueFish.HermesBridge/PetLink.cs`
-- `code/BigBlueFish.HermesBridge/Program.cs`
-- `code/BigBlueFish.HermesBridge/ToolStatus.cs`
-- `code/BigBlueFish.HermesBridge/packages.lock.json`
-- `code/BigBlueFish.Windows/Companion/CompanionMcpAttachments.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionProactive.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionReminders.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionScreenSearch.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionTraditional.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionWalk.cs`
-- `code/BigBlueFish.Windows/Res/Font/jf-openhuninn-2.1.ttf`
-- `code/BigBlueFish.Windows/assets/opencc/STCharacters.txt`
-- `code/BigBlueFish.Windows/assets/opencc/STPhrases.txt`
-- `code/BigBlueFish.Windows/assets/opencc/STPhrases_GeneratedFromRegionalPhrases.txt`
-- `code/BigBlueFish.Windows/assets/opencc/TSCharacters.txt`
-- `code/BigBlueFish.Windows/assets/opencc/TWPhrases.txt`
-- `code/BigBlueFish.Windows/assets/opencc/TWVariants.txt`
-- `code/BigBlueFish.Windows/assets/opencc/TWVariantsPhrases.txt`
-- `code/BigBlueFish.Windows/assets/opencc/source.json`
-- `code/BigBlueFish.Windows/assets/regions/taiwan-regions.json`
-- `code/licenses/OpenCC-Apache-2.0.txt`
-- `code/licenses/jf-open-huninn-OFL.txt`
-- `code/run-hermes-bridge.ps1`
-- `code/tests/HermesScenarioVerification/scenarios.py`
-- `code/tests/ReminderVerification/Program.cs`
-- `code/tests/ReminderVerification/ReminderVerification.csproj`
-- `code/tests/ReminderVerification/packages.lock.json`
-- `code/tests/TraditionalTextVerification/Program.cs`
-- `code/tests/TraditionalTextVerification/TraditionalTextVerification.csproj`
-- `code/tests/TraditionalTextVerification/corpora/mixed_cases.expected.txt`
-- `code/tests/TraditionalTextVerification/corpora/mixed_cases.txt`
-- `code/tests/TraditionalTextVerification/corpora/simplified_upstream.expected.txt`
-- `code/tests/TraditionalTextVerification/corpora/simplified_upstream.txt`
-- `code/tests/TraditionalTextVerification/corpora/traditional_app.expected.txt`
-- `code/tests/TraditionalTextVerification/corpora/traditional_app.txt`
-- `code/tests/TraditionalTextVerification/corpora/traditional_stress.expected.txt`
-- `code/tests/TraditionalTextVerification/corpora/traditional_stress.txt`
-- `code/tests/TraditionalTextVerification/corpora/tw_regions_mixed.expected.txt`
-- `code/tests/TraditionalTextVerification/corpora/tw_regions_mixed.txt`
-- `code/tests/TraditionalTextVerification/corpora/tw_regions_traditional.expected.txt`
-- `code/tests/TraditionalTextVerification/corpora/tw_regions_traditional.txt`
-- `code/tests/TraditionalTextVerification/packages.lock.json`
-- `code/tools/import-taiwan-regions.py`
-
-**刪除（2）**
-
-- `code/BigBlueFish.Windows/Res/Font/LemiXiaoNaiPaoTi.ttf`
-- `code/licenses/Lemi-Xiao-Nai-PaoTi.txt`
-
-**修改（67）**
-
-- `.gitattributes`
-- `README.md`
-- `code/BigBlueFish.Control/ControlServer.cs`
-- `code/BigBlueFish.Control/ControlTools.cs`
-- `code/BigBlueFish.Linux/BigBlueFish.Linux.csproj`
-- `code/BigBlueFish.Linux/LinuxMcp.cs`
-- `code/BigBlueFish.Linux/LinuxPetWindow.cs`
-- `code/BigBlueFish.Linux/LinuxSettings.cs`
-- `code/BigBlueFish.Windows/App.xaml.cs`
-- `code/BigBlueFish.Windows/BigBlueFish.Windows.csproj`
-- `code/BigBlueFish.Windows/Companion/CompanionAnimationPolicy.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionAnimations.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionBrain.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionDialogue.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionJob.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionMaintenance.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionMcp.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionMenuStyles.xaml`
-- `code/BigBlueFish.Windows/Companion/CompanionMenus.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionNative.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionNews.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionOcr.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionOcrLayout.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionPreferences.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionRegions.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionScreenCapture.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionSettings.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionSpeech.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionTrayIcon.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionTrayMenuRenderer.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionWeather.cs`
-- `code/BigBlueFish.Windows/Companion/CompanionWindow.cs`
-- `code/BigBlueFish.Windows/MainWindow.xaml`
-- `code/BigBlueFish.Windows/assets/fish/animations.json`
-- `code/THIRD-PARTY.md`
-- `code/test.ps1`
-- `code/tests/AnimationUiVerification/Program.cs`
-- `code/tests/AnimationVerification/Program.cs`
-- `code/tests/ForegroundVerification/Program.cs`
-- `code/tests/InstallerVerification/DeploymentVerification.cs`
-- `code/tests/InstallerVerification/DownloadInterruptionVerification.cs`
-- `code/tests/LinuxVerification/verify.py`
-- `code/tests/McpProtocolVerification/Program.cs`
-- `code/tests/McpUiVerification/Program.cs`
-- `code/tests/OcrLayoutVerification/Program.cs`
-- `code/tests/OcrVerification/Program.cs`
-- `code/tests/OcrVerification/packages.lock.json`
-- `code/tests/PowerNoticeVerification/Program.cs`
-- `code/tests/RunnerVerification/LatencyVerification.cs`
-- `code/tests/RunnerVerification/MaintenanceVerification.cs`
-- `code/tests/RunnerVerification/NewsVerification.cs`
-- `code/tests/RunnerVerification/PerformanceVerification.cs`
-- `code/tests/RunnerVerification/PersonaVerification.cs`
-- `code/tests/RunnerVerification/Program.cs`
-- `code/tests/RunnerVerification/SpeechFlowVerification.cs`
-- `code/tests/RunnerVerification/TrayVerification.cs`
-- `code/tests/SafeEditionVerification/Program.cs`
-- `deployment/ArtifactDownload.cs`
-- `deployment/ModelInstallWindow.cs`
-- `deployment/ModelStore.cs`
-- `deployment/ModernUI.cs`
-- `deployment/UpdateService.cs`
-- `deployment/UpdateWindow.cs`
-- `tools/Import-AnimationRules.py`
-- `tools/Model-Helpers.ps1`
-
-</details>
-
----
-
-蓝色大肥鱼是一款住在电脑桌面上的 AI 桌宠软件，支持 Windows、Linux 与 macOS。她是一位蓝发的小鲸鱼娘，形象来自对 DeepSeek 的二创虚拟形象“蓝色大肥鱼”。软件内置 4B 本地大模型，借助 OCR 技术读懂主人正在桌面上做的事情，每隔一段时间就从文字气泡里送来一句可爱的话，陪伴和关心主人；她还会查看天气、浏览科技新闻，再用自己的方式讲给主人听。
-
-鱼鱼准备了一百多种可爱的动作表情，平时会在桌面上呼吸、哼歌、伸懒腰、吃零食、玩耍，到了饭点会认真吃饭，到了节日会换上应景的小活动，被点一下、被拎起来时也有专门设计的反应。每次启动，她都会提起裙摆向主人行礼请安；关闭时，也会用同样的礼仪和主人道别。标准版还能通过 ACP 一键连接 20 款主流 CLI Agent，陪主人进行稳定的长对话。
-
-当前版本为 **1.1.3**，安装包请前往 [GitHub Releases](https://github.com/Bai-Cute/big-blue-fish-desktop-pet/releases/latest) 下载。
+本版以 macOS（Apple Silicon）為主要平台，在 Mac 上建置與測試。
 
 <p align="center">
-  <img src="docs/images/bigbluefish-rest-transparent.png" width="38%" alt="蓝色大肥鱼休息状态" />
-  <img src="docs/images/bigbluefish-speaking-transparent.png" width="58%" alt="蓝色大肥鱼吐字状态" />
+  <img src="docs/images/bigbluefish-rest-transparent.png" width="38%" alt="藍色大肥魚休息狀態" />
+  <img src="docs/images/bigbluefish-speaking-transparent.png" width="58%" alt="藍色大肥魚說話狀態" />
 </p>
 
-## 认识鱼鱼
+## 下載與安裝（macOS）
 
-鱼鱼有一头柔软的蓝色长发，头顶戴着蕾丝女仆发饰，耳边是小小的鲸鳍，身后摇着一条鲸鱼尾巴。她穿着深蓝色的女仆装，白色围裙上印着一只小鲸鱼，整个人看起来就像一位住进电脑里的小鲸鱼娘。她平时安静地待在桌面边缘，身边透明的地方可以直接点到后面的桌面，主人也可以把她拖到任何喜欢的位置，大小可以在 50% 到 200% 之间调整。
+需要 Apple Silicon（M 系列晶片）的 Mac，以及 macOS 14 或更新版本。
 
-她说话的语气亲切温柔，又带着一点可爱俏皮。看见主人在写代码，她会摇摇尾巴为认真工作的主人加油；看见主人和朋友约明天吃饭，她会忍不住对好吃的动一点小心思；天气变冷或者主人忙了很久，她也会轻轻地送来一句关心。启动时，她会按照时间说“主人早上好，鱼鱼给主人请安啦～”；道别时，她会说“主人再见～鱼鱼喜欢主人哦”。
+請到[本版的發布頁面](https://github.com/Methrew/big-blue-fish-desktop-pet/releases)下載 DMG，每個檔案都附有對應的 `.sha256` 校驗檔：
 
-<p align="center">
-  <img src="docs/images/bigbluefish-maid-bow.gif" width="32%" alt="女仆屈膝礼仪" />
-  <img src="docs/images/bigbluefish-idle-breath.gif" width="32%" alt="待机呼吸休闲" />
-  <img src="docs/images/bigbluefish-click-wave.gif" width="32%" alt="点击回应元气挥手" />
-</p>
+| 版本 | 檔案 |
+| --- | --- |
+| 標準版 | `BigBlueFish-TW-v1.1.3-tw.1-macOS-arm64.dmg` |
+| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.1-Safe-macOS-arm64.dmg` |
 
-## 她怎样陪伴主人
+檔名開頭是 `BigBlueFish-TW`，和原作者的 `BigBlueFish-v…` 不同。發布頁面還沒有任何版本時，請先[從原始碼建置](#從原始碼建置)。
 
-鱼鱼会读取当前前台窗口的画面，通过 OCR 识别其中的文字，并按照标题栏、侧边栏、正文等区域整理好，再交给内置的 4B 本地模型理解。无论主人在读文章、写文档、改代码，还是在聊天里提到了什么话题，她都能顺着眼前的内容组织一小段新的话；主人停在桌面、主页或新标签页时，她也会自然地问候、撒娇或者碎碎念。Windows 使用系统自带的 Windows OCR，Linux 使用 Tesseract，macOS 使用 Apple Vision；Linux 的 X11 与 Wayland 桌面均可使用。
+1. 打開 DMG，把「藍色大肥魚」（無MCP版是「藍色大肥魚無MCP版」）拖到「應用程式」檔案夾，再從「應用程式」開啟。執行所需的 .NET、動畫解碼元件和本機推論程式都包在 App 裡，不必另外安裝。
+2. App 只有臨時（ad-hoc）簽章，沒有經過 Apple 公證，第一次打開時 macOS 會擋下來。請先試著打開一次，再到「系統設定 › 隱私權與安全性」，在下方找到藍色大肥魚的提示並按「強制打開」，然後依系統提示確認。
+3. 第一次啟動時會出現安裝模型的視窗，可以選擇 Hugging Face（推薦）、中國大陸鏡像（ModelScope）、手動安裝已經下載好的 GGUF 檔案，或先以無模型模式啟動。
+4. 依需要允許下列權限（都在「系統設定 › 隱私權與安全性」）：
 
-启动约 45 秒后，鱼鱼会第一次开口，之后在主人选择的时间范围内随机安排下一次说话，范围从 2–3 分钟到 20–30 分钟共六档。她会挑主人暂时停下键盘和鼠标的间隙开口，准备说话时头边会转起一个蓝色的小圈圈，随后文字一个字一个字地出现在奶油色的气泡里。气泡大小和停留时间都可以在设置中调整，右键菜单里的“吐字测试”可以随时让她现场说一句。
-
-主人可以选择全球各地作为天气地点。鱼鱼每小时会悄悄更新一次天气，播报时结合气温、体感、湿度、风力、最高最低温和降水概率，用鲸鱼娘的口吻讲给主人听；右键菜单里的“天气”可以随时让她汇报。她也会从 IT之家浏览最新的科技新闻，挑一条讲清楚要点，再加上一小句自己的感受。
-
-内置模型每次只进行一次单独的输出，没有对话历史，也不保留记忆。读屏内容只在本机交给内置模型使用，不会被上传到云端，也不会保存到本地。
-
-笔记本电脑离开电源时，鱼鱼可以自动停止模型推理并把模型移出内存，帮主人照顾续航；外部程序全屏时，她会自动躲起来，结束后再回到桌面。这些行为都可以在设置中按自己的习惯调整。
-
-## 一百多种动作表情
-
-鱼鱼内置 106 段透明动画，覆盖待机、点击、拖动、日常事件、用餐、季节和节日等场景。每一种动作都有自己的出现权重，并会结合当前时间、日期、季节、饭点和主人的操作实时计算，这些概率都经过细致严谨的微调，让她的表情丰富有趣，又贴合主人当下的生活节奏。每段动作在没有新的交互打断时都会完整播放，再自然地衔接到下一段。
-
-<p align="center">
-  <img src="docs/images/bigbluefish-meal.gif" width="32%" alt="用餐动作" />
-  <img src="docs/images/bigbluefish-fireworks.gif" width="32%" alt="节日烟花动作" />
-  <img src="docs/images/bigbluefish-sleep.gif" width="32%" alt="夜间小憩沉眠" />
-</p>
-
-待机时，鱼鱼会在好几种安静的动作之间轮换，轻轻地呼吸、悠闲地哼歌；到了晚上 23 点之后，她会开始犯困，时不时打个小盹，直到第二天早上 8 点。主人点击她时，她会从好几种回应里挑一种，可能元气地挥挥手，可能害羞地吓一跳，也可能露出别的小表情，有些回应要多点几次才容易遇到。把她拎起来拖动时，她会悬在半空中保持被抓住的小模样，直到主人松手。
-
-每隔一段时间（默认 40 秒，可在 30 秒到 5 分钟之间调整），鱼鱼会从大量日常事件中挑一件小事来做：跳舞、吹泡泡、敲小电脑，等等许多许多精美华丽的动作。三餐的时间可以在设置中按主人的作息填写，饭点前后一小时里，她会更常端出好多种美食和小吃。早上她更容易打哈欠，每天晚上 23 点后有空的时候，还会认真地刷一次牙。
-
-节日是鱼鱼特别用心准备的部分。春节、元宵、情人节、520、端午、七夕、中秋、万圣节、圣诞节等节日前后，她都准备了专属的节日动作，比如春节写福字、放烟花，中秋赏月吃月饼，有些动作还会随着节日临近越来越常见；节日前后的饭点，她也会端出应景的节日美食。农历节日按照农历日期计算，闰月也能正确处理。
-
-季节也会改变她的日常：冬天会堆雪人，秋天会被落叶埋住，夏天还有好几种消暑的小活动。她偶尔也会跑一跑、学螃蟹横着走，跑出一小段距离，在那里待一会儿，再回到原来的位置。
-
-除了这些，鱼鱼还藏着许多没有写在这里的小心思。愿主人在每天的陪伴里慢慢发现她的可爱，每一次不经意的抬头，都能撞见一个小小的惊喜。
-
-## 安装
-
-普通用户请从 [GitHub Releases](https://github.com/Bai-Cute/big-blue-fish-desktop-pet/releases/latest) 下载对应系统的安装包。每个平台都提供标准版和无ACP版，文件名中带 `Safe` 的是无ACP版，各安装包都附有配套的 `.sha256` 校验文件。
-
-| 平台 | 标准版 | 无ACP版 |
+| 權限 | 用途 | 哪個版本 |
 | --- | --- | --- |
-| Windows x64 | `BigBlueFish-v1.1.3-OCR-Setup.exe` | `BigBlueFish-v1.1.3-Safe-OCR-Setup.exe` |
-| Ubuntu／Debian x64 | `BigBlueFish-v1.1.3-Linux-x64.deb` | `BigBlueFish-v1.1.3-Safe-Linux-x64.deb` |
-| macOS 14+ · Apple Silicon | `BigBlueFish-v1.1.3-macOS-arm64.dmg` | `BigBlueFish-v1.1.3-Safe-macOS-arm64.dmg` |
+| 螢幕與系統錄音 | 讀取前景視窗的文字（OCR）、截圖，以及讀取其他 App 的視窗標題 | 兩個版本 |
+| 輔助使用 | `find_on_screen` 找桌面圖示、Dock 項目與視窗裡的按鈕，`walk_to` 跑到桌面圖示旁邊 | 標準版 |
+| 自動化 › Finder | Agent 讀取目前狀況（`get_context`）時，詢問 Finder 開著哪些資料夾；只讀路徑，不會修改檔案 | 標準版 |
+| 區域網路 | 使用區域網路裡的遠端模型伺服器時（macOS 15 以後才會詢問） | 兩個版本 |
 
-在 Windows 上，双击安装器即可开始部署。安装器会把桌宠程序、动画资源、.NET 运行时和本地推理运行时一并安装好，默认位置是 `Program Files` 下的“蓝色大肥鱼”文件夹，并创建桌面和开始菜单快捷方式。随后安装器会请主人选择模型的准备方式：Hugging Face（推荐）、国内源（稳定）或手动安装。自动下载的模型约 2.7 GB，下载完成后会经过 SHA-256 校验，中途断开也能从已有进度继续。下载时如果想改用手动安装，可以选择“放弃并转为手动安装”；手动安装会显示模型应放入的文件夹，并打开模型来源页面，也可以直接选择已经下载好的 GGUF 文件。卸载时可以在卸载界面勾选“保留模型和设置”。
+因為是臨時簽章，每次更新或重新建置 App 後，系統設定裡的開關可能看起來還開著，實際授權卻已經失效；這時請把開關關掉再打開（或用「−」移除後再用「＋」加回 App），然後重新開啟藍色大肥魚。
 
-在 Ubuntu／Debian 上，下载对应的 `.deb` 后，在其所在目录执行：
+完整的安裝、權限、資料夾、鑰匙圈、登入時自動開啟、更新、解除安裝與疑難排解說明，見 [macOS 說明](docs/MACOS.md)。
+
+### Windows 與 Linux
+
+本版的 Windows 與 Linux 原始碼已經一起合併，也確認可以編譯，但沒有在 Windows 或 Linux 上實際執行或測試，也不提供安裝程式或套件。需要這兩個平台時，請使用[原作者的版本](https://github.com/Bai-Cute/big-blue-fish-desktop-pet/releases/latest)，或自行從原始碼建置（未經測試）。
+
+## 本版和原版有什麼不同
+
+- **台灣繁體中文**：設定、選單、提示視窗、模型安裝與更新視窗和魚魚的說話語氣都是台灣繁體中文與台灣用語。氣泡裡的文字（本機或遠端模型的回覆、天氣、Agent 用 `say` 說的話、Hermes 的回答）顯示前都會用 [OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 的字典把簡體字轉成台灣繁體，已經是繁體或英文的內容維持原樣。氣泡字型改用 [jf open 粉圓 2.1](https://github.com/justfont/open-huninn-font)，粉圓沒有的字與其他介面用系統的蘋方-繁（PingFang TC）。macOS 的 OCR 改成先以繁體中文辨識。106 個動作名稱同時是動畫檔名與 MCP 動作名稱，所以維持原本的簡體字；Agent 用繁體寫動作名稱也認得。
+- **臺灣鄉鎮天氣**：國家清單和原版完全相同（中國排第一，包括中國清單裡的臺灣省），只多加一個國家「臺灣 Taiwan」（22 個縣市、368 個鄉鎮市區），新安裝的預設地點是臺北市中正區。選國家「臺灣 Taiwan」並在設定中填入[中央氣象署開放資料](https://opendata.cwa.gov.tw/)的授權碼時，會使用氣象署的鄉鎮天氣預報；授權碼存在 macOS 鑰匙圈，不會寫進設定檔，也不會提供給 MCP。沒有授權碼時，改用 Open-Meteo 估計鄉鎮市區中心附近的天氣。中國清單裡的臺灣省沿用原版資料，以縣市為單位估算、使用北京時間；要看鄉鎮的天氣，請選國家「臺灣 Taiwan」。選單裡的地名一律以繁體字顯示，但只換字形、不換譯名，所以仍會看到「意大利」這類原版資料的譯名。
+- **自己的身分與資料夾**：本版的 App 是「藍色大肥魚」（`io.github.methrew.bigbluefish.tw`），資料放在 `~/Library/Application Support/bigbluefish-tw`，檢查更新只看本版的發布頁面，不會被換回原作者的版本。第一次啟動時，會從原版的資料夾**唯讀**匯入一次設定、模型選擇和 Agent 資料（模型用 APFS 複本，不多佔空間），原版的資料不會被移動或修改。本版可以和原版同時安裝，但兩者共用「同一時間只能開一隻」的鎖，所以同一時間只會有一隻魚在執行。
+- **從台灣版移植到 Mac 的功能**：
+  - 遠端模型：改用另一台電腦上的 llama.cpp 伺服器（OpenAI 相容介面）說話；伺服器支援圖片時可以直接傳前景視窗的截圖。API Key 存在 macOS 鑰匙圈。
+  - 魚魚自己的主動提醒：久坐、用餐、深夜、低電量與下雨提醒，不需要模型或 Agent。
+  - `get_context` 與 `user_returned`：Agent 可以讀取主人此刻的狀況（時間、閒置多久、連續使用多久、電源、前景程式、Finder 開著的資料夾、魚魚最近一次的提醒）；主人離開 5 分鐘以上再回來時，Hermes 橋接程式等 MCP 客戶端會收到 `user_returned` 事件。
+  - `find_on_screen` 與 `walk_to`：在畫面上依名稱找出桌面圖示、視窗和按鈕，再讓魚魚跑到旁邊。
+  - Hermes 對話橋接：把雙擊輸入的文字交給本機的 [Hermes Agent](https://github.com/NousResearch/hermes-agent)，另有每日簡報、回來時的摘要、排程回報與 Google 日曆提醒。標準版 App 已內附橋接程式。
+  - 外部 MCP 介面：讓 Hermes 橋接程式等本機的 MCP 客戶端透過 `BigBlueFish.Mcp` 控制魚魚，預設關閉；雙擊輸入只會交給一方，不會讓兩個 Agent 各回答一次。
+  - 輸入框附件：用迴紋針按鈕、拖曳或 ⌘V 貼上，一次最多附加 10 個圖片、影片或檔案，以 ACP 的 `resource_link` 交給 Agent。
+- **Mac 版的改進**：App 只內含 macOS 實際播放的 640×360 相容動畫，從約 1.0 GiB 縮小到約 0.2 GiB；修正原版 Mac 版讀不到真正的閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵會跟著切換桌面空間，點一下或拖曳後鍵盤焦點會回到原本的 App；點選和拖曳的動作會預先解碼開頭，反應更即時；第一次偵測 GPU 時等待更久，能用 Metal；從 Finder 開啟時也會讀取登入 shell 的 PATH，找得到 npm 或 Homebrew 安裝的 Agent CLI。
+
+## 認識魚魚
+
+魚魚有一頭柔軟的藍色長髮，頭頂戴著蕾絲女僕髮飾，耳邊是小小的鯨鰭，身後搖著一條鯨魚尾巴。她穿著深藍色的女僕裝，白色圍裙上印著一隻小鯨魚，整個人看起來就像一位住進電腦裡的小鯨魚娘。她平常安靜地待在桌面邊緣，身邊透明的地方可以直接點到後面的桌面，主人也可以把她拖到任何喜歡的位置，大小可以在 50% 到 200% 之間調整。
+
+她說話的語氣親切溫柔，又帶著一點可愛俏皮。看見主人在寫程式，她會搖搖尾巴替認真工作的主人加油；看見主人和朋友約明天吃飯，她會忍不住對好吃的動一點小心思；天氣變冷或主人忙了很久，她也會輕輕地送來一句關心。啟動時，她會依時間說「主人早上好，魚魚給主人請安啦～」；道別時，她會說「主人再見～魚魚喜歡主人喔」。
+
+<p align="center">
+  <img src="docs/images/bigbluefish-maid-bow.gif" width="32%" alt="女僕屈膝禮儀" />
+  <img src="docs/images/bigbluefish-idle-breath.gif" width="32%" alt="待機呼吸休閒" />
+  <img src="docs/images/bigbluefish-click-wave.gif" width="32%" alt="點選回應元氣揮手" />
+</p>
+
+## 她怎樣陪伴主人
+
+魚魚會讀取目前前景視窗的畫面，用 OCR 辨識其中的文字，依標題列、側邊欄、內文等區域整理好，再交給內建的 4B 本機模型理解。不論主人在讀文章、寫文件、改程式，還是在聊天裡提到什麼話題，她都能順著眼前的內容組織一小段新的話；主人停在桌面、首頁或新分頁時，她也會自然地問候、撒嬌或碎碎念。macOS 使用系統的 Apple Vision，Windows 使用系統內建的 Windows OCR，Linux 使用 Tesseract。
+
+啟動約 45 秒後，魚魚會第一次開口，之後在主人選擇的時間範圍內隨機安排下一次說話，範圍從 2–3 分鐘到 20–30 分鐘共六段。她會挑主人暫時停下鍵盤和滑鼠的空檔開口，準備說話時頭邊會轉起一個藍色的小圈圈，接著文字一個字一個字地出現在奶油色的氣泡裡。氣泡大小和停留時間都可以在設定中調整，右鍵選單裡的「說話測試」可以隨時讓她當場說一句。
+
+主人可以選擇世界各地作為天氣地點，也可以選臺灣的鄉鎮市區。魚魚每小時會悄悄更新一次天氣，播報時結合氣溫、體感、濕度、風力、最高最低溫和降雨機率，用鯨魚娘的口吻講給主人聽；右鍵選單裡的「天氣」可以隨時讓她播報。她也會從 IT之家瀏覽最新的科技新聞，挑一則講清楚重點，再加上一小句自己的感想，並用台灣繁體中文轉述。
+
+內建模型每次只產生一段單獨的回覆，沒有對話歷史，也不保留記憶。使用本機模型時，讀到的螢幕內容只在這台電腦上交給模型，不會上傳到雲端，也不會存到磁碟；改用遠端模型時，前景視窗的文字或截圖會傳送到主人自己填寫的伺服器，詳見 [macOS 說明](docs/MACOS.md#遠端模型)。
+
+筆電拔掉電源時，魚魚可以自動暫停模型並把模型移出記憶體，幫主人照顧續航；其他程式全螢幕時，她會自動躲起來，結束後再回到桌面。這些行為都可以在設定中依自己的習慣調整。
+
+除此之外，魚魚還會自己提醒主人起來走走、記得吃飯、早點睡覺、插上電源和帶傘。這些提醒由魚魚依規則判斷，不需要模型或 Agent；主人不在電腦前、有程式全螢幕或正在拖曳魚魚時，提醒會先等等。
+
+## 一百多種動作表情
+
+魚魚內建 106 段透明動畫，涵蓋待機、點選、拖曳、日常事件、用餐、季節和節日等場景。每一種動作都有自己的出現權重，並會結合目前的時間、日期、季節、用餐時間和主人的操作即時計算，這些機率都經過細心的微調，讓她的表情豐富有趣，又貼合主人當下的生活節奏。每段動作在沒有新的互動打斷時都會完整播放，再自然地銜接到下一段。
+
+<p align="center">
+  <img src="docs/images/bigbluefish-meal.gif" width="32%" alt="用餐動作" />
+  <img src="docs/images/bigbluefish-fireworks.gif" width="32%" alt="節日煙火動作" />
+  <img src="docs/images/bigbluefish-sleep.gif" width="32%" alt="夜間小憩沉睡" />
+</p>
+
+待機時，魚魚會在好幾種安靜的動作之間輪流，輕輕地呼吸、悠閒地哼歌；到了晚上 11 點之後，她會開始想睡覺，不時打個小盹，直到隔天早上 8 點。主人點她一下時，她會從好幾種回應裡挑一種，可能元氣地揮揮手，可能害羞地嚇一跳，也可能露出別的小表情，有些回應要多點幾次才比較容易遇到。把她拎起來拖曳時，她會懸在半空中保持被抓住的小模樣，直到主人放手。
+
+每隔一段時間（預設 40 秒，可以在 30 秒到 5 分鐘之間調整），魚魚會從大量日常事件中挑一件小事來做：跳舞、吹泡泡、敲小電腦，還有許許多多精緻華麗的動作。三餐的時間可以在設定中依主人的作息填寫，用餐時間前後一小時裡，她會更常端出好多種美食和小吃。早上她比較容易打哈欠，每天晚上 11 點後有空的時候，還會認真地刷一次牙。
+
+節日是魚魚特別用心準備的部分。春節、元宵、情人節、520、端午、七夕、中秋、萬聖節、聖誕節等節日前後，她都準備了專屬的節日動作，例如春節寫福字、放煙火，中秋賞月吃月餅，有些動作還會隨著節日接近越來越常出現；節日前後的用餐時間，她也會端出應景的節日美食。農曆節日依農曆日期計算，閏月也能正確處理。
+
+季節也會改變她的日常：冬天會堆雪人，秋天會被落葉埋住，夏天還有好幾種消暑的小活動。她偶爾也會跑一跑、學螃蟹橫著走，跑出一小段距離，在那裡待一會兒，再回到原來的位置。
+
+除了這些，魚魚還藏著許多沒有寫在這裡的小心思。願主人在每天的陪伴裡慢慢發現她的可愛，每一次不經意的抬頭，都能撞見一個小小的驚喜。
+
+> macOS 版播放 640×360、24 幀／秒的相容動畫（Mac 隨附的動畫解碼元件沒有透明 VP9 的硬體解碼），Windows 版播放原作者提升到 1280×720、60 幀／秒的版本。
+
+## 內建模型
+
+魚魚使用 Qwen3.5-4B 的 Q4_K_M 量化 GGUF 模型，由隨附的 [llama.cpp](https://github.com/ggml-org/llama.cpp)（b10809，macOS 使用 Metal，Windows 與 Linux 使用 Vulkan）在這台電腦上推論，可以使用 GPU 加速，也可以改用 CPU 執行。兩個預設來源的模型有些不同，但都適合本程式，主人可以依自己的網路環境選擇。
+
+Hugging Face 來源是 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface.co/Biomanticus/Qwen3.5-4B-heretic-gguf/tree/b63ff4662e4863cfa005c9cd8ed34b87ed44b7e1)，它是 [p-e-w/Qwen3.5-4B-heretic](https://huggingface.co/p-e-w/Qwen3.5-4B-heretic) 的 GGUF 轉換版本，以 Qwen3.5-4B 為基礎。中國大陸鏡像來源是 ModelScope 上的 [diodel/Qwen3.5-4B-Q4_K_M-GGUF](https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/files)，是原版 [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) 的 Q4_K_M 轉換版本。兩個來源都使用固定的修訂版本，檔名、大小與校驗值見[第三方聲明](code/THIRD-PARTY.md)。自動下載的模型約 2.7 GB，下載完成後會核對 SHA-256，中途斷線也能從已有的進度繼續。
+
+模型會依目前裝置可用的顯示記憶體自動調整計算緩衝區，並由 llama.cpp 自動分配模型層，顯示記憶體較小的裝置也能順利載入；GPU 初始化失敗時，魚魚會自動改用 CPU 相容模式，並在設定中顯示實際的推論裝置。
+
+不想在這台電腦上執行模型時，也可以在「設定 › 模型與資訊 › 模型來源」改用遠端的 llama.cpp 伺服器。「啟用模型說話」是魚魚用模型自己說話的總開關，使用遠端模型時也要開著。
+
+## 透過 ACP 連線桌面 Agent
+
+從 1.1.0 起，標準版的藍色大肥魚透過 ACP（Agent Client Protocol）連線主人電腦上已經安裝的 CLI Agent。連線只需要在設定裡點一次：魚魚會在背景啟動所選的 Agent，為自己開一個專用對話，並自動接好動作、截圖、說話等工具。接上之後，主人可以和魚魚長時間聊天，也可以藉助 Agent 的能力，實現電腦操控、與雲端大模型對話、自訂陪伴和動作邏輯等各種玩法。
+
+魚魚目前支援 21 款 CLI Agent，其中有 Claude Code、Codex CLI、Gemini CLI、DeepSeek Harness、Kimi Code、Qwen Code、GitHub Copilot CLI、Cursor CLI、OpenCode、Hermes Agent 等。全部支援的 Agent 和各自的啟動方式見[連線本機 CLI Harness](docs/ACP.md)。
+
+### 連線方法
+
+1. 依所選 Agent 自己的說明把它裝好，並完成登入和模型設定。
+2. 打開魚魚的設定，進入「連線 Agent」頁面，打開「連線本機相容的 CLI Harness」，閱讀並確認跳出的權限說明。
+3. 從下拉選單選一個 Agent。電腦上偵測到的 Agent 排在前面；剛裝好新的 Agent 時，按一下「重新偵測」。
+4. 等頁面顯示連線狀態、Agent 版本、模型和對話編號，就可以開始用了。
+
+Claude Code、Codex CLI 和 Pi 需要經過 ACP 轉接器連線。電腦上還沒有這些轉接器時，魚魚會透過 Node.js 和 npm 自動裝上固定版本；Antigravity CLI 的官方 ACP 元件也會在第一次連線時自動準備。Agent 要求登入時，魚魚會列出它提供的登入方式；選了終端機登入，魚魚會打開一個登入用的終端機（macOS 是「終端機」App），登入成功後自動重新連線，接著處理剛才的請求。
+
+### 和魚魚長聊
+
+連上之後，雙擊魚魚，她身邊會展開一個小輸入框。寫下想說的話，按「傳送」或 ⌘↩（Windows 與 Linux 是 Ctrl+Enter），Agent 的回覆就會出現在魚魚的氣泡裡。輸入框也可以附加圖片、影片或檔案。第一次連線時，魚魚會替 Agent 裝上「藍色大肥魚操作」技能（`big-blue-fish`），裡面寫著她的鯨魚娘人設，還有播放動作、截圖、說話這些操作的用法；人設也可以在設定裡隨時改成主人喜歡的樣子。
+
+魚魚在每個 Agent 那裡都有一個專屬對話。說完一輪，下一句話還在同一個對話裡繼續，前面聊過的內容都留在上下文中，所以能聊得很長、很穩。Agent 支援恢復對話時，關掉魚魚再打開，或斷線後重新連線，她都會先把原來的對話接回來；登入過期、網路不穩這類情況也會保留原本的對話，恢復後繼續聊。想換個話題從頭開始，按「開始新對話」就好。
+
+### 魚魚的工作區
+
+魚魚有一個屬於自己的工作區，Agent 幫主人整理的文件、表格、程式碼等成果都放在這裡。新安裝時，工作區預設是「文件」資料夾裡的「藍色大肥魚工作區」；已經在使用原版建立的「蓝色大肥鱼工作区」或自己選的資料夾時，會繼續使用原本的資料夾。所有 Agent 共用目前這一個工作區，換了 Agent 或開了新對話，手上的檔案都還在。設定裡可以新增、開啟、檢視和清空工作區；對話依工作區分開儲存，切回原來的工作區，魚魚就接著那裡的對話聊。
+
+同一頁還列出目前 Agent 提供的模型、權限與工作模式和思考選項，主人可以直接在這裡切換。Agent 想讀寫檔案或執行指令時，魚魚會把具體的操作和 Agent 提供的核准選項列出來，由主人決定。
+
+### 讓 Agent 安排日常關心
+
+設定裡有兩個開關，可以分開打開。「把日常關心要說的話交給 Agent」讓魚魚維持原本的說話節奏，每到該開口的時候，請 Agent 看著目前的情境寫一句關心的話。「把日常關心的觸發和日常的動作切換邏輯交給 Agent」則讓魚魚安靜地循環待機，動作由 Agent 安排，下一次關心的時間也由 Agent 來約，可以只約一次，也可以定期重複；時間一到，這句話由 Agent 或魚魚自己的模型來說，看第一個開關怎麼設定。右鍵選單裡的「天氣」和「說話測試」一直都能用，同樣依目前的設定交給魚魚自己的模型或 Agent 來回答。
+
+### 魚魚與 Agent 的分工
+
+連線後，Agent 可以使用以下能力：
+
+- 讀取和修改魚魚的設定，檢視她目前的動作、模型、連線和預約狀態；
+- 取得目前前景視窗或整個螢幕的截圖（macOS 的整個螢幕只截主螢幕）；
+- 讀取主人此刻的狀況（`get_context`），包括時間、多久沒操作電腦、這次連續使用多久、電源與電量、前景程式，以及 Finder 開著的資料夾；
+- 依名稱在畫面上找出桌面圖示、視窗和按鈕，讓魚魚跑到旁邊（`find_on_screen`、`walk_to`，macOS 與 Windows）；
+- 查詢全部 106 個動作，讓魚魚馬上播放某個動作，或把動作排進佇列依序播放；
+- 讓魚魚說出 Agent 寫好的話，或請魚魚自己的模型依目前情境說一句；
+- 預約、檢視和取消日常關心。
+
+即使接上了 AI Agent，魚魚在這條連線中做的事情也始終很簡單：把依主人開啟的設定準備的螢幕畫面、Agent 主動要求的截圖、主人主動輸入的文字和附加的檔案路徑，以及依主人開啟的設定發出的互動事件和日常關心請求交給 Agent，再接收 Agent 送來的文字、動作和設定等控制。電腦操控、雲端對話等各種操作能力，實際上都由 Agent 自己執行。
+
+**風險提醒：** 連線 Agent 後，截圖會交給所連線的 Agent，由 Agent 決定怎麼處理，可能導致主人的資訊被上傳或儲存。開啟連線時確認的權限對所選 Agent 一律有效，Agent 可以使用上面列出的全部能力，不會依工具分別授權。設定中的「感知目前使用的程式」開關控制日常關心時是否自動讀取螢幕，Agent 透過工具主動要求的截圖不受這個開關影響。Agent 連線預設關閉，開啟前軟體會跳出視窗說明這些權限，請只連線你信任的 Agent。
+
+支援方式、登入、工作區和對話的完整說明見[連線本機 CLI Harness](docs/ACP.md)，內部工具的參數見[內部工具參考](docs/MCP.md)。外部 MCP 介面與 Hermes 對話橋接的設定方法見 [macOS 說明](docs/MACOS.md#hermes-對話橋接與外部-mcp-介面)。
+
+## 無MCP版
+
+為了徹底消除 Agent 連線可能帶來的隱私風險，本版也提供無MCP版（App 名稱是「藍色大肥魚無MCP版」；原作者的 README 稱它為「無ACP版」）。無MCP版在編譯時就移除了 Agent 連線、MCP 介面與內部控制服務、MCP 橋接程式、Hermes 橋接程式、雙擊輸入框和相關的設定頁面，只保留魚魚自己的陪伴功能（包括遠端模型、臺灣鄉鎮天氣和主動提醒），檢查更新時也只會找無MCP版。DMG 的檔名帶有 `Safe` 字樣，下載方式和標準版相同。
+
+在 macOS 上，無MCP版和標準版共用同一個資料夾與鑰匙圈項目，但登入項目和系統權限各自分開。開過無MCP版之後，標準版的 Agent 與 MCP 相關開關會維持原樣，不會被無MCP版關掉。
+
+## 從原始碼建置
+
+儲存庫給開發者和維護者使用，包含原始碼、動畫資源、地區資料、建置與發布腳本、測試程式、相依套件鎖定檔和授權檔案。模型與推論執行環境由腳本另外準備。
+
+### macOS（Apple Silicon）
 
 ```bash
-sudo apt install ./BigBlueFish-v1.1.3-Linux-x64.deb
+xcode-select --install          # clang、swiftc
+brew install --cask dotnet-sdk  # 或安裝到 ~/.dotnet，需要 .NET 10 SDK
+brew install node               # 只有連線需要轉接器的 Agent（Claude Code、Codex CLI、Pi）時才需要 npm
+
+tools/build-macos.sh            # 標準版：release/藍色大肥魚.app
+tools/build-macos.sh Safe       # 無MCP版：release/藍色大肥魚無MCP版.app
+DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET 時，指定 .NET 10
 ```
 
-安装无ACP版时换成对应的文件名即可。安装完成后，可以从应用菜单或 `bigbluefish` 命令启动鱼鱼，再到设置的“模型与信息”中点击“安装模型”，为她准备本地模型。
+腳本會下載並核對固定版本的 llama.cpp（macOS arm64、Metal）與 GStreamer 元件，編譯 Apple Vision OCR 與畫面讀取的輔助程式，產生自包含的 App，並以臨時簽章簽署。發布用的 DMG 由 GitHub Actions 的「macOS package」工作流程產生並驗證。詳細步驟見 [macOS 說明](docs/MACOS.md#從原始碼建置)。
 
-Mac 主人打开 `.dmg`，将应用拖入 Applications 后启动，具体安装与授权步骤见 [macOS 安装说明](docs/MACOS.md)。
+### Windows 與 Linux（只確認可以編譯）
 
-如果暂时不想下载模型，也可以先让鱼鱼以无模型模式住进桌面。这时她依然会行礼、问候、道别，播放全部动作表情，回应主人的点击和拖动。之后随时可以到设置中点击“安装模型”，让她开始读懂屏幕、开口说话。
+原作者的 Windows 與 Linux 建置腳本都保留在儲存庫裡，例如 Windows 的 `./code/build.ps1 -Locked -InputMode Ocr`、`./tools/Build-Installer.ps1`，以及 Linux 的 `./tools/Build-LinuxPackage.ps1`。本版只在 Mac 上用 .NET SDK 確認這些專案可以編譯，沒有在 Windows 或 Linux 上執行、測試，也沒有產生安裝程式或套件。
 
-鱼鱼可以在设置中检查更新，也可以在每次启动时自动检查。发现新版本后，应用会下载并校验对应版本的安装包，完成更新后重新启动，模型和设置都会继续保留。Windows 用户也可以退出桌宠后手动运行新版安装器，选择原安装目录完成更新。
+專案版本統一記錄在根目錄的 `Version.props`，程式、MCP 橋接程式、安裝程式和解除安裝程式都從這裡產生版本資訊；本版的名稱、識別碼與發布來源集中在 `code/BigBlueFish.Windows/Companion/CompanionEdition.cs`。原始碼結構、修改入口與測試方式見[開發說明](code/README.md)。
 
-## 内置模型
+## 文件與回報
 
-鱼鱼使用 Qwen3.5-4B 的 Q4_K_M 量化 GGUF 模型，由随包分发的 [llama.cpp](https://github.com/ggml-org/llama.cpp)（b10809，Windows／Linux 使用 Vulkan，macOS 使用 Metal）在本机推理，可以使用 GPU 加速，也可以切换到 CPU 运行。两个预设来源的模型有所不同，但都适合本应用，主人可以按自己的网络环境选择。
+本版的變更記錄在 [CHANGELOG.md](CHANGELOG.md)，發布說明在 [release/README.md](release/README.md)。原作者整理的完整行為規格見[功能規格](docs/AGENT_FUNCTIONAL_SPEC.md)，各已發布版本的行為見[版本規格目錄](docs/specs/README.md)；這些規格維持原作者的原文（簡體中文），描述的是原版的行為。
 
-Hugging Face 来源为 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface.co/Biomanticus/Qwen3.5-4B-heretic-gguf/tree/b63ff4662e4863cfa005c9cd8ed34b87ed44b7e1)，它是 [p-e-w/Qwen3.5-4B-heretic](https://huggingface.co/p-e-w/Qwen3.5-4B-heretic) 的 GGUF 转换版本，基于 Qwen3.5-4B。国内来源为 ModelScope 上的 [diodel/Qwen3.5-4B-Q4_K_M-GGUF](https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/files)，是原版 [Qwen/Qwen3.5-4B](https://huggingface.co/Qwen/Qwen3.5-4B) 的 Q4_K_M 转换版本。两个来源都使用固定修订，具体文件名、大小与校验值见[第三方声明](code/THIRD-PARTY.md)。
+本版的問題、建議和使用回饋，請到 [Methrew/big-blue-fish-desktop-pet 的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues) 回報，不要回報給原作者或 acer1204。原作者也感謝來自 B 站的小夥伴們一直以來的關愛和建議。
 
-模型会根据当前设备的可用显存自动调整计算缓冲区，并由 llama.cpp 自动分配模型层，小显存设备也能顺利加载；GPU 初始化失败时，鱼鱼会自动切换到 CPU 兼容模式，并在设置中显示实际的运行模式。
+想讓已連線的 Agent 用魚魚的口吻陪伴主人，可以參考這張[藍色大肥魚人設卡](docs/CHARACTER_CARD.txt)。
 
-## 通过 ACP 连接桌面 Agent
+## 授權與第三方
 
-从 1.1.0 起，标准版的蓝色大肥鱼通过 ACP（Agent Client Protocol）连接主人电脑上已经安装的 CLI Agent。连接只需在设置里点选一次：鱼鱼会在后台启动所选的 Agent，为自己开一个专用对话，并自动接好动作、截图、说话等工具。接上之后，主人可以和鱼鱼长时间地聊天，也可以借助 Agent 的能力，实现电脑操控、与云端大模型对话、自定义陪伴和动作逻辑等各种玩法。
+本專案以 [Apache License 2.0](LICENSE) 發布，原作者的著作權聲明（Copyright 2026 Bai-Cute）和授權條款維持不變，本版的修改同樣以 Apache-2.0 授權發布。依授權條款第 4 條，修改過的原始碼檔案開頭會註明修改者與日期；和原作者 1.1.3 版的完整差異，可以在本儲存庫用 `git diff 75cd217` 檢視。魚魚的形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」；專案使用的動畫、模型、執行環境、字型和資料分別來自以下專案，各自遵循其原有授權：
 
-鱼鱼目前已经适配了 20 款 CLI Agent，其中有 Codex CLI、Gemini CLI、DeepSeek Harness、Kimi Code、Qwen Code、GitHub Copilot CLI、Cursor CLI、OpenCode 等。全部适配项和各自的启动方式见[连接本机 CLI Harness](docs/ACP.md)。
+- 角色動畫：106 段透明 WebM 動畫來自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT 授權；播放素材經原作者提升到 1280×720、60 幀／秒，並保留原始解析度與幀率的相容素材（macOS 版只內含相容素材），動作的選擇與觸發邏輯為本專案自訂。dsh-pet 的 README 另外規定素材禁止商用、角色形象採 CC BY-NC-SA 4.0，並要求衍生作品附上 dsh-pet 的網址；這些限制由 acer1204 的台灣版補充說明，詳見[第三方聲明](code/THIRD-PARTY.md)。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象。
+- 本機模型：Qwen3.5-4B 及其衍生的 heretic 版本與 GGUF 轉換，Apache-2.0 授權，模型檔由使用者另外下載；
+- 推論與執行環境：llama.cpp（MIT）、.NET 10 執行環境（MIT）、Microsoft Visual C++ 執行階段程式庫（Windows，依 Microsoft 再散布條款）；
+- 動畫解碼：macOS 與 Windows 版使用隨附的 GStreamer 元件，Linux 版使用系統的 GStreamer；
+- macOS 與 Linux 介面：Avalonia、MicroCom.Runtime、Tmds.DBus.Protocol、SkiaSharp、HarfBuzzSharp（MIT）；
+- 文字辨識：macOS 使用系統的 Apple Vision，Windows 使用系統提供的 Windows.Media.Ocr，Linux 使用 Tesseract；
+- 氣泡字型：jf open 粉圓 2.1（SIL Open Font License 1.1），取代原版的「乐米小奶泡体」；本版不散布原版字型；
+- 繁簡轉換：[OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 字典（Apache-2.0）；
+- 天氣資料：[Open-Meteo](https://open-meteo.com/)，CC BY 4.0；臺灣鄉鎮天氣預報：中央氣象署開放資料，依政府資料開放授權條款第 1 版使用，中央氣象署並未推薦或背書本程式；科技新聞：[IT之家 RSS](https://www.ithome.com/rss/)；
+- 行政區資料：[AreaCity-JsSpider-StatsGov](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov)，MIT 授權，只內嵌層級與近似中心座標；美國州郡、全球城市與國名分別來自美國人口普查局 Gazetteer、GeoNames 與 Unicode CLDR；臺灣鄉鎮市區中心依內政部國土測繪中心的鄉（鎮、市、區）界線計算，依政府資料開放授權條款第 1 版使用。
 
-### 连接方法
-
-1. 按所选 Agent 自己的说明把它装好，并完成登录和模型配置。
-2. 打开鱼鱼的设置，进入“连接 Agent”页面，打开“连接本机兼容的 CLI Harness”，阅读并确认弹出的权限说明。
-3. 从下拉列表里选一个 Agent。电脑上检测到的 Agent 排在前面；刚装好新的 Agent 时，点一下“重新检测”。
-4. 等页面显示出连接状态、Agent 版本、模型和会话编号，就可以开始用了。
-
-Codex CLI 和 Pi 需要经过 ACP 适配器连接。电脑上还没有这些适配器时，鱼鱼会借助 Node.js 和 npm 自动装上固定版本；Antigravity CLI 的官方 ACP 组件也会在第一次连接时自动准备。Agent 要求登录时，鱼鱼会列出它提供的登录方式；选了终端登录，鱼鱼会打开一个登录终端，登录成功后自动重连，接着处理刚才的请求。
-
-### 和鱼鱼长聊
-
-连上之后，双击鱼鱼，她身边会展开一个小输入框。写下想说的话，按 Ctrl+Enter 或点发送，Agent 的回复就会出现在鱼鱼的气泡里。第一次连接时，鱼鱼会给 Agent 装上“大肥鱼操作”技能，里面写着她的鲸鱼娘人设，还有播放动作、截图、说话这些操作的用法；人设也可以在设置里随时改成主人喜欢的样子。
-
-鱼鱼在每个 Agent 那里都有一个专属对话。说完一轮，下一句话还在同一个对话里继续，前面聊过的内容都留在上下文中，所以能聊得很长、很稳。Agent 支持恢复对话时，关掉鱼鱼再打开，或者断线重连，她都会先把原来的对话接回来；登录过期、网络波动这类情况也会保留原对话，恢复后继续聊。想换个话题从头来过，点“开始新对话”就好。
-
-### 鱼鱼的工作区
-
-鱼鱼有一个属于自己的工作区，Agent 帮主人整理的文档、表格、代码等成果都放在这里。工作区默认是“文档”文件夹里的“蓝色大肥鱼工作区”，所有 Agent 共用当前这一个，换了 Agent 或开了新对话，手上的文件都还在。设置里可以新建、打开、查看和清空工作区；对话按工作区分开保存，切回原来的工作区，鱼鱼就接着那里的对话聊。
-
-同一页还列出了当前 Agent 提供的模型、权限与工作模式和思考选项，主人可以直接在这里切换。Agent 想读写文件或运行命令时，鱼鱼会把具体操作和 Agent 给出的批准选项摆出来，由主人决定。
-
-### 让 Agent 安排日常关心
-
-设置里有两个开关，可以分开打开。“把日常关心的吐字交给 Agent”让鱼鱼保持原来的说话节奏，每到该开口的时候，请 Agent 看着当前情境写一句关心的话。“把日常关心的触发和日常的动作切换逻辑交给 Agent”则让鱼鱼安静地循环待机，动作由 Agent 安排，下一次关心的时间也由 Agent 来约，可以只约一次，也可以定期重复；时间一到，这句话由 Agent 或本地模型来说，看第一个开关怎么设。右键菜单里的“天气”和“吐字测试”一直能用，同样按当前设置交给本地模型或 Agent 来回答。
-
-### 鱼鱼与 Agent 的分工
-
-连接后，Agent 可以使用以下能力：
-
-- 读取和修改鱼鱼的设置，查看她当前的动作、模型、连接和预约状态；
-- 获取当前前台窗口或整个屏幕的截图；
-- 查询全部 106 个动作，让鱼鱼马上播放某个动作，或者把动作排进队列依次播放；
-- 让鱼鱼说出 Agent 写好的话，或者请本地模型按当前情境说一句；
-- 预约、查看和取消日常关心。
-
-即使接入了 AI Agent，鱼鱼在这条连接中做的事情也始终很简单：向 Agent 传入按主人开启的设置准备的读屏画面、Agent 主动请求的截图、主人主动输入的文字，以及按主人开启的设置发出的交互事件和日常关心请求，再接收 Agent 发来的文字、动作和设置等控制。电脑操控、云端对话等各种操作能力，实际都由 Agent 自己执行。
-
-**风险提醒：** 连接 Agent 后，截屏会被传递给所连接的 Agent，其处理方式由 Agent 决定，可能导致主人的信息被上传或保存。开启连接时确认的权限对所选 Agent 统一生效，Agent 可以使用上面列出的全部能力，不按工具分别授权。设置中的“感知当前应用”开关控制日常关心时的自动读屏，Agent 通过工具主动请求的截图不受这个开关影响。Agent 连接默认关闭，开启前软件会弹窗说明这些权限，请只连接你信任的 Agent。
-
-适配方式、登录、工作区和会话的完整说明见[连接本机 CLI Harness](docs/ACP.md)，内部工具的参数见[内部工具参考](docs/MCP.md)。
-
-## 无ACP版
-
-为了彻底消除 Agent 连接可能带来的隐私风险，蓝色大肥鱼为 Windows 和 Linux 继续提供无ACP版。无ACP版在编译时就移除了 Agent 连接、内部控制服务、桥接程序、双击输入框和相关设置页面，安装包中只保留鱼鱼自己的陪伴功能，应用内更新也会继续获取无ACP版。安装包文件名中带有 `Safe` 字样，下载方式与标准版相同。
-
-## 从仓库部署
-
-仓库面向开发者和维护者，包含源码、动画资源、地区数据、构建与发布脚本、测试程序、依赖锁文件和许可文件。模型与推理运行时由脚本另行准备。在 Windows x64 上安装 .NET 10 SDK 后，可以从仓库根目录构建：
-
-```powershell
-# 标准版
-./code/build.ps1 -Locked -InputMode Ocr
-
-# 无ACP版
-dotnet build ./code/BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:RestoreLockedMode=true
-```
-
-准备模型时，可以用模型脚本从任一来源下载，或导入本机已有的 GGUF 文件，然后指定 llama.cpp 运行时目录和模型目录启动；不准备模型时，用 `-NoModel` 以无模型模式启动：
-
-```powershell
-./tools/Setup-Model.ps1 -Source HuggingFace -DestinationDirectory "D:\BigBlueFish-local"
-./tools/Setup-Model.ps1 -Source ModelScope -DestinationDirectory "D:\BigBlueFish-local"
-./tools/Setup-Model.ps1 -Source Manual -ModelFile "D:\下载\我的模型.gguf" -DestinationDirectory "D:\BigBlueFish-local"
-
-./code/run.ps1 -InputMode Ocr -RuntimeDirectory "推理运行时目录" -ModelsDirectory "D:\BigBlueFish-local\models"
-./code/run.ps1 -InputMode Ocr -NoModel
-```
-
-生成安装包需要一个已经核对过的 llama.cpp 运行时目录（Windows 使用 b10809 的 `win-vulkan-x64` 版本）。Linux 安装包在 WSL 中的 Ubuntu／Debian 环境里构建，需要 gcc、pkg-config、libdbus-1-dev、dpkg-deb 和 FFmpeg：
-
-```powershell
-# Windows 安装器，-Edition Safe 生成无ACP版
-./tools/Build-Installer.ps1 -Edition Standard -RuntimeDirectory "Windows运行时目录"
-
-# Ubuntu／Debian x64 安装包，-Edition Safe 生成无ACP版
-./tools/Build-LinuxPackage.ps1 -Distribution "WSL发行版名称" -RuntimeDirectory "Linux运行时目录" -Edition Standard
-```
-
-项目版本统一记录在根目录的 `Version.props`，程序、MCP 桥接程序、安装器和卸载器都从这里生成版本信息。源码结构、修改入口、测试方式和历史视觉版的构建参数见[开发说明](code/README.md)。
-
-## 文档与反馈
-
-版本变化记录在 [CHANGELOG.md](CHANGELOG.md) 中。当前版本完整的窗口、动作权重、模型输入、天气新闻、安装更新等行为见[功能规格](docs/AGENT_FUNCTIONAL_SPEC.md)，各已发布版本的行为见[版本规格目录](docs/specs/README.md)，方便其他开发者和 AI 接手维护。欢迎通过 GitHub Issues 提交问题、建议和使用反馈，也感谢来自 B 站的小伙伴们一直以来的关爱和建议。
-
-想让已连接的 Agent 用鱼鱼的口吻陪伴主人，可以参考这张[蓝色大肥鱼人设卡](docs/CHARACTER_CARD.txt)。
-
-## 开源许可与第三方权利信息
-
-本项目以 [Apache License 2.0](LICENSE) 发布。鱼鱼的形象来自对 DeepSeek 的二创虚拟形象“蓝色大肥鱼”；项目使用的动画、模型、运行时、字体和数据分别来自以下项目，各自遵循其原有许可：
-
-- 角色动画：106 段透明 WebM 动画来自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT 许可，播放素材经本项目提升至 1280×720、60 帧/秒，并保留原始分辨率与帧率的兼容素材，动作的选择与触发逻辑为本项目定制；
-- 本地模型：Qwen3.5-4B 及其衍生的 heretic 版本与 GGUF 转换，Apache-2.0 许可，模型文件由用户另行下载；
-- 推理与运行环境：llama.cpp（MIT）、.NET 10 运行时（MIT）、Microsoft Visual C++ 运行库（Microsoft 再分发条款）；
-- 动画解码：Windows 版使用随包提供的 GStreamer 组件（D3D12 VP9 硬解与软件兼容解码），Linux 版使用系统 GStreamer；
-- Linux 界面：Avalonia、MicroCom.Runtime、Tmds.DBus.Protocol、SkiaSharp、HarfBuzzSharp（MIT）；
-- 文字识别：Windows 版使用系统提供的 Windows.Media.Ocr，Linux 版使用 Tesseract；
-- 气泡字体：乐米小奶泡体，按其公布的免费商用条款内嵌；
-- 天气数据：[Open-Meteo](https://open-meteo.com/)，CC BY 4.0；科技新闻：[IT之家 RSS](https://www.ithome.com/rss/)；
-- 行政区划数据：[AreaCity-JsSpider-StatsGov](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov)，MIT 许可，仅内嵌层级与近似中心坐标。
-
-各组件的版本、修订、校验值和版权说明见[第三方声明](code/THIRD-PARTY.md)，完整许可文本见[许可文件目录](code/licenses)。
+各元件的版本、修訂、校驗值和著作權說明見[第三方聲明](code/THIRD-PARTY.md)，完整授權條文見[授權檔案目錄](code/licenses)。

@@ -58,3 +58,24 @@ code/tests/HermesScenarioVerification/scenarios.py	{"通過" if ok else "沒過"
 # l4-tooling
 code/tests/LinuxVerification/verify.py	主人，我们一起干杯吧！	Simplified say text proving the Linux bubble shows it in Taiwan Traditional
 code/tests/LinuxVerification/verify.py	點擊回應-元氣揮手	Traditional spelling of an animation id, proving MCP accepts it for the Simplified clip
+
+# l5-docs
+*.md	蓝色大肥鱼工作区	the original edition's default workspace folder, which existing installs keep using
+docs/MACOS.md	蓝色大肥鱼.app	the original edition's app name, so users can tell the two apps apart
+README.md	乐米小奶泡体	name of the original edition's bubble font, which this edition no longer ships
+*.md	Dock 項目	macOS term for Dock items
+*.md	鑰匙圈項目	macOS Keychain Access term for keychain items
+*.md	桌面項目	macOS term for desktop items (Finder, Stage Manager)
+*.md	最近項目	Finder sidebar name for Recents
+*.md	幕前調度	macOS name of Stage Manager
+docs/MACOS.md	點擊回應-元氣揮手	a character-by-character Traditional spelling of an action name, shown as accepted input
+*.md	地點代碼	region code of a weather location, Taiwan usage (like 鄉鎮代碼)
+docs/MCP.md	代碼	region codes in the WeatherRegionCode rules (區縣代碼, 鄉鎮市區代碼, 國家代碼), Taiwan usage
+code/THIRD-PARTY.md	section 许可	name of the dsh-pet README section, quoted as written
+code/THIRD-PARTY.md	允许开源使用，禁止商用	the dsh-pet asset terms, quoted as written
+code/THIRD-PARTY.md	@上善无形	Bilibili creator's handle
+code/THIRD-PARTY.md	南庄鄉	official name of the Miaoli township (庄 is correct there)
+code/THIRD-PARTY.md	進行公眾釋出	wording the Open Government Data License requires in the attribution
+code/THIRD-PARTY.md	台湾省	the province name as written in the original region data
+code/THIRD-PARTY.md	乐米小奶泡体	name of the upstream bubble font, which this edition no longer ships
+code/THIRD-PARTY.md	一起干杯	Simplified input phrase of the documented OpenCC fix

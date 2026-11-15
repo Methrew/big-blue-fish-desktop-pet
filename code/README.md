@@ -1,92 +1,182 @@
-# 开发说明
+# 開發說明
 
-使用说明见仓库根目录 [README](../README.md)，发布说明见 [release/README](../release/README.md)。
+使用說明見儲存庫根目錄的 [README](../README.md) 與 [macOS 說明](../docs/MACOS.md)，發布說明見 [release/README](../release/README.md)。
 
-MCP 的连接配置、工具字段、动作与文字调度、事件消费及错误处理见 [MCP 接入参考](../docs/MCP.md)；共享协议代码在 `BigBlueFish.Control/`，stdio 桥接入口在 `BigBlueFish.Mcp/`，平台执行器位于 Windows 的 `CompanionMcp.cs` 与 Linux 的 `LinuxMcp.cs`。
+MCP 的連線設定、工具欄位、動作與文字排程、事件的接收及錯誤處理見[內部工具參考](../docs/MCP.md)；共用的通訊協定程式碼在 `BigBlueFish.Control/`，stdio 橋接程式的入口在 `BigBlueFish.Mcp/`，各平台的執行端是 Windows 的 `CompanionMcp.cs`，以及 macOS 與 Linux 共用的 `LinuxMcp.cs`、`LinuxMcpInterface.cs`（外部 MCP 介面）。
 
-## 编译与运行
+本版（台灣繁體中文版 `1.1.3-tw.1`）以 macOS（Apple Silicon）為主要平台：Mac 版在這台 Mac 上建置並執行測試；Windows 與 Linux 的原始碼只確認可以編譯，沒有實際執行或測試。
 
-需要 Windows x64、.NET 10 SDK，以及第一次恢复 NuGet 依赖时的网络连接。
+## 專案結構
 
-```powershell
-./build.ps1 -Locked -InputMode Ocr
-./run.ps1 -InputMode Ocr -RuntimeDirectory "推理运行时目录" -ModelsDirectory "GGUF 模型目录"
+| 資料夾 | 內容 |
+| --- | --- |
+| `BigBlueFish.Mac/` | macOS 版 App。編譯 `BigBlueFish.Linux/` 的 Avalonia 原始碼，並連結 `BigBlueFish.Windows/Companion/` 裡共用的 `*.cs`，定義 `COMPANION_MAC`；以 `MacCapture.cs` 取代 `LinuxCapture.cs`。另有 `mac-ocr.swift`（Apple Vision OCR）、`mac-screen.swift`（`find_on_screen` 用的視窗清單與輔助使用讀取）、資料匯入（`MacDataImport.cs`）、登入項目（`MacLoginItem.cs`）、鑰匙圈（`MacKeychain.cs`、`MacSecrets.cs`）、系統讀數（`MacSystem.cs`）與畫面搜尋（`MacScreenSearch.cs`） |
+| `BigBlueFish.Linux/` | Avalonia 桌寵，Linux 版直接使用，macOS 版也編譯同一份 |
+| `BigBlueFish.Windows/` | WPF 的 Windows 版；`Companion/` 裡有各平台共用的邏輯，例如 `CompanionEdition.cs`（本版的名稱、識別碼與發布來源）、`CompanionTraditional.cs`（OpenCC 繁體轉換）、`CompanionActionNames.cs`（繁體動作名稱）、`CompanionBrain.cs`、`CompanionWeather.cs`、`CompanionRegions.cs`、`CompanionReminders.cs`、`CompanionScreenMatching.cs`、`CompanionAttachmentRules.cs` |
+| `BigBlueFish.Agent/` | ACP 用戶端、Harness 清單、工作區、技能與人設（`Skills/`） |
+| `BigBlueFish.Control/` | 共用的 MCP 通訊協定與工具定義 |
+| `BigBlueFish.Mcp/` | stdio 橋接程式 |
+| `BigBlueFish.HermesBridge/` | Hermes 對話橋接程式（`net10.0` 給 macOS／Linux，`net10.0-windows` 給 Windows） |
+| `BigBlueFish.Diagnostics/` | 記錄主控台使用的診斷記錄 |
+| `../deployment/` | 主程式、安裝程式和解除安裝程式共用的模型準備、下載、更新與現代介面 |
+| `../installer/`、`../uninstaller/` | Windows 安裝程式與解除安裝程式 |
+| `tests/` | 主控台與介面測試，見下方 |
+
+## macOS（主要平台）
+
+需要 Apple Silicon Mac、macOS 14 或更新版本、Xcode 命令列工具（`clang`、`swiftc`、`python3`）與 .NET 10 SDK。建置完整的 App：
+
+```sh
+tools/build-macos.sh            # 標準版：release/藍色大肥魚.app
+tools/build-macos.sh Safe       # 無MCP版：release/藍色大肥魚無MCP版.app
+DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 指定 .NET 10
 ```
 
-默认可复用本机 `C:\Program Files\蓝色大肥鱼` 的运行依赖，也支持 `BLUE_WHALE_RUNTIME`、`BLUE_WHALE_MODELS`、`BLUE_WHALE_DOTNET` 环境变量。运行脚本通过目录连接复用模型，不把模型提交进仓库。SDK 可用 `-SdkPath` 指定。
+詳細步驟、權限與發布方式見 [macOS 說明](../docs/MACOS.md#從原始碼建置)。
 
-准备内置 4B 本地模型时，可以运行以下任一种命令。`DestinationDirectory` 是模型准备目录，脚本会在其下创建 `models` 并保存 `model-selection.json`；两个来源的模型有所不同，均适合本应用。
+`code/Directory.Build.props` 全域預設 `RuntimeIdentifier=win-x64`，所以在 Mac 上直接用 `dotnet` 建置或測試時，一定要加 `-r osx-arm64`。只想確認可以編譯時：
 
-```powershell
-../tools/Setup-Model.ps1 -Source HuggingFace -DestinationDirectory "D:\BigBlueFish-local"
-../tools/Setup-Model.ps1 -Source ModelScope -DestinationDirectory "D:\BigBlueFish-local"
-../tools/Setup-Model.ps1 -Source Manual -ModelFile "D:\下载\我的模型.gguf" -DestinationDirectory "D:\BigBlueFish-local"
+```sh
+DOTNET=~/.dotnet/dotnet
+$DOTNET build code/BigBlueFish.Mac/BigBlueFish.Mac.csproj -c Release -r osx-arm64 -p:RestoreLockedMode=true -o /tmp/bbf-mac
+$DOTNET build code/BigBlueFish.Mac/BigBlueFish.Mac.csproj -c Release -r osx-arm64 -p:CompanionEdition=Safe -p:RestoreLockedMode=true -o /tmp/bbf-mac-safe
 ```
 
-Hugging Face 为推荐来源，ModelScope 为国内稳定来源。手动安装保留文件的实际名称，检查 GGUF 文件头；SHA-256 不属于两个预设模型时，提示确认后仍可使用。自动化调用可用 `-AllowUnverifiedModel` 明确接受这一提示。OCR 模型准备只下载主模型。
+- 不同目標的建置會共用 `bin/` 資料夾，建置不同版本或平台時請用 `-o` 指定各自的輸出資料夾，或加上 `--no-incremental`。
+- 鎖定檔：Mac 專案的標準版用 `packages.lock.json`，無MCP版用 `packages.safe.lock.json`；`BigBlueFish.Control`、`BigBlueFish.Mcp`、`BigBlueFish.Agent`、`BigBlueFish.Diagnostics` 與 `BigBlueFish.HermesBridge` 依 RID 分開，使用 `obj/<rid>/` 與 `packages.<rid>.lock.json`。
+- 橋接程式在 Mac 上要用 `-f net10.0 -r osx-arm64` 編譯，否則產生的 dll 無法在 Apple Silicon 的 dotnet 上載入。
+- `--test-mode` 的魚魚會讀取資料夾裡的 `test-command.txt` 並寫出 `test-status.json` 等狀態檔，可用的指令分散在 `BigBlueFish.Linux/` 的 `LinuxTestCommands.cs`、`LinuxBubbleText.cs`、`LinuxProactive.cs` 與 `LinuxWalk.cs`（例如 `bubble <文字>`、`stream <文字>`、`walk:x,y`、`find:查詢文字`、`reminder-clock:…`、`open-input`、`attach <路徑>`）。用測試模式時請搭配 `BIGBLUEFISH_DATA` 指定暫存資料夾；魚魚同一時間只能執行一隻（原版也算），測試前請先關閉正在執行的魚魚。
 
-源码启动读取模型目录上一级的 `model-selection.json`，按选择记录复用实际文件名，也能识别两个来源的标准文件名。以上述目录为例，运行 `./run.ps1 -InputMode Ocr -ModelsDirectory "D:\BigBlueFish-local\models" -RuntimeDirectory "推理运行时目录"`。切换目录时，脚本会更新构建目录中的连接，保留原模型目录和设置。
+### 在 Mac 上執行主控台測試
 
-无模型启动使用 `./run.ps1 -InputMode Ocr -NoModel`，此时无需模型文件或推理运行时。也可先运行 `../tools/Setup-Model.ps1 -Source None -DestinationDirectory "D:\BigBlueFish-local"` 保存无模型选择，再用对应的 `-ModelsDirectory` 启动。内置模型可以暂不使用，欢迎与告别、动画和鼠标交互照常运行。
+下列測試不需要開啟 App，可以直接在 Mac 上執行。指令都在儲存庫根目錄執行：先建置到暫存資料夾，再執行輸出資料夾裡的同名程式。
 
-OCR 版生成目录为 `BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`；视觉版为 `BigBlueFish.Windows/bin/x64/Release/net10.0-windows7.0/`。主程序 `BigBlueFish.exe` 与 `BigBlueFish.dll` 从源码生成。OCR 版依赖在 `packages.lock.json` 中锁定，视觉版使用 `packages.vision.lock.json`。
+```sh
+DOTNET=~/.dotnet/dotnet
+name=TraditionalTextVerification   # 換成下表的專案名稱
+$DOTNET build "code/tests/$name" -c Release -r osx-arm64 -p:NuGetLockFilePath=obj/packages.osx-arm64.lock.json -o "/tmp/bbf-tests/$name"
+DOTNET_ROOT=~/.dotnet "/tmp/bbf-tests/$name/$name" [參數]
+```
+
+- `-p:NuGetLockFilePath=obj/packages.osx-arm64.lock.json` 讓這次還原把鎖定檔寫到 `obj/`，不會改動儲存庫裡為 win-x64 記錄的鎖定檔。
+- .NET 安裝在 `~/.dotnet`、不在 PATH 上時，執行輸出的程式要設定 `DOTNET_ROOT=~/.dotnet`；也可以改用 `$DOTNET "/tmp/bbf-tests/$name/$name.dll"`，但 `MacEditionVerification` 必須執行同名程式本身，因為它會在模擬的 App 裡再啟動自己。
+
+| 專案 | 檢查內容 | 參數 |
+| --- | --- | --- |
+| `TraditionalTextVerification` | 氣泡的繁體轉換（8591 筆語料）、台灣用語修正與串流顯示 | 無 |
+| `WeatherRegionVerification` | 地區清單、繁體地名、MCP 地點代碼、儲存的地點、macOS 鑰匙圈流程（用假的 `security`，不動到真正的鑰匙圈）與天氣快取 | `live`：實際連線 Open-Meteo 與中央氣象署 |
+| `RemoteModelVerification` | 遠端模型：API Key、圖片支援判斷、連線測試訊息、只截前景視窗、拒收圖片時改送 OCR 文字（用假的 OpenAI 相容伺服器） | `live <網址> [API Key] [模型名稱]`：對真的伺服器測試 |
+| `ReminderVerification` | 主動提醒（模擬多種日子，含睡眠計時） | 無 |
+| `ScreenMatchingVerification` | `find_on_screen` 與 `walk_to` 的名稱比對規則、假的畫面 | `BigBlueFish.MacScreen` 的路徑：另外讀這台 Mac 的真實畫面並檢查 JSON 格式 |
+| `MacEditionVerification` | 版本比較、資產檔名、從原版匯入、登入項目（都在暫存資料夾裡） | `[工作資料夾] [--safe-app <無MCP版建置資料夾>]` |
+| `MacLogicVerification` | 推論裝置名稱、只有相容動畫時的動畫規則、登入 shell 的 PATH（慢速、卡住的 shell）、前景視窗規則、終端機登入指令稿 | `[儲存庫根目錄]` |
+| `MacSystemVerification` | 這台 Mac 的閒置時間、睡眠也計時的時鐘、電池、鎖定與前景程式讀數 | `--finder`：實際詢問 Finder（可能跳出「自動化」權限詢問） |
+| `McpProtocolVerification` | 真正的 stdio 橋接程式與通訊協定、依平台的工具清單（Linux 15 個，Windows 與 macOS 17 個） | 輸出資料夾裡 `BigBlueFish.Mcp` 的路徑 |
+| `AgentVerification` | ACP 連線、對話恢復、工作區、輸入框附件（`resource_link`、圖片區塊與兩種退回） | 無 |
+| `AnimationVerification` | 動作權重、日期與農曆節日規則 | `[動畫資料夾]`（預設從儲存庫根目錄找） |
+| `OcrLayoutVerification` | OCR 文字依版面整理 | 無 |
+
+Python 測試（Python 3.9 以上）：
+
+- `python3 code/tests/HermesBridgeVerification/fake_e2e.py [BigBlueFish.HermesBridge.dll] <BigBlueFish.Mcp>`：用假的魚魚與假的 Hermes 檢查整條橋接路徑（macOS／Linux）。先用 `code/run-hermes-bridge.sh --build` 與 `dotnet publish code/BigBlueFish.Mcp -r osx-arm64` 建置。
+- `python3 code/tests/HermesScenarioVerification/scenarios.py`：需要正在執行的魚魚、Hermes gateway 與模型（Windows、macOS、Linux），魚魚沒有的工具對應的情境會略過。
+- `python3 tools/Verify-MacPackage.py <App 路徑> --edition Standard|Safe --output <資料夾>`：檢查建置好的 App，會以測試模式短暫啟動它。
+
+### 台灣繁體檢查
+
+`python3 tools/Check-Traditional.py` 會檢查出貨的字串與使用者文件是不是台灣繁體中文：簡體字是錯誤，大陸用語與台灣不用的異體字是警告（`--strict` 時警告也算失敗）。合理保留的簡體字或用語（例如動畫檔名、和外部資料比對的字串、原版的資料夾名稱）寫在 `tools/traditional-allowlist.txt`，每行是「路徑<Tab>文字<Tab>原因」。常用參數：`--summary`、`--errors-only`、`--scope mac`、`--include-tests`，以及 `--assembly <dll...>` 檢查建置好的 DLL。GitHub Actions 的 macOS 工作流程在建置前會執行 `--errors-only`。
 
 ## 修改入口
 
-| 文件 | 功能 |
+| 檔案 | 功能 |
 | --- | --- |
-| `BigBlueFish.Windows/Companion/CompanionWindow.cs` | 生命周期、拖动、动画、设置和电源事件 |
-| `BigBlueFish.Windows/Companion/CompanionMenus.cs` | 右键菜单、三级地点选择和手动天气播报 |
-| `BigBlueFish.Windows/Companion/CompanionPreferences.cs` | 设置默认值、校验和原子保存 |
-| `BigBlueFish.Windows/Companion/CompanionRegions.cs` | 省市区层级与定位 |
-| `BigBlueFish.Windows/Companion/CompanionWeather.cs` | 天气请求、天气代码中文映射和按地点缓存 |
-| `BigBlueFish.Windows/Companion/CompanionBrain.cs` | 模型启动、推理、电池策略和提示词 |
-| `BigBlueFish.Windows/Companion/CompanionSpeech.cs` | 所有模型回复的逐字显示、Unicode 字符边界、替换和取消 |
-| `BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs` | 贴边、独立气泡窗口和 DPI 换算 |
-| `BigBlueFish.Windows/Companion/CompanionNews.cs` | 新闻概率、RSS标题和摘要整理 |
-| `BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs` | 透明视频解码、帧计时与播放 |
-| `BigBlueFish.Windows/assets/regions/` | 地区数据、来源版本和输入 SHA256 |
-| `../deployment/` | 主程序、安装器和卸载器共用的模型准备、下载、更新与现代界面 |
-| `BigBlueFish.Windows/Companion/CompanionMaintenance.cs` | 设置中安装模型、检查更新与更新提示 |
-| `tests/InstallerVerification/` | 下载故障、模型安装交互、更新事务和完整安装卸载验证 |
-| `tests/RunnerVerification/` | 当前提示词、真实子进程故障恢复及本地模型验证 |
+| `BigBlueFish.Windows/Companion/CompanionEdition.cs` | 本版的名稱、Bundle ID、資料夾、發布來源與致謝；建置腳本透過 `tools/Get-EditionIdentity.py` 讀取 |
+| `BigBlueFish.Linux/LinuxPetWindow.cs`、`LinuxSettings.cs` | macOS 與 Linux 的生命週期、動畫、設定頁 |
+| `BigBlueFish.Linux/LinuxModelSettings.cs`、`LinuxWeatherSettings.cs`、`LinuxProactive.cs` | 遠端模型、天氣地點與中央氣象署授權碼、主動提醒的設定頁與邏輯 |
+| `BigBlueFish.Linux/LinuxMaintenance.cs` | 安裝模型、「關於與更新」頁與檢查更新 |
+| `BigBlueFish.Windows/Companion/CompanionWindow.cs` | Windows 的生命週期、拖曳、動畫、設定和電源事件 |
+| `BigBlueFish.Windows/Companion/CompanionMenus.cs` | Windows 的右鍵選單、地點選擇和手動天氣播報 |
+| `BigBlueFish.Windows/Companion/CompanionPreferences.cs` | 設定的預設值、驗證和不可分割的儲存 |
+| `BigBlueFish.Windows/Companion/CompanionRegions.cs` | 地區層級、繁體顯示名稱與定位 |
+| `BigBlueFish.Windows/Companion/CompanionWeather.cs` | 天氣請求、天氣代號的中文對照、中央氣象署鄉鎮預報和依地點快取 |
+| `BigBlueFish.Windows/Companion/CompanionBrain.cs` | 模型啟動、推論、遠端模型、電池策略和提示詞 |
+| `BigBlueFish.Windows/Companion/CompanionTraditional.cs` | 氣泡文字的台灣繁體轉換 |
+| `BigBlueFish.Windows/Companion/CompanionSpeech.cs` | Windows 所有模型回覆的逐字顯示、Unicode 字元邊界、取代和取消 |
+| `BigBlueFish.Windows/Companion/CompanionEdgeLayout.cs` | 貼邊、獨立氣泡視窗和 DPI 換算 |
+| `BigBlueFish.Windows/Companion/CompanionNews.cs` | 新聞機率、RSS 標題和摘要整理 |
+| `BigBlueFish.Windows/Companion/CompanionVideoPlayer.cs` | Windows 的透明影片解碼、幀計時與播放 |
+| `BigBlueFish.Windows/assets/regions/` | 地區資料、來源版本、輸入 SHA256 與繁體顯示名稱表 |
+| `../deployment/` | 主程式、安裝程式和解除安裝程式共用的模型準備、下載、更新與現代介面 |
+| `BigBlueFish.Windows/Companion/CompanionMaintenance.cs` | Windows 設定中的安裝模型、檢查更新與更新提示 |
+| `tests/InstallerVerification/` | 下載故障、模型安裝互動、更新流程和完整的安裝與解除安裝驗證 |
+| `tests/RunnerVerification/` | 目前的提示詞、真實外部程式的故障恢復和本機模型驗證 |
 
-中国地区层级与中心坐标以 MIT 许可的 [AreaCity](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov) `2025.251231.260403` 版本为基础，包含 34 个省级项、392 个市级项、3209 个县区级项，台湾省市县的坐标结合 GeoNames 驻地坐标补齐。美国州县数据来自美国人口普查局 2026 Gazetteer；全球其他地点的城市、行政区与坐标来自 GeoNames，国家中文名称来自 Unicode CLDR 47。来源、输入校验值与许可见地区资源中的来源记录和[第三方声明](THIRD-PARTY.md)。
+## 地區資料
 
-更新时下载对应的 `ok_data_level3.csv`、`ok_geo.csv`，运行：
+中國的地區層級與中心座標以 MIT 授權的 [AreaCity](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov) `2025.251231.260403` 版為基礎，包含 34 個省級單位、392 個市級單位、3209 個縣區級單位，臺灣省縣市的座標結合 GeoNames 的縣市政府所在地座標補齊。美國的州郡資料來自美國人口普查局 2026 Gazetteer；全球其他地點的城市、行政區與座標來自 GeoNames，國家的中文名稱來自 Unicode CLDR 47。國家「臺灣」的縣市與鄉鎮市區清單（`taiwan-regions.json`）由 `tools/import-taiwan-regions.py` 產生，鄉鎮市區中心由 `tools/fill-taiwan-township-coordinates.py` 依內政部國土測繪中心的鄉（鎮、市、區）界線計算。來源、輸入校驗值與授權見地區資源中的來源記錄和[第三方聲明](THIRD-PARTY.md)。
+
+本版不修改原版的地區資料檔：選單與天氣文字顯示的繁體地名來自 `assets/regions/region-display-names.json`，由 `python3 code/tools/make-region-display-names.py` 產生（只需要 Python 3.9 以上）。轉換方式是 OpenCC 1.4.2 的 s2tw，不套用 TWPhrases，所以只換字形、不換譯名；人工審過的例外寫在腳本的 `OVERRIDES`，加上 `--review` 會列出所有改到「繁體也合法的字」的地名。地區資料檔更新後要重跑腳本。
+
+更新中國的地區資料時，下載對應的 `ok_data_level3.csv`、`ok_geo.csv`，執行：
 
 ```powershell
 python ./tools/import-regions.py "ok_data_level3.csv" "ok_geo.csv"
 ```
 
-脚本只保留区划和中心点；大陆中心点由 GCJ-02 近似转换为 WGS84。更换版本时同步更新脚本中的版本、提交和许可信息。
+腳本只保留行政區劃和中心點；中國大陸的中心點由 GCJ-02 近似轉換為 WGS84。更換版本時，請一併更新腳本中的版本、提交和授權資訊。
 
-## 验证与发布
+## Windows（只確認可以編譯）
 
-先退出桌宠，再运行：
+以下是原作者的 Windows 開發流程，本版保留這些腳本，但只在 Mac 上用 .NET SDK 確認 Windows 專案可以編譯，沒有在 Windows 上執行、測試或產生安裝程式。在 Mac 上做編譯檢查時，要加上 `-r win-x64 -p:Platform=x64 -p:EnableWindowsTargeting=true`。
+
+需要 Windows x64、.NET 10 SDK，以及第一次還原 NuGet 相依套件時的網路連線。
 
 ```powershell
-./test.ps1 -InstalledDirectory "C:\Program Files\蓝色大肥鱼" -InputMode Ocr
-../tools/Build-Installer.ps1 -InputMode Ocr -RuntimeDirectory "已核对的运行时目录"
+./build.ps1 -Locked -InputMode Ocr
+./run.ps1 -InputMode Ocr -RuntimeDirectory "推論執行環境資料夾" -ModelsDirectory "GGUF 模型資料夾"
 ```
 
-默认测试包含 Runner 故障恢复与当前提示词验证、动画权重和日期规则、真实前台窗口捕获、WPF 动画与设置界面验证。实窗测试使用 `.verification/` 的独立设置，复用参考安装目录的模型和运行时。安装器验证项目的 `--lifecycle` 检查普通用户写入权限、Windows 注册、快捷方式和两种数据保留方式的卸载；`--ui-layout <目录>` 检查安装、卸载、模型与更新窗口布局；`--deployment <目录>` 检查模型选择、下载恢复、更新元数据与失败恢复；`--model-ui <目录>` 验证下载失败出口与手动安装确认。
+預設可以沿用本機 `C:\Program Files\藍色大肥魚` 的執行環境，也支援 `BLUE_WHALE_RUNTIME`、`BLUE_WHALE_MODELS`、`BLUE_WHALE_DOTNET` 環境變數。執行腳本透過資料夾連結沿用模型，不會把模型提交進儲存庫。SDK 可以用 `-SdkPath` 指定。
 
-发布脚本生成 `BigBlueFish-v1.1.3-OCR-Setup.exe` 一键安装器；Vision 构建入口仍保留用于历史维护，不随当前公开 Release 同步发布。安装器携带包含 .NET 运行时的 Windows x64 程序，以及已核对的 llama.cpp `b10809` Vulkan 运行时；模型可从 Hugging Face 或 ModelScope 固定来源下载并校验，也支持手动安装或无模型启动。模型选择记录在安装目录的 `data/model-selection.json`。
+準備內建的 4B 本機模型時，可以執行下列任一種指令。`DestinationDirectory` 是模型準備資料夾，腳本會在其中建立 `models` 並儲存 `model-selection.json`；兩個來源的模型有些不同，但都適合本程式。
 
+```powershell
+../tools/Setup-Model.ps1 -Source HuggingFace -DestinationDirectory "D:\BigBlueFish-local"
+../tools/Setup-Model.ps1 -Source ModelScope -DestinationDirectory "D:\BigBlueFish-local"
+../tools/Setup-Model.ps1 -Source Manual -ModelFile "D:\下載\我的模型.gguf" -DestinationDirectory "D:\BigBlueFish-local"
+```
 
-根目录 `Version.props` 统一管理项目版本。主程序、安装器和卸载器的产品版本由它生成；Windows 文件版本采用对应的四段格式。构建脚本默认读取该文件，也可以用 `-Version` 指定构建版本。
+Hugging Face 是推薦的來源，ModelScope 是中國大陸鏡像。手動安裝會保留檔案的實際名稱並檢查 GGUF 檔頭；SHA-256 不屬於兩個預設模型時，會在提示確認後仍然可以使用。自動化呼叫可以用 `-AllowUnverifiedModel` 明確接受這個提示。OCR 版的模型準備只下載主模型。
 
-项目提供 Vision 与 Ocr 两种输入路线，当前源码版本由根目录 `Version.props` 管理，默认构建 Ocr，通过 `-InputMode Vision` 构建视觉版。Vision 直接把前台截图交给多模态模型；Ocr 识别前台窗口文字，按位置组织为文本再交给本地模型。`tools/Build-LocalVariant.ps1 -InputMode Ocr -SdkPath <SDK绝对路径>` 生成自包含应用，改成 Vision 即可构建视觉版；`code/build.ps1` 和 `code/run.ps1` 也接受 `-InputMode`。
+從原始碼啟動時，會讀取模型資料夾上一層的 `model-selection.json`，依選擇記錄沿用實際的檔名，也能辨識兩個來源的標準檔名。以上述資料夾為例，執行 `./run.ps1 -InputMode Ocr -ModelsDirectory "D:\BigBlueFish-local\models" -RuntimeDirectory "推論執行環境資料夾"`。切換資料夾時，腳本會更新建置資料夾中的連結，保留原本的模型資料夾和設定。
 
-## Linux 与无MCP版
+無模型啟動用 `./run.ps1 -InputMode Ocr -NoModel`，這時不需要模型檔或推論執行環境。也可以先執行 `../tools/Setup-Model.ps1 -Source None -DestinationDirectory "D:\BigBlueFish-local"` 儲存無模型的選擇，再用對應的 `-ModelsDirectory` 啟動。內建模型可以暫時不用，歡迎與道別、動畫和滑鼠互動照常運作。
 
-当前版本为 1.1.3，Windows、Linux 和 macOS 都提供标准版与无MCP版。无MCP版使用 `CompanionEdition=Safe` 编译，排除控制服务、工具执行器和对话输入窗口，安装包不分发 MCP 桥接程序及 Control 程序集；`Safe` 是构建和安装包文件名中的版本类型标识。
+OCR 版的輸出資料夾是 `BigBlueFish.Windows/bin/x64/Release/net10.0-windows10.0.26100.0/`；視覺版是 `BigBlueFish.Windows/bin/x64/Release/net10.0-windows7.0/`。主程式 `BigBlueFish.exe` 與 `BigBlueFish.dll` 由原始碼產生。OCR 版的相依套件鎖定在 `packages.lock.json`，視覺版使用 `packages.vision.lock.json`。
 
-Windows 安装器运行 `../tools/Build-Installer.ps1 -Edition Standard -RuntimeDirectory "Windows运行时目录"`，将 `Standard` 改为 `Safe` 可生成无MCP版。直接构建 Windows 无MCP版使用 `dotnet build ./BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:RestoreLockedMode=true`。
+驗證與發布前，先關閉桌寵，再執行：
 
-Linux 使用 Avalonia、GStreamer 与 Tesseract。需要 .NET 10 SDK，以及含 gcc、pkg-config、libdbus-1-dev、dpkg-deb 和 FFmpeg 的 WSL Ubuntu／Debian 构建环境；FFmpeg 用于打包时生成图标。运行 `../tools/Build-LinuxPackage.ps1 -Distribution "WSL发行版名称" -RuntimeDirectory "Linux llama.cpp运行时目录" -Edition Standard`，同样可用 `-Edition Safe`。构建输出为自包含 .NET 的 linux-x64 程序及 `.deb` 包，系统依赖由 apt 安装。
+```powershell
+./test.ps1 -InstalledDirectory "C:\Program Files\藍色大肥魚" -InputMode Ocr
+../tools/Build-Installer.ps1 -InputMode Ocr -RuntimeDirectory "已核對的執行環境資料夾"
+```
 
-Linux 主入口在 `BigBlueFish.Linux/`，跨平台控制协议在 `BigBlueFish.Control/`，stdio 桥接在 `BigBlueFish.Mcp/`。共享项目分别锁定 Windows 和 Linux 的 RID 依赖；Windows 无MCP版另用 `packages.safe.lock.json`。Linux 的用户数据目录、X11 截图、Wayland 门户及更新行为详见[当前行为规格](../docs/AGENT_FUNCTIONAL_SPEC.md)。
+預設的測試包含 Runner 故障恢復與目前提示詞的驗證、動畫權重和日期規則、真實的前景視窗擷取、WPF 動畫與設定介面的驗證。實際視窗的測試使用 `.verification/` 的獨立設定，沿用參考安裝資料夾的模型和執行環境。安裝程式驗證專案的 `--lifecycle` 檢查一般使用者的寫入權限、Windows 註冊、捷徑和兩種資料保留方式的解除安裝；`--ui-layout <資料夾>` 檢查安裝、解除安裝、模型與更新視窗的版面；`--deployment <資料夾>` 檢查模型選擇、下載恢復、更新中繼資料與失敗恢復；`--model-ui <資料夾>` 驗證下載失敗的出口與手動安裝的確認。
 
-`tests/McpProtocolVerification/` 验证真实 stdio 桥接与协议，`tests/McpUiVerification/` 验证 Windows MCP、窗口焦点、确认交互与拖动，`tests/LinuxVerification/` 验证 Linux 的实际窗口与 MCP；`tests/SafeEditionVerification/` 检查无MCP版的排除结果。测试需分别使用对应平台及版本类型构建。
+發布腳本產生 `BigBlueFish-TW-v<版本>-OCR-Setup.exe` 一鍵安裝程式；Vision 的建置入口保留給歷史維護，不隨公開的 Release 一起發布。安裝程式包含附 .NET 執行環境的 Windows x64 程式，以及已核對的 llama.cpp `b10809` Vulkan 執行環境；模型可以從 Hugging Face 或 ModelScope 的固定來源下載並核對，也支援手動安裝或無模型啟動。模型選擇記錄在安裝資料夾的 `data/model-selection.json`。
+
+根目錄的 `Version.props` 統一管理專案版本。主程式、安裝程式和解除安裝程式的產品版本由它產生；Windows 的檔案版本採用對應的四段格式（`1.1.3.0`）。建置腳本預設讀取這個檔案，也可以用 `-Version` 指定建置版本。
+
+專案提供 Vision 與 Ocr 兩種輸入路線，預設建置 Ocr，用 `-InputMode Vision` 建置視覺版。Vision 直接把前景截圖交給多模態模型；Ocr 辨識前景視窗的文字，依位置整理成文字再交給本機模型。`tools/Build-LocalVariant.ps1 -InputMode Ocr -SdkPath <SDK 絕對路徑>` 產生自包含的程式，改成 Vision 就能建置視覺版；`code/build.ps1` 和 `code/run.ps1` 也接受 `-InputMode`。
+
+## Linux 與無MCP版
+
+Windows、Linux 和 macOS 都有標準版與無MCP版。無MCP版用 `CompanionEdition=Safe` 編譯，排除控制服務、工具執行端和對話輸入視窗，安裝程式與套件不散布 MCP 橋接程式、Hermes 橋接程式和 Control 程式庫（`BigBlueFish.Control.dll`）；`Safe` 是建置和檔名中的版本類型標記。
+
+Windows 安裝程式執行 `../tools/Build-Installer.ps1 -Edition Standard -RuntimeDirectory "Windows 執行環境資料夾"`，把 `Standard` 改成 `Safe` 就能產生無MCP版。直接建置 Windows 無MCP版用 `dotnet build ./BigBlueFish.Windows/BigBlueFish.Windows.csproj -c Release -p:Platform=x64 -p:CompanionEdition=Safe -p:RestoreLockedMode=true`。
+
+Linux 版使用 Avalonia、GStreamer 與 Tesseract。需要 .NET 10 SDK，以及含 gcc、pkg-config、libdbus-1-dev、dpkg-deb 和 FFmpeg 的 WSL Ubuntu／Debian 建置環境；FFmpeg 用來在打包時產生圖示。執行 `../tools/Build-LinuxPackage.ps1 -Distribution "WSL 發行版名稱" -RuntimeDirectory "Linux llama.cpp 執行環境資料夾" -Edition Standard`，同樣可以用 `-Edition Safe`。輸出是自包含 .NET 的 linux-x64 程式與 `.deb` 套件（`bigbluefish-tw`、`bigbluefish-tw-safe`），系統相依套件由 apt 安裝。本版沒有實際產生或測試 Linux 套件。
+
+Linux 的主要入口在 `BigBlueFish.Linux/`，跨平台的控制通訊協定在 `BigBlueFish.Control/`，stdio 橋接在 `BigBlueFish.Mcp/`。共用專案分別鎖定 Windows、macOS 和 Linux 的 RID 相依套件；Windows 無MCP版另外使用 `packages.safe.lock.json`。Linux 的使用者資料夾、X11 截圖、Wayland 入口及更新行為見原作者的[功能規格](../docs/AGENT_FUNCTIONAL_SPEC.md)。
+
+`tests/McpProtocolVerification/` 驗證真實的 stdio 橋接與通訊協定，`tests/McpUiVerification/` 驗證 Windows 的 MCP、視窗焦點、確認互動與拖曳，`tests/LinuxVerification/` 驗證 Linux 的實際視窗與 MCP；`tests/SafeEditionVerification/` 檢查 Windows 無MCP版的排除結果。這些測試需要分別用對應的平台與版本類型建置。

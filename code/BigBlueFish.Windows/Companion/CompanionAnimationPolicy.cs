@@ -48,7 +48,12 @@ internal sealed class CompanionAnimationPolicy
         if (rules.Count != 106 || rules.Select(r => r.Id).Distinct().Count() != rules.Count)
             throw new InvalidDataException("動畫規則不完整或有重複");
         foreach (var rule in rules)
+#if COMPANION_MAC
+            // The macOS app ships only the compatibility clips it plays (LinuxVideoPlayer always decodes compat/).
+            if (Path.GetFileName(rule.File) != rule.File || !File.Exists(Path.Combine(directory, "compat", rule.File)))
+#else
             if (Path.GetFileName(rule.File) != rule.File || !File.Exists(Path.Combine(directory, rule.File)))
+#endif
                 throw new FileNotFoundException("動畫素材缺失", rule.File);
         return new(rules);
     }

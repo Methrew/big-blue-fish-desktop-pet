@@ -113,12 +113,14 @@ internal sealed partial class LinuxPetWindow
             Title("模型與資訊"); Toggle("啟用模型說話", Preferences.ModelEnabled, value => { Preferences.ModelEnabled = value; ApplySettings(); });
             BuildModelSourceSettings(body);
             LocalModelOnly(Toggle("使用 GPU 加速（只對本機模型有效）", Preferences.GpuEnabled, value => { Preferences.GpuEnabled = value; ApplySettings(); }));
-            var deviceStatus = Paragraph(""); body.Children.Add(deviceStatus);
+            // Added only after the handlers: the open window attaches it at once, and a later handler would never run.
+            var deviceStatus = Paragraph("");
             var deviceClock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             void UpdateDevice() => deviceStatus.Text = "推論裝置：" + brain.ExecutionDevice;
             deviceClock.Tick += (_, _) => UpdateDevice();
             deviceStatus.AttachedToVisualTree += (_, _) => { UpdateDevice(); deviceClock.Start(); };
             deviceStatus.DetachedFromVisualTree += (_, _) => deviceClock.Stop();
+            body.Children.Add(deviceStatus);
             LocalModelOnly(Toggle("筆電拔掉電源時暫停模型（只對本機模型有效）", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); }));
             Toggle("連網取得天氣和科技新聞", Preferences.PublicInfo, value => Preferences.PublicInfo = value);
             Toggle("感知目前使用的程式", Preferences.ForegroundEnabled, value => Preferences.ForegroundEnabled = value);

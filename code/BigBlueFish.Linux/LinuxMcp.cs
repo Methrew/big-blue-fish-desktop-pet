@@ -96,6 +96,7 @@ internal sealed partial class LinuxPetWindow
         if (!HarnessCatalog.All.Any(x => x.Id == Preferences.AgentHarnessId)) Preferences.AgentHarnessId = "codex";
         agent.LocalSpeechRequested = token => Dispatcher.UIThread.InvokeAsync(() => RequestAgentLocalSpeech(token));
         agent.SpeechBrief = (kind, allowImages, token) => Dispatcher.UIThread.InvokeAsync(() => BuildAgentSpeechBrief(kind, allowImages, token));
+        agent.AttachmentImage = AttachmentPromptImage;
         ConfigureAgent();
         if (AgentDailyActive) brain.Stop();
     }
@@ -234,7 +235,8 @@ internal sealed partial class LinuxPetWindow
             Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0), PlaceholderText = hint };
         Avalonia.Automation.AutomationProperties.SetName(text, hint);
         var editor = new Grid(); editor.Children.Add(text);
-        const string ready = "Ctrl+Enter 傳送", sentToAgent = "已傳送給 Agent", sentToInterface = "已傳送給 MCP 介面（Hermes 橋接程式）";
+        string ready = McpSendHint;
+        const string sentToAgent = "已傳送給 Agent", sentToInterface = "已傳送給 MCP 介面（Hermes 橋接程式）";
         var status = new TextBlock { Text = ready, Foreground = Avalonia.Media.Brushes.SlateGray, FontSize = 11,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(0, 0, 8, 0) };
         var panel = new StackPanel { Spacing = 4 }; panel.Children.Add(editor);
@@ -247,22 +249,31 @@ internal sealed partial class LinuxPetWindow
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
             Foreground = Hair, Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0) };
         Avalonia.Controls.ToolTip.SetTip(close, "收起输入框"); close.Click += (_, _) => dialog.Close(); editor.Children.Add(close);
+        var tray = OpenMcpAttachments(dialog, frame, panel, text, status, ready);
         // Exactly one side gets the message: the MCP interface while the input is handed to it and a client is there, else the Agent.
         void Send()
         {
-            if (string.IsNullOrWhiteSpace(text.Text)) return;
+            if (!CanSend()) return;
+            var attachments = tray.Peek(out int missing);
+            string typed = text.Text ?? "";
+            if (attachments.Length == 0 && string.IsNullOrWhiteSpace(typed)) { tray.Clear(); status.Text = "附件已不存在，沒有傳送。"; return; }
             bool toInterface = McpChatAvailable;
-            if (!toInterface && (agent?.Connected != true || !agent.SendUser(text.Text))) return;
-            PublishUserMessage(new { text = text.Text }, toInterface);
-            text.Text = ""; status.Text = toInterface ? sentToInterface : sentToAgent; text.Focus();
+            // A refused message stays in the box with its attachments.
+            if (!toInterface && (agent?.Connected != true || !agent.SendUser(typed, attachments))) { status.Text = "Agent 目前無法接收，請稍後再試。"; return; }
+            // Without attachments the event stays exactly { text }, as older clients expect.
+            PublishUserMessage(attachments.Length == 0 ? new { text = typed } : new { text = typed, attachments }, toInterface);
+            tray.Clear(); text.Text = "";
+            status.Text = (toInterface ? sentToInterface : sentToAgent) + (attachments.Length == 0 ? "" : $"（含 {attachments.Length} 個附件）")
+                + (missing > 0 ? $"，{missing} 個檔案已不存在" : ""); text.Focus();
         }
-        bool CanSend() => (McpChatAvailable || agent?.Connected == true) && !string.IsNullOrWhiteSpace(text.Text);
+        bool CanSend() => (McpChatAvailable || agent?.Connected == true) && tray.Saving == 0 && (!string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0);
         var send = ActionButton("发送", Send); send.MinWidth = 58; send.Padding = new Thickness(12, 5); send.FontSize = 12;
-        var actions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; actions.Children.Add(status); actions.Children.Add(send); Grid.SetColumn(send, 1); panel.Children.Add(actions);
+        var attach = McpAttachButton(dialog, text, tray);
+        var actions = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") }; actions.Children.Add(attach); actions.Children.Add(status); actions.Children.Add(send); Grid.SetColumn(status, 1); Grid.SetColumn(send, 2); panel.Children.Add(actions);
         text.TextChanged += (_,_) => send.IsEnabled = CanSend();
         dialog.AddHandler(InputElement.KeyDownEvent, (_,e) => {
             if (e.Key == Key.Escape) { e.Handled = true; dialog.Close(); }
-            else if(e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.Control) { e.Handled = true; Send(); }
+            else if (IsMcpSendKey(e)) { e.Handled = true; Send(); }
         }, Avalonia.Interactivity.RoutingStrategies.Tunnel);
         bool positioning = false;
         void Follow()
@@ -270,7 +281,7 @@ internal sealed partial class LinuxPetWindow
             if (positioning || mcpInput != dialog) return;
             positioning = true;
             try {
-                if (!IsVisible) { dialog.Hide(); return; }
+                if (!IsVisible) { if (!mcpInputPicking) dialog.Hide(); return; }
                 double scale = DesktopScaling;
                 var area = (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea ?? new PixelRect(0, 0, 1280, 720);
                 dialog.Width = Math.Min(354, Math.Max(160, area.Width / scale - 16));
@@ -288,16 +299,26 @@ internal sealed partial class LinuxPetWindow
             if (e.Property == IsVisibleProperty || e.Property == WidthProperty || e.Property == HeightProperty) Follow();
         };
         PositionChanged += moved; PropertyChanged += changed;
+        // The attachment row adds its own height under the editor.
+        tray.Changed = () => { dialog.Height = tray.Items.Count > 0 ? 184 : 120; send.IsEnabled = CanSend(); Follow(); };
+        // What the clock itself last wrote: attachment notices and send results stay until the connection state changes.
+        string? shown = null;
         var clock = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         clock.Tick += (_,_) => {
-            if (!McpInputEnabled) { dialog.Close(); return; }
+            if (!McpInputEnabled) { if (!mcpInputPicking) dialog.Close(); return; }
             Follow();
             send.IsEnabled = CanSend();
-            if (McpChatAvailable) { if (status.Text != sentToInterface) status.Text = ready; }
-            else if (agent?.Connected != true) status.Text = Preferences.AgentEnabled ? agent?.Status ?? "Agent 尚未連線" : "MCP 介面目前沒有客戶端連線";
-            else if (status.Text != sentToAgent) status.Text = agent.Busy ? "Agent 正在處理…" : ready;
+            // Nothing can take a message: say why, keeping the draft and its attachments for later.
+            bool connected = agent?.Connected == true;
+            string? state = McpChatAvailable ? null : connected ? (agent!.Busy ? "Agent 正在處理…" : null)
+                : Preferences.AgentEnabled ? agent?.Status ?? "Agent 尚未連線" : "MCP 介面目前沒有客戶端連線";
+            bool blocked = !connected && !McpChatAvailable;
+            if (state != null && (blocked || status.Text == shown || status.Text == ready)) { status.Text = state; shown = state; }
+            else if (state == null && shown != null) { if (status.Text == shown) status.Text = ready; shown = null; }
         };
-        mcpInput = dialog; dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; mcpInput = null; }; dialog.Opened += (_,_) => { text.Focus(); send.IsEnabled = false; };
+        mcpInput = dialog; mcpTray = tray;
+        dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; tray.Discard(); if (mcpTray == tray) mcpTray = null; mcpInput = null; };
+        dialog.Opened += (_,_) => { text.Focus(); send.IsEnabled = CanSend(); };
         clock.Start(); Follow(); dialog.Activate(); return true;
     }
 #endif

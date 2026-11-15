@@ -12,6 +12,7 @@
     <Compile Include="../BigBlueFish.Linux/LinuxProcesses.cs" Link="Linux/LinuxProcesses.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMcp.cs" Link="Linux/LinuxMcp.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMcpInterface.cs" Link="Linux/LinuxMcpInterface.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxMcpAttachments.cs" Link="Linux/LinuxMcpAttachments.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxSettings.cs" Link="Linux/LinuxSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMaintenance.cs" Link="Linux/LinuxMaintenance.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxTestCommands.cs" Link="Linux/LinuxTestCommands.cs" />
@@ -20,6 +21,7 @@
     <Compile Include="../BigBlueFish.Linux/LinuxAgentWorkspaceSettings.cs" Link="Linux/LinuxAgentWorkspaceSettings.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionCaptureFallback.cs" Link="Shared/CompanionCaptureFallback.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionMedia.cs" Link="Shared/CompanionMedia.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionAttachmentRules.cs" Link="Shared/CompanionAttachmentRules.cs" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.4" />
     <ProjectReference Include="../BigBlueFish.Control/BigBlueFish.Control.csproj" Condition="'$(CompanionEdition)' != 'Safe'" />

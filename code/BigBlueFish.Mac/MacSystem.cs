@@ -52,8 +52,10 @@ internal static partial class CompanionNative
 
     // get_context: the program and window title in front; null for the pet itself or a window that is gone.
     // The title needs Screen Recording permission (CGWindowList leaves other apps' names out without it): null then.
+    // The lock screen (or another user's session) is reported as loginwindow: the windows behind it still read as on screen.
     internal static object? ForegroundApp(IntPtr handle)
     {
+        if (Locked) return new { process = "loginwindow", bundleId = (string?)"com.apple.loginwindow", title = "" };
         if (handle == IntPtr.Zero) return null;
         if (handle == Desktop)
         {
@@ -77,16 +79,32 @@ internal static partial class CompanionNative
     }
 
     static int finderAsked;
+    // The prompt thread is waiting for the user's answer; until then every permission check waits on it too.
+    static volatile bool finderPrompting;
+    // The one permission check in flight: a check that stalls (tccd busy, Finder hung) is shared, not started again by
+    // every get_context.
+    static Task<int>? permissionQuery;
+    static readonly object permissionGate = new();
+
+    static Task<int> FinderPermission()
+    {
+        lock (permissionGate)
+            return permissionQuery is { IsCompleted: false } running ? running
+                : permissionQuery = Task.Factory.StartNew(() => MacSystemApi.FinderAutomation(false), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+    }
 
     // get_context: the folders open in Finder windows, the one in front first. Reading them needs the Automation
     // permission for Finder; without a decision yet, macOS is asked once per run in the background (get_context
-    // itself never waits on the prompt), and Note says why the list is empty. Three seconds at most.
+    // itself never waits on the prompt), and Note says why the list is empty. Three seconds at most: the wait itself
+    // is bounded, since a native call that has started cannot be cancelled.
     internal static async Task<(IReadOnlyList<(string Title, string Folder)> Folders, string? Note)> OpenFoldersAsync(CancellationToken token)
     {
+        if (finderPrompting)
+            return ([], "macOS 正在詢問是否允許" + CompanionEdition.AppName + "控制 Finder；使用者回答之前無法列出開著的資料夾，回答後再呼叫一次即可。");
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(token);
         limit.CancelAfter(TimeSpan.FromSeconds(3));
         int permission;
-        try { permission = await Task.Run(() => MacSystemApi.FinderAutomation(false), limit.Token); }
+        try { permission = await FinderPermission().WaitAsync(limit.Token); }
         catch (OperationCanceledException) when (!token.IsCancellationRequested) { return ([], "讀取 Finder 視窗逾時。"); }
         catch (Exception error) when (error is DllNotFoundException or EntryPointNotFoundException) { return ([], null); }
         switch (permission)
@@ -96,10 +114,13 @@ internal static partial class CompanionNative
             case -1744: // errAEEventWouldRequireUserConsent
                 // Its own thread: asking blocks until the user answers the prompt.
                 if (Interlocked.Exchange(ref finderAsked, 1) == 0)
-                    new Thread(() => { try { MacSystemApi.FinderAutomation(true); } catch { } }) { IsBackground = true, Name = "Finder automation prompt" }.Start();
-                return ([], "已請 macOS 詢問是否允許" + CompanionEdition.DisplayName + "讀取 Finder 視窗；使用者允許後再呼叫 get_context 就會列出開著的資料夾。");
+                {
+                    finderPrompting = true;
+                    new Thread(() => { try { MacSystemApi.FinderAutomation(true); } catch { } finally { finderPrompting = false; } }) { IsBackground = true, Name = "Finder automation prompt" }.Start();
+                }
+                return ([], "已請 macOS 詢問是否允許" + CompanionEdition.AppName + "讀取 Finder 視窗；使用者允許後再呼叫 get_context 就會列出開著的資料夾。");
             case -1743: // errAEEventNotPermitted
-                return ([], "使用者沒有允許" + CompanionEdition.DisplayName + "控制 Finder，所以無法列出開著的資料夾（可在「系統設定 › 隱私權與安全性 › 自動化」開啟）。");
+                return ([], "使用者沒有允許" + CompanionEdition.AppName + "控制 Finder，所以無法列出開著的資料夾（可在「系統設定 › 隱私權與安全性 › 自動化」開啟）。");
             default: return ([], null);
         }
         var start = new ProcessStartInfo("/usr/bin/osascript") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = Encoding.UTF8 };

@@ -46,11 +46,14 @@ Console.WriteLine($"     locked {locked}");
 Check(locked == Probe.SessionFlag("CGSSessionScreenIsLocked") || locked && !Probe.SessionFlag("kCGSSessionOnConsoleKey", true), "lock state follows the login session");
 
 // Foreground: nothing for no window, Finder's desktop (or the windowless app in front), and a real window's owner.
-Check(CompanionNative.ForegroundApp(IntPtr.Zero) == null, "no window: no foreground app");
+// While the screen is locked every handle reads as loginwindow: the windows behind the lock still count as on screen.
+const string LockScreen = "{\"process\":\"loginwindow\",\"bundleId\":\"com.apple.loginwindow\",\"title\":\"\"}";
+Check(locked ? Json(CompanionNative.ForegroundApp(IntPtr.Zero)) == LockScreen : CompanionNative.ForegroundApp(IntPtr.Zero) == null, "no window: no foreground app (the lock screen while locked)");
 var desktop = Json(CompanionNative.ForegroundApp(CompanionNative.Desktop));
 Console.WriteLine("     desktop " + desktop);
 Check(desktop.Contains("\"process\":") && desktop.Contains("\"bundleId\":"), "the desktop names an app and its bundle id");
-Check(CompanionNative.ForegroundApp(new IntPtr(uint.MaxValue - 7)) == null, "a window that does not exist: null");
+Check(locked ? Json(CompanionNative.ForegroundApp(new IntPtr(uint.MaxValue - 7))) == LockScreen : CompanionNative.ForegroundApp(new IntPtr(uint.MaxValue - 7)) == null,
+    "a window that does not exist: null (the lock screen while locked)");
 if (Probe.SomeWindow() is { } window)
 {
     var app = Json(CompanionNative.ForegroundApp(new IntPtr(window.Id)));

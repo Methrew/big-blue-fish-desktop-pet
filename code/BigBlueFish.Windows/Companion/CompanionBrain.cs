@@ -33,6 +33,9 @@ internal sealed class CompanionBrain : IDisposable
     private string? remoteUrl, remoteModelId;
     private string remoteApiKey = "", remoteModel = "";
     private bool remoteVision;
+    // The server answered a window image (or the test image) with an error although it reports image input: text
+    // until the remote settings change or the connection is tested again.
+    private bool remoteImagesRefused;
     private DateTime remoteCheckedUntil;
     private Process? runner;
     private bool runnerReady;
@@ -79,12 +82,17 @@ internal sealed class CompanionBrain : IDisposable
         remoteApiKey = apiKey.Trim();
         remoteModel = model.Trim();
         remoteVision = false;
+        remoteImagesRefused = false;
         active?.Cancel();
         StopRunner();
         Status = UseRemote ? "等待說話時連線遠端模型" : "等待說話時啟動";
     }
 
-    // A one-token completion proves the URL, API key and model name together.
+    // A blank 64×64 PNG: the connection test's image, never anything from the screen.
+    private const string TestImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAT0lEQVR42u3PMQ0AAAgDsPkXy8HFiQRukiY10FTPaxEQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQuCzlQYKkN7PpegAAAABJRU5ErkJggg==";
+
+    // A one-token completion proves the URL, API key and model name together; when the server reports image input,
+    // a second one with a blank test image shows whether it really takes images.
     internal async Task<string> TestRemote()
     {
         if (disposed) return Status;
@@ -95,19 +103,31 @@ internal sealed class CompanionBrain : IDisposable
         try
         {
             remoteCheckedUntil = DateTime.MinValue;
+            remoteImagesRefused = false;
             await EnsureRemote(active.Token);
-            using var request = RemoteRequest(HttpMethod.Post, "/v1/chat/completions");
-            request.Content = JsonContent.Create(new
+            using (var response = await SendRemoteTest("你好", active.Token))
             {
-                model = string.IsNullOrEmpty(remoteModelId) ? "local" : remoteModelId,
-                messages = new[] { new ChatMessage("user", "你好") },
-                max_tokens = 1,
-                chat_template_kwargs = new { enable_thinking = false }
-            });
-            using var response = await remote.SendAsync(request, active.Token);
-            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) return Status = "遠端模型拒絕存取，請檢查 API Key";
-            if (!response.IsSuccessStatusCode) return Status = $"遠端模型回傳 HTTP {(int)response.StatusCode}";
-            return Status = ReadyStatus("") + (remoteVision ? "（支援圖片）" : "（僅文字）");
+                if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) return Status = "遠端模型拒絕存取，請檢查 API Key";
+                if (!response.IsSuccessStatusCode) return Status = $"遠端模型回傳 HTTP {(int)response.StatusCode}";
+            }
+            if (!remoteVision) return Status = ReadyStatus("") + "（僅文字）";
+            HttpStatusCode imageStatus;
+            try
+            {
+                using var response = await SendRemoteTest(new object[]
+                {
+                    new { type = "image_url", image_url = new { url = TestImage } },
+                    new { type = "text", text = "你好" }
+                }, active.Token);
+                imageStatus = response.StatusCode;
+            }
+            catch (OperationCanceledException) when (!disposed)
+            {
+                return Status = ReadyStatus("") + "（回報支援圖片，但測試圖片逾時未回應）";
+            }
+            if (imageStatus is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) return Status = "遠端模型拒絕存取，請檢查 API Key";
+            remoteImagesRefused = (int)imageStatus is < 200 or > 299;
+            return Status = ReadyStatus("") + (remoteImagesRefused ? $"（伺服器拒收測試圖片（HTTP {(int)imageStatus}），會改傳視窗文字）" : "（支援圖片）");
         }
         catch (Exception error)
         {
@@ -138,10 +158,10 @@ internal sealed class CompanionBrain : IDisposable
     }
     internal void RefreshModelAvailability() => nextModelCheck = DateTime.MinValue;
 #if COMPANION_OCR
-    internal bool VisionAvailable => UseRemote && remoteVision;
+    internal bool VisionAvailable => UseRemote && remoteVision && !remoteImagesRefused;
     internal const string InputMode = "OCR";
 #else
-    internal bool VisionAvailable => UseRemote ? remoteVision : File.Exists(Path.GetFullPath("models/Qwen3.5-4B-heretic.mmproj-f16.gguf"));
+    internal bool VisionAvailable => UseRemote ? remoteVision && !remoteImagesRefused : File.Exists(Path.GetFullPath("models/Qwen3.5-4B-heretic.mmproj-f16.gguf"));
     internal const string InputMode = "Vision";
 #endif
     internal int? RunnerPid => runner is { HasExited: false } ? runner.Id : null;
@@ -175,7 +195,9 @@ internal sealed class CompanionBrain : IDisposable
         return available >= 8192 ? 2048 : available >= 4096 ? 512 : 128;
     }
     internal JsonElement? LastTimings { get; private set; }
-    private string ReadyStatus(string text) => UseRemote ? "遠端模型就緒：" + remoteModelId : usingCpuFallback ? text + "（CPU相容模式）" : text;
+    // llama-server started without --alias names its model by the file path; the status shows the file name only.
+    private string ReadyStatus(string text) => UseRemote ? "遠端模型就緒：" + remoteModelId?[(remoteModelId.LastIndexOfAny(['/', '\\']) + 1)..]
+        : usingCpuFallback ? text + "（CPU相容模式）" : text;
 
     private async Task<string> ReadGpuDevices(CancellationToken token)
     {
@@ -259,10 +281,65 @@ internal sealed class CompanionBrain : IDisposable
         return request;
     }
 
+    private async Task<HttpResponseMessage> SendRemoteTest(object content, CancellationToken token)
+    {
+        using var request = RemoteRequest(HttpMethod.Post, "/v1/chat/completions");
+        request.Content = JsonContent.Create(new
+        {
+            model = string.IsNullOrEmpty(remoteModelId) ? "local" : remoteModelId,
+            messages = new[] { new ChatMessage("user", content) },
+            max_tokens = 1,
+            chat_template_kwargs = new { enable_thinking = false }
+        });
+        return await remote.SendAsync(request, token);
+    }
+
+    // Image input as servers report it: OpenRouter-style data[].architecture.input_modalities, llama.cpp's
+    // models[].capabilities ("multimodal") in the same /v1/models answer, or else llama.cpp's /props
+    // (modalities.vision, which is true once the server runs with --mmproj).
+    private static bool ListsImageInput(JsonElement root, JsonElement chosen, string id)
+    {
+        if (chosen.ValueKind == JsonValueKind.Object && chosen.TryGetProperty("architecture", out var architecture)
+            && architecture.ValueKind == JsonValueKind.Object && architecture.TryGetProperty("input_modalities", out var modalities)
+            && modalities.ValueKind == JsonValueKind.Array && modalities.EnumerateArray().Any(m => m.ValueKind == JsonValueKind.String && m.GetString() == "image"))
+            return true;
+        if (!root.TryGetProperty("models", out var catalog) || catalog.ValueKind != JsonValueKind.Array) return false;
+        var entries = catalog.EnumerateArray().Where(m => m.ValueKind == JsonValueKind.Object).ToArray();
+        static string? Field(JsonElement entry, string name) => entry.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
+        var entry = entries.FirstOrDefault(m => id.Length > 0 && (Field(m, "name") == id || Field(m, "model") == id));
+        if (entry.ValueKind == JsonValueKind.Undefined && entries.Length == 1) entry = entries[0];
+        return entry.ValueKind == JsonValueKind.Object && entry.TryGetProperty("capabilities", out var capabilities) && capabilities.ValueKind == JsonValueKind.Array
+            && capabilities.EnumerateArray().Any(c => c.ValueKind == JsonValueKind.String && c.GetString() == "multimodal");
+    }
+
+    private async Task<bool> PropsVision(CancellationToken token)
+    {
+        using var limit = CancellationTokenSource.CreateLinkedTokenSource(token);
+        limit.CancelAfter(TimeSpan.FromSeconds(5));
+        try
+        {
+            // A llama.cpp router serves several models; a single-model server ignores the query.
+            using var request = RemoteRequest(HttpMethod.Get, "/props" + (string.IsNullOrEmpty(remoteModelId) ? "" : "?model=" + Uri.EscapeDataString(remoteModelId)));
+            using var response = await remote.SendAsync(request, limit.Token);
+            // Older llama.cpp builds answer /v1/models without a key, so a wrong key may first show here.
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                throw new IOException("遠端模型拒絕存取，請檢查 API Key");
+            if (!response.IsSuccessStatusCode) return false;
+            using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(limit.Token));
+            return document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("modalities", out var modalities)
+                && modalities.ValueKind == JsonValueKind.Object && modalities.TryGetProperty("vision", out var vision) && vision.ValueKind == JsonValueKind.True;
+        }
+        // Other OpenAI-compatible servers have no /props: text only, unless /v1/models said otherwise.
+        catch (HttpRequestException) { return false; }
+        catch (JsonException) { return false; }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested) { return false; }
+    }
+
     // Reads the served model and whether it accepts images; no local process is started.
     private async Task EnsureRemote(CancellationToken token)
     {
         if (remoteModelId != null && DateTime.UtcNow < remoteCheckedUntil) return;
+        remoteCheckedUntil = DateTime.MinValue;
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(token);
         limit.CancelAfter(TimeSpan.FromSeconds(10));
         Status = "正在連線遠端模型";
@@ -285,10 +362,9 @@ internal sealed class CompanionBrain : IDisposable
             var chosen = models.FirstOrDefault(m => m.GetProperty("id").GetString() == remoteModel);
             if (chosen.ValueKind == JsonValueKind.Undefined && remoteModel.Length == 0 && models.Length > 0) chosen = models[0];
             remoteModelId = remoteModel.Length > 0 ? remoteModel : chosen.ValueKind == JsonValueKind.Object ? chosen.GetProperty("id").GetString() ?? "" : "";
-            remoteVision = chosen.ValueKind == JsonValueKind.Object && chosen.TryGetProperty("architecture", out var architecture)
-                && architecture.TryGetProperty("input_modalities", out var modalities) && modalities.ValueKind == JsonValueKind.Array
-                && modalities.EnumerateArray().Any(m => m.GetString() == "image");
+            remoteVision = ListsImageInput(document.RootElement, chosen, remoteModelId);
         }
+        if (!remoteVision) remoteVision = await PropsVision(token);
         remoteCheckedUntil = DateTime.UtcNow.AddMinutes(5);
         DiagnosticLog.Write(DiagnosticEvent.RunnerReady, kind: "remote", state: remoteVision ? "image" : "text");
         Status = ReadyStatus("");
@@ -740,6 +816,9 @@ internal sealed class CompanionBrain : IDisposable
             CompanionWindowImage? image = null;
 #if COMPANION_OCR
             CompanionOcrSnapshot? ocr = null;
+            // Kept apart, so a text retry can put the window's OCR text where a refused window image was.
+            string time = $"現在是{DateTime.Now:yyyy年M月d日 HH:mm}。\n", screen = "", publicContext = "";
+            var handle = IntPtr.Zero;
 #endif
             if (news != null)
             {
@@ -749,58 +828,16 @@ internal sealed class CompanionBrain : IDisposable
             else
             {
 #if COMPANION_OCR
-                string context = $"現在是{DateTime.Now:yyyy年M月d日 HH:mm}。\n";
                 if (useForeground)
                 {
-                    // Pin exactly one HWND for both the capture and the supplemental identity.
-                    var handle = foregroundHandle == IntPtr.Zero ? CompanionNative.GetForegroundWindow() : foregroundHandle;
-#if !COMPANION_LINUX && !COMPANION_MAC
-                    // A remote server only receives screenshots when the user ticked the option,
-                    // and only after /v1/models of the current server confirmed image input.
-                    if (ScreenImages && UseRemote) await EnsureRunner(token);
-                    if (ScreenImages && VisionAvailable)
-                    {
-                        // A large remote model reads the whole window better than OCR fragments.
-                        // Without a usable window image the OCR path below still runs.
-                        Status = "正在擷取目前視窗";
-                        DiagnosticLog.Write(DiagnosticEvent.ScreenReadStarted, kind: "image");
-                        try
-                        {
-                            image = CompanionNative.ForegroundWindowImage(handle, 1568);
-                            if (image != null) context += CompanionNative.ForegroundContext(handle);
-                            DiagnosticLog.Write(image == null ? DiagnosticEvent.ScreenReadFallback : DiagnosticEvent.ScreenReadCompleted, kind: "image");
-                        }
-                        catch (Exception error) when (error is not OperationCanceledException)
-                        {
-                            image = null;
-                            DiagnosticLog.Write(DiagnosticEvent.ScreenReadFallback, kind: "image", error: error);
-                        }
-                    }
-#endif
-                    if (image == null)
-                    {
-                        // OCR reads the foreground window, then the full screen; when neither capture
-                        // works, speech continues from the time and the rest of this turn's material.
-                        // A remote server only ever gets the foreground window's text, as the settings
-                        // page tells the user, never what the full-screen fallback reads of other windows.
-                        Status = "正在辨識目前視窗文字";
-                        DiagnosticLog.Write(DiagnosticEvent.ScreenReadStarted, kind: "ocr");
-                        try
-                        {
-                            ocr = await CompanionOcr.ReadAsync(handle, token, fullScreen: !UseRemote);
-                            context += ocr.Context;
-                            DiagnosticLog.Write(DiagnosticEvent.ScreenReadCompleted, kind: "ocr", count: ocr.WordCount,
-                                elapsedMs: ocr.CaptureMilliseconds + ocr.RecognizeMilliseconds);
-                        }
-                        catch (Exception error) when (error is not OperationCanceledException)
-                        {
-                            ocr = null;
-                            context += "使用者正在使用電腦。";
-                            DiagnosticLog.Write(DiagnosticEvent.ScreenReadFallback, kind: "ocr", error: error);
-                        }
-                    }
+                    // Pin exactly one window for the capture, the supplemental identity and a text retry.
+                    handle = foregroundHandle == IntPtr.Zero ? CompanionNative.GetForegroundWindow() : foregroundHandle;
+                    // A large remote model reads the whole window better than OCR fragments.
+                    // Without a usable window image the OCR path still runs.
+                    (image, screen) = await ReadWindowImage(handle, token);
+                    if (image == null) (ocr, screen) = await ReadWindowText(handle, token);
                 }
-                else context += "使用者正在使用電腦。";
+                else screen = "使用者正在使用電腦。";
 #else
                 var context = $"現在是{DateTime.Now:yyyy年M月d日 HH:mm}。";
                 // A remote server only receives screenshots when the user ticked the option,
@@ -826,13 +863,14 @@ internal sealed class CompanionBrain : IDisposable
 #if COMPANION_OCR
                 {
                     double publicStarted = generationWatch.Elapsed.TotalMilliseconds;
-                    context += "\n" + WeatherContext();
+                    publicContext = "\n" + WeatherContext();
                     publicInfoMs += generationWatch.Elapsed.TotalMilliseconds - publicStarted;
                 }
 #else
                     context += "\n" + WeatherContext();
 #endif
 #if COMPANION_OCR
+                string context = time + screen + publicContext;
                 request = ocr == null ? SpeechRequest(context) : OcrSpeechRequest(context);
                 inputReadyMs = generationWatch.Elapsed.TotalMilliseconds;
                 WriteOcrDiagnostic(ocr, request, null, false, inputReadyMs, null, publicInfoMs, inputReadyMs, null);
@@ -851,7 +889,8 @@ internal sealed class CompanionBrain : IDisposable
 #else
             var selectedPersona = news == null ? Persona : NewsPersona;
 #endif
-            var text = await Complete(selectedPersona, request, news == null ? CompanionDialogue.Temperature : .35, token, image, partial =>
+            double temperature = news == null ? CompanionDialogue.Temperature : .35;
+            void OnContent(string partial)
             {
                 if (firstContentMs == null)
                 {
@@ -859,7 +898,28 @@ internal sealed class CompanionBrain : IDisposable
                     DiagnosticLog.Write(DiagnosticEvent.SpeechStarted, kind: kind, state: "first_content", elapsedMs: firstContentMs);
                 }
                 onPartial?.Invoke(partial);
-            });
+            }
+            string text;
+            try
+            {
+                text = await Complete(selectedPersona, request, temperature, token, image, OnContent);
+            }
+            catch (HttpRequestException error) when (image != null && UseRemote && error.StatusCode != null && !token.IsCancellationRequested)
+            {
+                // The server answered the window image with an error status (no image input after all, too large for
+                // its context, ...): this turn once more as text, and text for this server until its settings change.
+                remoteImagesRefused = true;
+                DiagnosticLog.Write(DiagnosticEvent.ScreenReadFallback, kind: "image", state: "refused", error: error);
+                image = null;
+#if COMPANION_OCR
+                (ocr, screen) = await ReadWindowText(handle, token);
+                request = ocr == null ? SpeechRequest(time + screen + publicContext) : OcrSpeechRequest(time + screen + publicContext);
+                selectedPersona = ocr == null ? Persona : OcrPersona;
+#endif
+                await EnsureRunner(token);
+                Status = "遠端生成短句";
+                text = await Complete(selectedPersona, request, temperature, token, null, OnContent);
+            }
 #if COMPANION_OCR
             WriteOcrDiagnostic(ocr, request, text, true, generationWatch.Elapsed.TotalMilliseconds, firstContentMs,
                 publicInfoMs, inputReadyMs, runnerReadyMs);
@@ -897,6 +957,65 @@ internal sealed class CompanionBrain : IDisposable
                 StopRunner();
         }
     }
+
+#if COMPANION_OCR
+    // A window image for a remote vision model: only when the user ticked the option and the current server takes
+    // images (and has not refused one since). Without one the turn reads the window's text instead.
+    private async Task<(CompanionWindowImage? Image, string Screen)> ReadWindowImage(IntPtr handle, CancellationToken token)
+    {
+        if (!ScreenImages || !UseRemote) return (null, "");
+        await EnsureRunner(token);
+        if (!VisionAvailable) return (null, "");
+#if COMPANION_LINUX || COMPANION_MAC
+        // The window itself only: the desktop is never sent, since macOS captures it as the whole screen.
+        if (CompanionNative.IsDesktopWindow(handle)) return (null, "");
+#endif
+        Status = "正在擷取目前視窗";
+        DiagnosticLog.Write(DiagnosticEvent.ScreenReadStarted, kind: "image");
+        try
+        {
+#if COMPANION_LINUX || COMPANION_MAC
+            var image = await CompanionRemoteScreen.CaptureAsync(handle, token);
+            string screen = image == null ? "" : CompanionNative.ForegroundIdentity(handle);
+#else
+            var image = CompanionNative.ForegroundWindowImage(handle, 1568);
+            string screen = image == null ? "" : CompanionNative.ForegroundContext(handle);
+#endif
+            DiagnosticLog.Write(image == null ? DiagnosticEvent.ScreenReadFallback : DiagnosticEvent.ScreenReadCompleted, kind: "image");
+            return (image, screen);
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            DiagnosticLog.Write(DiagnosticEvent.ScreenReadFallback, kind: "image", error: error);
+            return (null, "");
+        }
+    }
+
+    // OCR reads the foreground window, then (for the local model only) the full screen; when neither capture works,
+    // speech continues from the time and the rest of this turn's material. A remote server only ever gets the
+    // foreground window's text, as the settings page tells the user, never what the full-screen fallback reads.
+    private async Task<(CompanionOcrSnapshot? Ocr, string Screen)> ReadWindowText(IntPtr handle, CancellationToken token)
+    {
+#if COMPANION_LINUX || COMPANION_MAC
+        // Nor the desktop's text, whose capture on macOS is the whole screen: its identity says what is in front.
+        if (UseRemote && CompanionNative.IsDesktopWindow(handle)) return (null, CompanionNative.ForegroundIdentity(handle));
+#endif
+        Status = "正在辨識目前視窗文字";
+        DiagnosticLog.Write(DiagnosticEvent.ScreenReadStarted, kind: "ocr");
+        try
+        {
+            var ocr = await CompanionOcr.ReadAsync(handle, token, fullScreen: !UseRemote);
+            DiagnosticLog.Write(DiagnosticEvent.ScreenReadCompleted, kind: "ocr", count: ocr.WordCount,
+                elapsedMs: ocr.CaptureMilliseconds + ocr.RecognizeMilliseconds);
+            return (ocr, ocr.Context);
+        }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            DiagnosticLog.Write(DiagnosticEvent.ScreenReadFallback, kind: "ocr", error: error);
+            return (null, "使用者正在使用電腦。");
+        }
+    }
+#endif
 
 #if COMPANION_OCR
     private static void WriteOcrDiagnostic(CompanionOcrSnapshot? ocr, string request, string? response,

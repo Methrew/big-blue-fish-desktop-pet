@@ -13,6 +13,7 @@
     <Compile Include="../BigBlueFish.Linux/LinuxMcp.cs" Link="Linux/LinuxMcp.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxSettings.cs" Link="Linux/LinuxSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxWeatherSettings.cs" Link="Linux/LinuxWeatherSettings.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxRemoteScreen.cs" Link="Linux/LinuxRemoteScreen.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMaintenance.cs" Link="Linux/LinuxMaintenance.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxTestCommands.cs" Link="Linux/LinuxTestCommands.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxLogConsole.cs" Link="Linux/LinuxLogConsole.cs" />

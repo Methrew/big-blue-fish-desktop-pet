@@ -39,7 +39,7 @@ internal sealed partial class LinuxPetWindow
         bool publicInfo = Preferences.PublicInfo;
         var material = await brain.AgentSpeechBrief(kind == "weather_request", publicInfo, token);
         if (!material.ObserveScreen) return new(material.Text);
-        if (!Preferences.ForegroundEnabled) return new(material.Text + "\n本轮未启用读取前台内容，按已有情境自然关心主人。");
+        if (!Preferences.ForegroundEnabled) return new(material.Text + "\n本輪未啟用讀取前景內容，請按已有情境自然關心主人。");
         var handle = CompanionNative.ResolveForeground(CompanionNative.GetForegroundWindow(), lastForeground);
         if (!allowImages)
         {
@@ -51,12 +51,12 @@ internal sealed partial class LinuxPetWindow
                 DiagnosticLog.Write(DiagnosticEvent.ScreenReadCompleted, kind: "ocr", count: ocr.WordCount,
                     elapsedMs: ocr.CaptureMilliseconds + ocr.RecognizeMilliseconds);
                 return new(CompanionBrain.CompleteAgentScreenBrief(material, ocr.Context, true)
-                    + "\n当前 Agent 未启用图片输入，已改用本地文字识别提供前台内容。", null, "ocr");
+                    + "\n目前的 Agent 未啟用圖片輸入，已改用本機文字辨識提供前景內容。", null, "ocr");
             }
             catch (Exception error) when (error is not OperationCanceledException)
             {
                 DiagnosticLog.Write(DiagnosticEvent.ScreenReadFallback, kind: "ocr", error: error);
-                return new(material.Text + "\n本轮未取得可用读屏内容，按已有情境自然关心主人。");
+                return new(material.Text + "\n本輪未取得可用的螢幕內容，請按已有情境自然關心主人。");
             }
         }
         try
@@ -66,10 +66,10 @@ internal sealed partial class LinuxPetWindow
                 async () => await LinuxCapture.CaptureAsync(handle, 2560, true, token), token);
             var image = captured.Image;
             token.ThrowIfCancellationRequested();
-            if (image == null) return new(material.Text + "\n本轮未取得有效截图，按已有情境自然关心主人。");
-            return new(material.Text + "\n" + (captured.FullScreen ? CompanionCaptureFallback.ScreenIdentity : "本轮附图是按桌宠前台规则取得的当前界面，用于理解主人眼前的活动。"), AgentPromptImage.FromDataUrl(image.DataUrl), "image");
+            if (image == null) return new(material.Text + "\n本輪未取得有效的截圖，請按已有情境自然關心主人。");
+            return new(material.Text + "\n" + (captured.FullScreen ? CompanionCaptureFallback.ScreenIdentity : "本輪附圖是按桌寵前景規則取得的目前畫面，用來理解主人眼前的活動。"), AgentPromptImage.FromDataUrl(image.DataUrl), "image");
         }
-        catch (IOException) { return new(material.Text + "\n本轮未取得有效前台截图，按已有情境自然关心主人。"); }
+        catch (IOException) { return new(material.Text + "\n本輪未取得有效的前景截圖，請按已有情境自然關心主人。"); }
     }
 
     void ConfigureAgent() { agent?.Configure(Preferences.AgentHarnessId, new(Preferences.AgentEnabled, Preferences.PuppetMode, Preferences.AgentDailySpeech)); if (!AgentDailyActive) nextWarmup = DateTime.MinValue; }
@@ -129,9 +129,9 @@ internal sealed partial class LinuxPetWindow
     async Task RequestAgentLocalSpeech(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (!Preferences.AgentEnabled || AgentDailyActive) throw new InvalidOperationException("本地吐字需要连接 Agent 并关闭 AgentDailySpeech。");
+        if (!Preferences.AgentEnabled || AgentDailyActive) throw new InvalidOperationException("讓魚魚自己的模型說話需要連線 Agent，並關閉 AgentDailySpeech。");
         if (!Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower) throw new InvalidOperationException("「啟用模型說話」未開啟、尚未安裝本機模型，或已依供電設定暫停。");
-        if (generating || closed || phase == "Exit" || modelInstalling || hidden || fullscreenHidden) throw new InvalidOperationException("鱼鱼当前忙碌或隐藏，请稍后再触发本地吐字。");
+        if (generating || closed || phase == "Exit" || modelInstalling || hidden || fullscreenHidden) throw new InvalidOperationException("魚魚目前正在忙或已隱藏，請稍後再讓魚魚自己的模型說話。");
         using var registration = token.Register(() => Dispatcher.UIThread.Post(() => { speechVersion++; brain.CancelGeneration(); }));
         await Speak(false, true); token.ThrowIfCancellationRequested();
     }
@@ -146,7 +146,7 @@ internal sealed partial class LinuxPetWindow
     {
         return await Dispatcher.UIThread.InvokeAsync(async () => {
             token.ThrowIfCancellationRequested();
-            if (closed || phase == "Exit" || !McpChannelOpen(agentChannel)) throw new InvalidOperationException(agentChannel ? "Agent 連線已關閉或桌寵正在退出。" : "MCP 介面已關閉或桌寵正在退出。");
+            if (closed || phase == "Exit" || !McpChannelOpen(agentChannel)) throw new InvalidOperationException(agentChannel ? "Agent 連線已關閉或桌寵正在關閉。" : "MCP 介面已關閉或桌寵正在關閉。");
             switch (name)
             {
                 case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = McpConnections, mcpClients = mcpInterface?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, bubbleVisible = bubbleWindow.IsVisible, externalBubble = externalSpeech, speechPending = generating || agentWeatherPending, platform = OperatingSystem.IsMacOS() ? "macos" : "linux", modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status, fullscreen = CompanionNative.IsFullscreen(), idleSeconds = Math.Round(ReminderIdle), activeMinutes = ReminderActiveMinutes, lastBreakMinutes = ReminderLastBreakMinutes, walk = WalkSnapshot(), tour = TourSnapshot(), lastWalk, walkBubble = WalkBubbleShown } });
@@ -155,7 +155,7 @@ internal sealed partial class LinuxPetWindow
                 case "list_actions": return ControlTools.Text(policy.Rules.Select(r => new { action = r.Id, pool = r.Pool, weight = r.Weight, duration_seconds = r.Pool == "Greeting" ? 10 / 1.5 : 10 }));
                 case "capture_foreground": case "capture_screen":
                     var handle = CompanionNative.ResolveForeground(CompanionNative.GetForegroundWindow(), lastForeground);
-                    var identity = name == "capture_foreground" ? CompanionNative.ForegroundIdentity(handle) : "全部显示器组成的完整桌面";
+                    var identity = name == "capture_foreground" ? CompanionNative.ForegroundIdentity(handle) : "全部顯示器組成的完整桌面";
                     var limit = ControlTools.ImageLimit(args, name == "capture_foreground" ? 2560 : 4096);
                     var image = await LinuxCapture.CaptureAsync(handle, limit, name == "capture_screen", token);
                     token.ThrowIfCancellationRequested();
@@ -165,7 +165,7 @@ internal sealed partial class LinuxPetWindow
                     string asked = ControlTools.RequiredText(args, "action", 200), action = CompanionActionNames.Resolve(policy.Rules.Select(r => r.Id), asked)
                         ?? throw new ArgumentException(CompanionActionNames.Unknown(policy.Rules.Select(r => r.Id), "action", asked)); // Traditional names mean the same clip
                     if (name == "interrupt_action") { externalActions.Clear(); moveRule = null; CancelWalk("interrupt"); Play(policy.Find(action), "External"); }
-                    else { if (externalActions.Count >= 100) throw new InvalidOperationException("待播放动作队列已满。"); externalActions.Enqueue(action); }
+                    else { if (externalActions.Count >= 100) throw new InvalidOperationException("待播放動作佇列已滿。"); externalActions.Enqueue(action); }
                     return ControlTools.Text(new { action, started = name == "interrupt_action", queued = externalActions.Count });
                 case "say": case "say_next":
                     string text = ControlTools.RequiredText(args, "text");
@@ -189,19 +189,19 @@ internal sealed partial class LinuxPetWindow
                 case "get_operation_guide": case "get_wakeups": case "schedule_wakeup": case "cancel_wakeup":
                     // The built-in Agent's skill, persona and care reservations are its own, never the MCP interface's.
                     if (!agentChannel) throw new InvalidOperationException("這個工具只供內建的 Agent 連線使用。");
-                    return ControlTools.Text(agent?.ExecuteTool(name, args) ?? throw new InvalidOperationException("Agent 尚未连接。"));
+                    return ControlTools.Text(agent?.ExecuteTool(name, args) ?? throw new InvalidOperationException("Agent 尚未連線。"));
                 default: throw new ArgumentException("未知 MCP 工具。");
             }
         });
     }
     async Task UpdateSettings(JsonElement args, CancellationToken token, bool agentChannel)
     {
-        if (!args.TryGetProperty("settings", out var patch) || patch.ValueKind != JsonValueKind.Object) throw new ArgumentException("settings 必须为对象。");
+        if (!args.TryGetProperty("settings", out var patch) || patch.ValueKind != JsonValueKind.Object) throw new ArgumentException("settings 必須為物件。");
         var values = new Dictionary<string, object?>();
         foreach (var property in patch.EnumerateObject())
         {
-            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(property.Name == "McpEnabled" ? "MCP 接口只能由用户在设置中开启或关闭。"
-                : CompanionPreferences.PrivateSettings.Contains(property.Name) ? "API Key 與授權碼只能由使用者在設定中填寫。" : "未知设置：" + property.Name);
+            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(property.Name == "McpEnabled" ? "MCP 介面只能由使用者在設定中開啟或關閉。"
+                : CompanionPreferences.PrivateSettings.Contains(property.Name) ? "API Key 與授權碼只能由使用者在設定中填寫。" : "未知設定：" + property.Name);
             var type = property.Name == "StartupEnabled" ? typeof(bool) : typeof(CompanionPreferences).GetProperty(property.Name)!.PropertyType;
             values[property.Name] = JsonSerializer.Deserialize(property.Value.GetRawText(), type);
         }
@@ -220,7 +220,7 @@ internal sealed partial class LinuxPetWindow
                 "WeatherRegionCode" => item.Value is string region && CompanionRegions.District(region).Code == region,
                 "LastBrushDate" => item.Value == null || item.Value is string date && DateTime.TryParseExact(date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _),
                 "Left" or "Top" => item.Value == null || Range(-1000000, 1000000), _ => item.Value is bool };
-            if (!valid) throw new ArgumentException("设置值无效：" + item.Key);
+            if (!valid) throw new ArgumentException("設定值無效：" + item.Key);
         }
         // One switch, named as each side names it: the Agent connection hands the care and actions to the Agent, the MCP interface
         // calls it 提線木偶模式.
@@ -244,7 +244,7 @@ internal sealed partial class LinuxPetWindow
     {
         if (!McpInputAvailable || closed || phase == "Exit") return false;
         if (mcpInput != null) { mcpInput.Show(this); mcpInput.Activate(); return true; }
-        const string hint = "通过鱼鱼和已连接的Agent说话";
+        const string hint = "透過魚魚和已連線的Agent說話";
         var text = new TextBox { AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxLength = 4000,
             Height = 56, Padding = new Thickness(0, 2, 22, 0), FontSize = 14, Foreground = Hair,
             Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0), PlaceholderText = hint };
@@ -257,13 +257,13 @@ internal sealed partial class LinuxPetWindow
         var panel = new StackPanel { Spacing = 4 }; panel.Children.Add(editor);
         var frame = new Border { Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(255, 251, 244)),
             BorderBrush = Hair, BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(14), Padding = new Thickness(12), Child = panel };
-        var dialog = new Window { Title = "蓝色大肥鱼 · 输入", Width = 354, Height = 120,
+        var dialog = new Window { Title = CompanionEdition.DisplayName + " · 輸入", Width = 354, Height = 120,
             WindowDecorations = WindowDecorations.None, CanResize = false, ShowInTaskbar = false, ShowActivated = false,
             Topmost = true, Background = Avalonia.Media.Brushes.Transparent, TransparencyLevelHint = [WindowTransparencyLevel.Transparent], Content = frame };
         var close = new Button { Content = "×", Width = 20, Height = 20, Padding = new Thickness(0), FontSize = 16,
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
             Foreground = Hair, Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0) };
-        Avalonia.Controls.ToolTip.SetTip(close, "收起输入框"); close.Click += (_, _) => dialog.Close(); editor.Children.Add(close);
+        Avalonia.Controls.ToolTip.SetTip(close, "收起輸入框"); close.Click += (_, _) => dialog.Close(); editor.Children.Add(close);
         var tray = OpenMcpAttachments(dialog, frame, panel, text, status, ready);
         // Exactly one side gets the message: the MCP interface while the input is handed to it and a client is there, else the Agent.
         void Send()
@@ -282,7 +282,7 @@ internal sealed partial class LinuxPetWindow
                 + (missing > 0 ? $"，{missing} 個檔案已不存在" : ""); text.Focus();
         }
         bool CanSend() => (McpChatAvailable || agent?.Connected == true) && tray.Saving == 0 && (!string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0);
-        var send = ActionButton("发送", Send); send.MinWidth = 58; send.Padding = new Thickness(12, 5); send.FontSize = 12;
+        var send = ActionButton("傳送", Send); send.MinWidth = 58; send.Padding = new Thickness(12, 5); send.FontSize = 12;
         var attach = McpAttachButton(dialog, text, tray);
         var actions = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") }; actions.Children.Add(attach); actions.Children.Add(status); actions.Children.Add(send); Grid.SetColumn(status, 1); Grid.SetColumn(send, 2); panel.Children.Add(actions);
         text.TextChanged += (_,_) => send.IsEnabled = CanSend();

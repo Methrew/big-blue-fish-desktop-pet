@@ -25,7 +25,7 @@ public partial class App : Application
         try { Environment.CurrentDirectory = BigBlueFish.Deployment.ApplicationData.Prepare(AppContext.BaseDirectory); }
         catch (Exception error)
         {
-            MessageBox.Show("無法準備大肥魚的資料目錄：" + error.Message, "藍色大肥魚", MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show("無法準備大肥魚的資料夾：" + error.Message, "藍色大肥魚", MessageBoxButton.OK, MessageBoxImage.Error);
             Shutdown(1); return;
         }
         // In-process verifications set --test-mode before WPF raises Startup with the test program's own

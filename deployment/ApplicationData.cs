@@ -63,6 +63,6 @@ internal static class ApplicationData
     private static void RejectLink(string path)
     {
         if ((File.Exists(path) || System.IO.Directory.Exists(path)) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
-            throw new IOException("資料目錄不能使用連結：" + path);
+            throw new IOException("資料夾不能使用連結：" + path);
     }
 }

@@ -104,7 +104,7 @@ public static class CompanionEdgeLayout
                 bubble.HorizontalAlignment = System.Windows.HorizontalAlignment.Stretch;
                 popup = new Window
                 {
-                    Title = CompanionEdition.DisplayName + " · 對話",
+                    Title = BigBlueFish.Windows.CompanionEdition.DisplayName + " · 對話",
                     WindowStyle = WindowStyle.None,
                     AllowsTransparency = true,
                     Background = System.Windows.Media.Brushes.Transparent,

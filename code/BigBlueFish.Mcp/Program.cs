@@ -25,6 +25,8 @@ catch (Exception e)
         ? "藍色大肥魚的內部工具未連線：請在桌寵設定中重新連線 Agent。"
         : OperatingSystem.IsWindows()
             ? "藍色大肥魚的 MCP 介面未連線：請確認桌寵正在執行，並已在設定中開啟「開啟 MCP 介面」。"
-            : "藍色大肥魚的 MCP 介面未連線：請確認桌寵正在執行，並已在設定的「連線 Agent」頁開啟「開啟 MCP 介面」。") + e.Message);
+            : "藍色大肥魚的 MCP 介面未連線：請確認桌寵正在執行，並已在設定的「連線 Agent」頁開啟「開啟 MCP 介面」。")
+        // The system's own text stays apart from the explanation.
+        + (e is TimeoutException ? "（5 秒內沒有回應）" : "\n（" + e.Message + "）"));
     Environment.ExitCode = 1;
 }

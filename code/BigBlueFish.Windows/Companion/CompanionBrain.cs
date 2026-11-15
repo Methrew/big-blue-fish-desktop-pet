@@ -101,7 +101,7 @@ internal sealed class CompanionBrain : IDisposable
     private DateTime nextModelCheck;
     private bool modelAvailable;
 
-    // A cloud AI service (Claude, ChatGPT or Gemini) replaces the local runner the way a remote server does. Without a key
+    // A cloud AI service (Claude, OpenAI or Gemini) replaces the local runner the way a remote server does. Without a key
     // the source stays: the fish stays quiet and the status says why, rather than turning to a local model that may not be
     // installed. The same provider and key keep their pause and model list; anything else starts afresh.
     internal void UseCloudModel(string provider, string apiKey, string model)

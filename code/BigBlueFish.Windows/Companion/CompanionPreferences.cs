@@ -27,10 +27,13 @@ internal sealed class CompanionPreferences
     public bool CheckUpdatesOnStartup { get; set; } = true;
     public bool AgentEnabled { get; set; }
     public string AgentHarnessId { get; set; } = "codex";
-    // Claude Code (AgentHarnessId "claude") started by the fish runs on the Claude API Key of the cloud AI service
-    // (ClaudeApiKey), billed per use, instead of the subscription it is signed in with (BigBlueFish.Agent.ClaudeApiKeyLaunch).
-    // The user's own: MCP can read it, never change it; the key itself never appears there.
+    // The CLI the fish starts runs on an API Key of the cloud AI service, billed per use, instead of the sign-in it has
+    // (BigBlueFish.Agent.ApiKeyLaunch): Claude Code (AgentHarnessId "claude") on ClaudeApiKey instead of its subscription,
+    // Codex CLI ("codex") on OpenAiApiKey instead of its ChatGPT sign-in, Gemini CLI ("gemini") on GeminiApiKey instead of
+    // its Google sign-in. The user's own: MCP can read them, never change them; the keys themselves never appear there.
     public bool AgentClaudeApiKey { get; set; }
+    public bool AgentOpenAiApiKey { get; set; }
+    public bool AgentGeminiApiKey { get; set; }
     public bool AgentDailySpeech { get; set; }
     public bool AgentRespondToClick { get; set; }
     public bool AgentRespondToDrag { get; set; }
@@ -162,6 +165,22 @@ internal sealed class CompanionPreferences
         }
     }
     internal string CloudApiKey(string provider) => provider switch { "OpenAI" => OpenAiApiKey, "Gemini" => GeminiApiKey, _ => ClaudeApiKey };
+    // What the file holds for a provider's key (encrypted, or the keychain marker on macOS); null when none is stored.
+    internal string? CloudApiKeyStored(string provider) => provider switch { "OpenAI" => OpenAiApiKeyProtected, "Gemini" => GeminiApiKeyProtected, _ => ClaudeApiKeyProtected };
+    // The harnesses that can run on a cloud AI service's key (BigBlueFish.Agent.ApiKeyLaunch): the provider whose key each
+    // one uses (null for the others), and its switch above.
+    internal static string? AgentApiKeyProvider(string? harness) => harness switch { "claude" => "Claude", "codex" => "OpenAI", "gemini" => "Gemini", _ => null };
+    internal bool AgentUsesApiKey(string? harness) => harness switch { "claude" => AgentClaudeApiKey, "codex" => AgentOpenAiApiKey, "gemini" => AgentGeminiApiKey, _ => false };
+    internal void SetAgentUsesApiKey(string harness, bool on)
+    {
+        switch (harness)
+        {
+            case "claude": AgentClaudeApiKey = on; break;
+            case "codex": AgentOpenAiApiKey = on; break;
+            case "gemini": AgentGeminiApiKey = on; break;
+            default: throw new ArgumentOutOfRangeException(nameof(harness));
+        }
+    }
     // On macOS this writes the keychain and blocks for up to a few seconds (see below); a refused write throws.
     internal void SetCloudApiKey(string provider, string value)
     {

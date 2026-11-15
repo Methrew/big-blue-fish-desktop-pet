@@ -33,6 +33,9 @@ public sealed class AgentCoordinator : IDisposable
     // The host's launch settings the running process (or the refused start) used: compared in LaunchChanged, in memory only.
     private string launchFingerprint = "", launchProfile = "";
     private string? launchCredentialNote;
+    private IReadOnlyList<string> launchRejections = [];
+    // The secrets of that launch (AgentLaunch.Secrets), masked in every status before it is shown.
+    private IReadOnlyList<string> launchSecrets = [];
     private int disposed;
     private long epoch;
     private volatile bool changingWorkspace;
@@ -82,7 +85,14 @@ public sealed class AgentCoordinator : IDisposable
         this.root = Path.GetFullPath(root); this.bridge = Path.GetFullPath(bridge); this.pipe = pipe; this.permission = permission;
         Workspaces = new(this.root, defaultWorkspace); Wakeups = new(this.root); _ = Worker();
     }
-    private void Report(string value, string extra = "") { status = value; detail = extra; Changed?.Invoke(); }
+    private void Report(string value, string extra = "") { status = Masked(value); detail = Masked(extra); Changed?.Invoke(); }
+    // An Agent's error or output can quote the key the host gave it (Google's CONSUMER_SUSPENDED names the consumer as
+    // 'api_key:<key>'); the status, the 連線 Agent page and the input box show *** in its place.
+    private string Masked(string text)
+    {
+        foreach (var secret in launchSecrets) text = text.Replace(secret, "***", StringComparison.Ordinal);
+        return text;
+    }
     public void Configure(string selected, AgentMode updated)
     {
         HarnessCatalog.Get(selected);
@@ -414,7 +424,10 @@ public sealed class AgentCoordinator : IDisposable
                     bool unavailable = error is AgentLaunchUnavailableException;
                     DiagnosticLog.Write(DiagnosticEvent.AgentFailed, kind: request.Kind, state: unavailable ? "blocked" : null, error: error);
                     request.Completion?.TrySetException(error);
-                    bool authentication = authenticationPending || error is AgentAuthenticationCancelledException || error is AcpException acp && acp.AuthenticationRequired || error.Message.Contains("auth", StringComparison.OrdinalIgnoreCase) || error.Message.Contains("login", StringComparison.OrdinalIgnoreCase);
+                    bool authentication = authenticationPending || error is AgentAuthenticationCancelledException || error is AcpException acp && acp.AuthenticationRequired || error.Message.Contains("auth", StringComparison.OrdinalIgnoreCase) || error.Message.Contains("login", StringComparison.OrdinalIgnoreCase)
+                        // An Agent that reports the host's key turned down as an ordinary error (Gemini CLI's 400 API_KEY_INVALID,
+                        // 403 CONSUMER_SUSPENDED and the like).
+                        || launchCredentialNote != null && error is not AgentLaunchUnavailableException && launchRejections.Any(phrase => error.Message.Contains(phrase, StringComparison.OrdinalIgnoreCase));
                     string name = HarnessCatalog.Get(harnessId).Name;
                     // A start the host's settings refuse waits for them to change (LaunchChanged) or for 重新連線; so does a
                     // credential the host supplies and the Agent turned down, whose note says what to do.
@@ -448,7 +461,8 @@ public sealed class AgentCoordinator : IDisposable
             if (Connected) return;
             launch ??= await AskLaunch(harness.Id, token);
             token.ThrowIfCancellationRequested();
-            launchFingerprint = launch.Fingerprint; launchProfile = launch.Profile; launchCredentialNote = launch.CredentialNote;
+            launchFingerprint = launch.Fingerprint; launchProfile = launch.Profile; launchCredentialNote = launch.CredentialNote; launchRejections = launch.Rejections;
+            launchSecrets = launch.Secrets;
             if (launch.Unavailable != null) throw new AgentLaunchUnavailableException(launch.Unavailable);
             var adapters = new AgentAdapterStore(root);
             string executable = adapters.FindExecutable(harness) ?? (harness.Id == "antigravity" ? "" : throw new IOException("找不到 " + harness.Name + "，請先依官方說明安裝，並確認程式在 PATH 中。"));

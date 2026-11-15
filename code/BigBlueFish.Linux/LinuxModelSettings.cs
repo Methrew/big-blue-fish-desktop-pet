@@ -22,7 +22,7 @@ internal sealed partial class LinuxPetWindow
     readonly List<Avalonia.Controls.Control> localModelOptions = [];
     readonly SemaphoreSlim modelSourceSaving = new(1, 1);
 
-    static readonly string[] ModelSourceLabels = ["本機內建模型", "遠端 llama.cpp 伺服器（OpenAI 相容介面）", "雲端 AI 服務（Claude、ChatGPT、Gemini）"];
+    static readonly string[] ModelSourceLabels = ["本機內建模型", "遠端 llama.cpp 伺服器（OpenAI 相容介面）", "雲端 AI 服務（Claude、OpenAI、Gemini）"];
     static int ModelSourceIndex(string source) => source switch { "Remote" => 1, "Cloud" => 2, _ => 0 };
     static string ModelSourceOf(int index) => index switch { 1 => "Remote", 2 => "Cloud", _ => "Local" };
 #if COMPANION_MAC
@@ -30,8 +30,10 @@ internal sealed partial class LinuxPetWindow
 #else
     const string ForegroundIdentity = "前景程式名稱與視窗標題", OnThisComputer = "在這台電腦上";
 #endif
-    // Claude, ChatGPT, Gemini: the service without its company.
+    // Claude API, OpenAI API, Gemini API: the service without its company.
     static string CloudShortName(CloudProviderInfo info) => info.DisplayName.Split('（')[0];
+    // A service's name with a space when a Chinese word follows a Latin letter (「OpenAI API 產生」, 「Claude API（Anthropic）產生」).
+    static string CloudNameBeforeText(CloudProviderInfo info) => char.IsAsciiLetterOrDigit(info.DisplayName[^1]) ? info.DisplayName + " " : info.DisplayName;
     static string CloudCompany(string provider) => CompanionCloud.Company(provider);
     static string CloudConsole(string provider) => provider switch { CompanionCloud.OpenAI => "OpenAI Platform", CompanionCloud.Gemini => "Google AI Studio", _ => "Claude Console" };
     static string CloudKeyPrefix(string provider) => provider switch { CompanionCloud.OpenAI => "sk-", CompanionCloud.Gemini => "AIza 或 AQ.", _ => "sk-ant-" };
@@ -43,20 +45,29 @@ internal sealed partial class LinuxPetWindow
     {
         var info = CompanionCloud.Info(provider);
         string others = string.Join(" 或 ", CompanionCloud.Providers.Where(p => p.Id != info.Id).Select(CloudShortName));
-        return "改用後，魚魚要說的話會由 " + info.DisplayName + "產生，之後也可以在「服務」改選 " + others + "。每次說話會傳送：魚魚的說話設定、目前時間、"
+        return "改用後，魚魚要說的話會由 " + CloudNameBeforeText(info) + "產生，之後也可以在「服務」改選 " + others + "。每次說話會傳送：魚魚的說話設定、目前時間、"
             + ForegroundIdentity + "、" + OnThisComputer + "辨識的前景視窗文字（勾選「傳送前景視窗截圖」時改傳截圖，" + (Preferences.ScreenImages ? "目前已開啟" : "目前關閉")
             + "）；開啟天氣和新聞時，還有天氣地點與預報、新聞內容。\n\n"
 #if COMPANION_MAC && COMPANION_SAFE
             + "API Key 存在這台 Mac 的鑰匙圈，不會寫進設定檔。"
 #elif COMPANION_MAC
-            + "API Key 存在這台 Mac 的鑰匙圈，不會寫進設定檔，也不提供給 MCP 和 Agent。"
+            + "API Key 存在這台 Mac 的鑰匙圈，不會寫進設定檔，也不提供給 MCP；" + CloudKeyForAgent(info.Id)
 #elif COMPANION_SAFE
             + "API Key 以 Base64 存在本機設定檔（沒有加密）。"
 #else
-            + "API Key 以 Base64 存在本機設定檔（沒有加密），不提供給 MCP 和 Agent。"
+            + "API Key 以 Base64 存在本機設定檔（沒有加密），不提供給 MCP；" + CloudKeyForAgent(info.Id)
 #endif
             + "每次說話都會依用量計費，建議在服務的主控台設定花費上限，並建立一把只給魚魚用的 API Key。";
     }
+#if !COMPANION_SAFE
+    // The one place a cloud key goes besides its service: the 連線 Agent switch of the same company hands it to the CLI the
+    // fish starts (BigBlueFish.Agent.ApiKeyLaunch; CompanionSettings on Windows says the same).
+    static string CloudKeyForAgent(string provider)
+    {
+        var api = BigBlueFish.Agent.ApiKeyLaunch.All.First(l => CompanionPreferences.AgentApiKeyProvider(l.Harness) == provider);
+        return "只有在「連線 Agent」開啟「" + api.Switch + "」時，魚魚啟動的 " + api.Product + " 才會拿到這把 Key。";
+    }
+#endif
 
     // Hands the saved model source to the brain: a cloud AI service or a remote server replaces the local runner (nothing
     // is loaded on this computer then), null returns to it. Runs at startup before anything asks whether a local model is
@@ -81,7 +92,7 @@ internal sealed partial class LinuxPetWindow
     }
 
     // 模型與資訊: what 啟用模型說話 covers, 模型來源, and for a remote llama.cpp server its address, API key, model name and
-    // the window image option, with 儲存並測試連線; for a cloud AI service (Claude, ChatGPT, Gemini) the service, its API key,
+    // the window image option, with 儲存並測試連線; for a cloud AI service (Claude, OpenAI, Gemini) the service, its API key,
     // the model, the daily limit, the usage and the window image option, with 儲存並測試. The API keys live in the login
     // keychain on macOS (never in preferences.json, never in MCP get_settings); Linux keeps them in the 0600 preferences
     // file as Base64.
@@ -254,7 +265,7 @@ internal sealed partial class LinuxPetWindow
                 cloudKeyNote.IsVisible = note != null;
                 cloudRetry.IsVisible = secretsReady && Preferences.StateOf(account) == CompanionPreferences.SecretState.Failed;
 #endif
-                privacy.Text = "使用雲端 AI 服務時，每次說話會傳送到 " + info.DisplayName + "的內容：魚魚的說話設定、目前時間、" + ForegroundIdentity
+                privacy.Text = "使用雲端 AI 服務時，每次說話會傳送到 " + CloudNameBeforeText(info) + "的內容：魚魚的說話設定、目前時間、" + ForegroundIdentity
                     + "、前景視窗的文字（" + OnThisComputer + " OCR 辨識的結果），或在勾選上一項時，改傳前景視窗的截圖（JPEG，長邊最多 1568 像素）；"
                     + "開啟天氣和新聞時，還有天氣地點與預報、新聞內容。只會讀取最前面的那個視窗，不會傳送整個螢幕或其他視窗；最前面是桌面時，只告訴模型目前在桌面。"
                     + "傳送的內容依 " + CloudCompany(provider) + " 的 API 條款處理。";
@@ -361,7 +372,7 @@ internal sealed partial class LinuxPetWindow
                 string id = provider, keyText = cloudKey.Text?.Trim() ?? "";
                 if (keyText.Length > 0 && CompanionCloud.ProviderForKey(keyText) is { } owner && owner != id)
                 {
-                    cloudResult.Text = "這把 API Key 是 " + CompanionCloud.Info(owner).DisplayName + "的，請把「服務」改成 " + CloudShortName(CompanionCloud.Info(owner))
+                    cloudResult.Text = "這把 API Key 是 " + CloudNameBeforeText(CompanionCloud.Info(owner)) + "的，請把「服務」改成 " + CloudShortName(CompanionCloud.Info(owner))
                         + "，或貼上 " + CompanionCloud.Info(id).Name + " 的 API Key。設定沒有變更。";
                     return false;
                 }
@@ -391,8 +402,9 @@ internal sealed partial class LinuxPetWindow
 #endif
                     // Another key may list other models.
                     cloudListed.Remove(id);
-                    // Claude Code on the Claude API Key starts again with the new key (or stops for want of one).
-                    if (id == CompanionCloud.Claude) AgentLaunchChanged();
+                    // Claude Code, Codex CLI or Gemini CLI on this API Key starts again with the new key (or stops for want
+                    // of one); the Agent restarts only when its own launch changed.
+                    AgentLaunchChanged();
                 }
                 // The recommended model shown and never chosen stays unchosen (empty), so it follows the recommendation.
                 string chosen = ModelText();
@@ -493,7 +505,7 @@ internal sealed partial class LinuxPetWindow
                 : cloudKey.Text?.Trim().Length > 0 ? "" : NoKeyYet();
         };
         // A pasted key names its service (sk-ant-, AIza or AQ., another sk-): the panel switches to it, and the key goes along.
-        // Only from eight characters on, so typing sk-ant- by hand does not flip between ChatGPT and Claude. PropertyChanged
+        // Only from eight characters on, so typing sk-ant- by hand does not flip between OpenAI and Claude. PropertyChanged
         // (synchronous), not TextChanged (raised later, after filling has ended): a key ShowProvider fills in is no draft, or
         // an empty field filled before the keychain answered would later stand for the key read and erase it on a save.
         cloudKey.PropertyChanged += (_, e) =>

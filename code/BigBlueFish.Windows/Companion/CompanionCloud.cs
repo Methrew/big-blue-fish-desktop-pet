@@ -22,7 +22,7 @@ using M = Anthropic.Models.Messages;
 namespace BigBlueFish.Windows;
 
 // The cloud model source (ModelSource "Cloud"): the fish's own speech written by Claude (the Anthropic API, through the
-// official Anthropic C# SDK), ChatGPT (OpenAI Chat Completions) or Gemini (Gemini API generateContent), always at the
+// official Anthropic C# SDK), the OpenAI API (Chat Completions) or the Gemini API (generateContent), always at the
 // provider's official endpoint, which only test code can redirect (to a server on this computer). The API key goes only
 // there, in the provider's own header; it never reaches the diagnostic log, an exception message, the usage file or MCP,
 // and neither do raw response bodies. Requests carry no sampling parameters and none of llama.cpp's fields.
@@ -71,11 +71,11 @@ internal static class CompanionCloud
 
     internal static readonly CloudProviderInfo[] Providers =
     [
-        new(Claude, "Claude", "Claude（Anthropic）", "https://api.anthropic.com", "https://platform.claude.com/settings/keys",
+        new(Claude, "Claude", "Claude API（Anthropic）", "https://api.anthropic.com", "https://platform.claude.com/settings/keys",
             "ClaudeApiKey", ["claude-opus-5-5", "claude-sonnet-5-5", "claude-haiku-5-5"]),
-        new(OpenAI, "OpenAI", "ChatGPT（OpenAI）", "https://api.openai.com/v1/", "https://platform.openai.com/api-keys",
+        new(OpenAI, "OpenAI", "OpenAI API", "https://api.openai.com/v1/", "https://platform.openai.com/api-keys",
             "OpenAiApiKey", ["gpt-6-luna", "gpt-5.6-luna", "gpt-6.1-terra"]),
-        new(Gemini, "Gemini", "Gemini（Google）", "https://generativelanguage.googleapis.com/v1beta/", "https://aistudio.google.com/apikey",
+        new(Gemini, "Gemini", "Gemini API（Google）", "https://generativelanguage.googleapis.com/v1beta/", "https://aistudio.google.com/apikey",
             "GeminiApiKey", ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"]),
     ];
 
@@ -483,7 +483,7 @@ internal sealed class ClaudeHeaders : DelegatingHandler
     }
 }
 
-// ChatGPT through OpenAI's Chat Completions (current models support it for text and image input without tools):
+// The OpenAI API through its Chat Completions (current models support it for text and image input without tools):
 // a developer message with the persona, one user message, max_completion_tokens (reasoning included), low reasoning
 // effort, store false; no temperature or top_p.
 internal sealed class OpenAiService : CloudService

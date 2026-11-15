@@ -102,11 +102,16 @@ Check(new[] { "CloudProvider", "ClaudeModel", "OpenAiModel", "GeminiModel", "Clo
     && new[] { "ClaudeApiKeyProtected", "OpenAiApiKeyProtected", "GeminiApiKeyProtected" }.All(name => ControlTools.RefusedSetting(name, true).StartsWith("API Key 與授權碼")),
     "The cloud model settings are the user's, and the cloud API keys are never written by MCP");
 Check(ControlTools.SettingNames.Contains("ShowOnAllSpaces") == OperatingSystem.IsMacOS(), "ShowOnAllSpaces is writable on macOS only");
-// Claude Code on the Claude API Key is the user's switch alone; get_settings names it read-only.
-Check(ControlTools.RefusedSetting("AgentClaudeApiKey", false) == "Claude Code 改用 Claude API Key 只能由使用者在設定中開啟或關閉。" && !ControlTools.SettingNames.Contains("AgentClaudeApiKey")
-    && tools.Single(t => t.GetProperty("name").GetString() == "get_settings").GetProperty("description").GetString()!.Contains("AgentClaudeApiKey")
-    && tools.Single(t => t.GetProperty("name").GetString() == "update_settings").GetProperty("description").GetString()!.Contains("AgentClaudeApiKey"),
-    "AgentClaudeApiKey is refused by update_settings with its reason and described as read-only");
+// Claude Code, Codex CLI and Gemini CLI on an API Key are the user's switches alone; get_settings names them read-only.
+string settingsSchemaText = tools.Single(t => t.GetProperty("name").GetString() == "update_settings").GetProperty("inputSchema").GetProperty("properties")
+    .GetProperty("settings").GetProperty("description").GetString()!;
+foreach (var (name, refusal) in new[] { ("AgentClaudeApiKey", "Claude Code 改用 Claude API Key 只能由使用者在設定中開啟或關閉。"),
+    ("AgentOpenAiApiKey", "Codex CLI 改用 OpenAI API Key 只能由使用者在設定中開啟或關閉。"), ("AgentGeminiApiKey", "Gemini CLI 改用 Gemini API Key 只能由使用者在設定中開啟或關閉。") })
+    Check(ControlTools.RefusedSetting(name, false) == refusal && !ControlTools.SettingNames.Contains(name)
+        && tools.Single(t => t.GetProperty("name").GetString() == "get_settings").GetProperty("description").GetString()!.Contains(name)
+        && tools.Single(t => t.GetProperty("name").GetString() == "update_settings").GetProperty("description").GetString()!.Contains(name)
+        && settingsSchemaText.Contains(name),
+        name + " is refused by update_settings with its reason and described as read-only");
 Check(Rejected(() => ControlTools.OptionalNumber(sample, "word", 0, 1)) && Rejected(() => ControlTools.OptionalNumber(sample, "big", 0, 100))
     && Rejected(() => ControlTools.OptionalBool(sample, "x", true)) && Rejected(() => ControlTools.OptionalChoice(sample, "space", "screen"))
     && Rejected(() => ControlTools.OptionalText(sample, "word", 2)), "Invalid optional arguments are rejected");
@@ -119,7 +124,7 @@ Check(!settingSchema.GetProperty("additionalProperties").GetBoolean(), "Settings
 var settingProperties = settingSchema.GetProperty("properties");
 Check(settingProperties.EnumerateObject().Select(p => p.Name).Order().SequenceEqual(ControlTools.SettingNames.Order()), "Every writable setting is documented exactly once");
 Check(!settingProperties.TryGetProperty("McpEnabled", out _), "User-only MCP switch absent from writable schema");
-foreach (var userOnly in new[] { "AgentEnabled", "AgentHarnessId", "AgentClaudeApiKey", "ModelSource", "RemoteUrl", "RemoteModel", "ScreenImages", "RemoteApiKeyProtected", "CwaApiKeyProtected",
+foreach (var userOnly in new[] { "AgentEnabled", "AgentHarnessId", "AgentClaudeApiKey", "AgentOpenAiApiKey", "AgentGeminiApiKey", "ModelSource", "RemoteUrl", "RemoteModel", "ScreenImages", "RemoteApiKeyProtected", "CwaApiKeyProtected",
     "CloudProvider", "ClaudeModel", "OpenAiModel", "GeminiModel", "CloudDailyLimit", "ClaudeApiKeyProtected", "OpenAiApiKeyProtected", "GeminiApiKeyProtected" })
     Check(!settingProperties.TryGetProperty(userOnly, out _), "User-only setting absent from writable schema: " + userOnly);
 Check(new[] { "AgentDailySpeech", "AgentRespondToClick", "AgentRespondToDrag", "McpChatEnabled", "DailyBriefing", "WelcomeBackMinutes", "SitReminderMinutes", "LateReminder" }

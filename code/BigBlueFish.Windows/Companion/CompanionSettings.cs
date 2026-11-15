@@ -358,7 +358,7 @@ public partial class MainWindow
         var source = new ComboBox { Margin = new Thickness(0, 0, 0, 8) };
         source.Items.Add("本機內建模型");
         source.Items.Add("遠端 llama.cpp 伺服器（OpenAI 相容介面）");
-        source.Items.Add("雲端 AI 服務（Claude、ChatGPT、Gemini）");
+        source.Items.Add("雲端 AI 服務（Claude、OpenAI、Gemini）");
         // The saved source; a switch to the cloud AI service counts only after its confirmation.
         int confirmedSource = preferences.ModelSource switch { "Remote" => 1, "Cloud" => 2, _ => 0 };
         source.SelectedIndex = confirmedSource;
@@ -416,7 +416,7 @@ public partial class MainWindow
 #if COMPANION_SAFE
         CloudLabel("API Key（以目前 Windows 帳戶加密儲存）");
 #else
-        CloudLabel("API Key（以目前 Windows 帳戶加密儲存，不提供給 MCP 和 Agent）");
+        CloudLabel("API Key（以目前 Windows 帳戶加密儲存，不提供給 MCP）");
 #endif
         var cloudKey = new PasswordBox { Padding = new Thickness(6, 4, 6, 4) };
         var cloudKeyShown = new TextBox { Padding = new Thickness(6, 4, 6, 4), Visibility = Visibility.Collapsed };
@@ -426,7 +426,7 @@ public partial class MainWindow
         cloudPanel.Children.Add(cloudKeyShown);
         var revealKey = new CheckBox { Content = "顯示 API Key", Margin = new Thickness(0, 4, 0, 0) };
         cloudPanel.Children.Add(revealKey);
-        CloudNote("貼上 API Key 時，會依開頭自動選擇服務：sk-ant- 是 Claude，AIza 和 AQ. 是 Gemini，其他 sk- 是 ChatGPT。");
+        CloudNote("貼上 API Key 時，會依開頭自動選擇服務：sk-ant- 是 Claude，AIza 和 AQ. 是 Gemini，其他 sk- 是 OpenAI。");
         CloudLabel("模型");
         var cloudModel = new TextBox { Padding = new Thickness(6, 4, 6, 4) };
         System.Windows.Automation.AutomationProperties.SetName(cloudModel, "模型");
@@ -552,8 +552,9 @@ public partial class MainWindow
                     {
                         preferences.SetCloudApiKey(provider, key.Trim());
                         cloudKeyDrafts.Remove(provider);
-                        // Claude Code on the Claude API Key starts again with the new key (or stops for want of one).
-                        if (provider == CompanionCloud.Claude) AgentLaunchChanged();
+                        // Claude Code, Codex CLI or Gemini CLI on this API Key starts again with the new key (or stops for
+                        // want of one); the Agent restarts only when its own launch changed.
+                        AgentLaunchChanged();
                     }
                 foreach (var (provider, model) in cloudModelDrafts) preferences.SetCloudModel(provider, model);
                 cloudModelDrafts.Clear();
@@ -841,9 +842,18 @@ public partial class MainWindow
 #if COMPANION_SAFE
         + "API Key 以目前 Windows 帳戶加密儲存在這台電腦。"
 #else
-        + "API Key 以目前 Windows 帳戶加密儲存在這台電腦，不提供給 MCP 和 Agent。"
+        + "API Key 以目前 Windows 帳戶加密儲存在這台電腦，不提供給 MCP；" + CloudKeyForAgent(provider)
 #endif
         + "各服務依用量收費，建議在服務的主控台設定花費上限，並為魚魚建立一把專用的 API Key。";
+#if !COMPANION_SAFE
+    // The one place a cloud key goes besides its service: the 連線 Agent switch of the same company hands it to the CLI the
+    // fish starts (BigBlueFish.Agent.ApiKeyLaunch; LinuxModelSettings on macOS and Linux says the same).
+    private static string CloudKeyForAgent(string provider)
+    {
+        var api = BigBlueFish.Agent.ApiKeyLaunch.All.First(l => CompanionPreferences.AgentApiKeyProvider(l.Harness) == CompanionCloud.Info(provider).Id);
+        return "只有在「連線 Agent」開啟「" + api.Switch + "」時，魚魚啟動的 " + api.Product + " 才會拿到這把 Key。";
+    }
+#endif
 
     // Before 模型來源 turns to the cloud AI service: which service gets what, where the key stays, and how to keep the
     // spending in hand. 取消 (or closing the window) keeps the source as it was.
@@ -866,7 +876,7 @@ public partial class MainWindow
 #if COMPANION_SAFE
         dialog.Body.Children.Add(ModernUI.Text("之後在「服務」換成其他服務時，就改傳到那個服務。API Key 以目前 Windows 帳戶加密儲存在這台電腦。"));
 #else
-        dialog.Body.Children.Add(ModernUI.Text("之後在「服務」換成其他服務時，就改傳到那個服務。API Key 以目前 Windows 帳戶加密儲存在這台電腦，不提供給 MCP 和 Agent。"));
+        dialog.Body.Children.Add(ModernUI.Text("之後在「服務」換成其他服務時，就改傳到那個服務。API Key 以目前 Windows 帳戶加密儲存在這台電腦，不提供給 MCP；" + CloudKeyForAgent(provider)));
 #endif
         dialog.Body.Children.Add(ModernUI.Text("各服務依用量收費。建議先在服務的主控台設定花費上限，並為魚魚建立一把專用的 API Key；設定裡的「每天最多」也能限制每天的請求次數。"));
         bool accepted = false;

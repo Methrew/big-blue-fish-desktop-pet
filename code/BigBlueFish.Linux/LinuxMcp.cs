@@ -74,24 +74,24 @@ internal sealed partial class LinuxPetWindow
     }
 
     void ConfigureAgent() { agent?.Configure(Preferences.AgentHarnessId, new(Preferences.AgentEnabled, Preferences.PuppetMode, Preferences.AgentDailySpeech)); if (!AgentDailyActive) nextWarmup = DateTime.MinValue; }
-    // Claude Code on the Claude API Key (AgentClaudeApiKey on the 連線 Agent page): the key the cloud AI service keeps
-    // goes into the environment of the Claude Code the fish starts, and nowhere else (BigBlueFish.Agent.ClaudeApiKeyLaunch).
-    // Without a key nothing starts; the subscription is never used in its place.
-    internal const string AgentClaudeKeyMissing = "已開啟「Claude Code 改用 Claude API Key」，但還沒有儲存 Claude API Key，所以先不啟動 Claude Code（不會改用訂閱登入）。"
-        + "請先在「設定 › 模型與資訊」的雲端 AI 服務儲存 Claude API Key，或關閉這個選項。";
+    // Claude Code, Codex CLI or Gemini CLI on an API Key of the cloud AI service (AgentClaudeApiKey, AgentOpenAiApiKey,
+    // AgentGeminiApiKey on the 連線 Agent page): the key the cloud AI service keeps goes into the environment of the CLI the
+    // fish starts, and nowhere else (BigBlueFish.Agent.ApiKeyLaunch). Without a key nothing starts; the CLI's own sign-in is
+    // never used in its place.
+    const string ModelPageName = "設定 › 模型與資訊";
     AgentLaunch AgentLaunchFor(string harness)
     {
-        if (harness != ClaudeApiKeyLaunch.Harness || !Preferences.AgentClaudeApiKey) return AgentLaunch.Default;
-        string root = Path.Combine(Environment.CurrentDirectory, "agent");
+        if (ApiKeyLaunch.For(harness) is not { } api || !Preferences.AgentUsesApiKey(harness)) return AgentLaunch.Default;
+        string root = Path.Combine(Environment.CurrentDirectory, "agent"), provider = CompanionPreferences.AgentApiKeyProvider(harness)!;
 #if COMPANION_MAC
         // The keychain answers off the UI thread at startup (MacSecrets); ReadSecrets asks again once it has.
-        if (!macSecretsLoaded) return ClaudeApiKeyLaunch.Create(root, null, "正在讀取 macOS 鑰匙圈裡的 Claude API Key，讀到後會自動啟動 Claude Code。");
-        if (Preferences.ClaudeApiKey.Length == 0 && SecretNote(MacKeychain.ClaudeAccount, "Claude API Key") is { } note) return ClaudeApiKeyLaunch.Create(root, null, note);
+        if (!macSecretsLoaded) return api.Create(root, null, "正在讀取 macOS 鑰匙圈裡的 " + api.KeyName + "，讀到後會自動啟動 " + api.Product + "。");
+        if (Preferences.CloudApiKey(provider).Length == 0 && SecretNote(CompanionPreferences.CloudAccount(provider), api.KeyName) is { } note) return api.Create(root, null, note);
 #endif
-        return ClaudeApiKeyLaunch.Create(root, Preferences.ClaudeApiKey, AgentClaudeKeyMissing);
+        return api.Create(root, Preferences.CloudApiKey(provider), api.Missing(ModelPageName));
     }
-    // The option, the Claude API Key or what the keychain gave may have changed: the Agent compares and starts again only
-    // when its launch differs.
+    // The option, the API Key or what the keychain gave may have changed: the Agent compares and starts again only when its
+    // launch differs.
     void AgentLaunchChanged() { if (agent != null) _ = agent.LaunchChanged(); }
     void TickAgent(DateTime now)
     {

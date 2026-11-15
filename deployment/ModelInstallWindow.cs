@@ -65,7 +65,7 @@ internal sealed class ModelInstallWindow : ModernWindow
         links.Children.Add(ModernUI.Button("選擇已下載檔案", async () => await PickFile()));
         manualPanel.Children.Add(links); manualPanel.Visibility = Visibility.Collapsed;
         Body.Children.Add(manualPanel);
-        Body.Children.Add(ModernUI.Text("不想下載模型的話，也可以按「改用雲端 AI 服務」，用你自己的 Claude、ChatGPT 或 Gemini API Key 讓魚魚說話（依用量向服務付費），接著在設定裡填寫 API Key。"));
+        Body.Children.Add(ModernUI.Text("不想下載模型的話，也可以按「改用雲端 AI 服務」，用你自己的 Claude、OpenAI 或 Gemini API Key 讓魚魚說話（依用量向服務付費），接著在設定裡填寫 API Key。"));
         Body.Children.Add(progress); Body.Children.Add(status);
         skip = ModernUI.Button("先無模型啟動", () => FinishWithoutModel());
         cloud = ModernUI.Button("改用雲端 AI 服務", UseCloud);

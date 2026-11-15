@@ -279,7 +279,7 @@ try
     Check(!host.Connected && !File.Exists(host.Workspaces.SessionPath("opencode")), "cancelled login creates no false session binding");
     host.Configure("opencode", new(false, false, false));
     await Until(() => !host.Connected && server.Connections == 0, "disable closes owned ACP/MCP sessions");
-    // Claude Code on the Claude API Key: the host's launch settings for one harness's process.
+    // Claude Code, Codex CLI and Gemini CLI on an API Key: the host's launch settings for one harness's process.
     await LaunchVerification.Run(root, fixtureExe, shimDirectory, Check, Until);
 }
 finally { host?.Dispose(); Environment.SetEnvironmentVariable("PATH", oldPath); }
@@ -395,6 +395,13 @@ static class Fixture
                     File.WriteAllText("fixture-last-prompt.txt", p.GetProperty("prompt")[0].GetProperty("text").GetString());
                     if (File.Exists("fixture-prompt-auth") && !File.Exists("fixture-prompt-auth-used"))
                     { File.WriteAllText("fixture-prompt-auth-used", ""); await Send(new {jsonrpc="2.0",id,error=new {code=-32000,message="Authentication required"}}); break; }
+                    // An ACP error an Agent sends for this one turn (a key turned down as an ordinary error, no credit).
+                    if (File.Exists("fixture-prompt-error.json") && !File.Exists("fixture-prompt-error-used"))
+                    {
+                        File.WriteAllText("fixture-prompt-error-used", "");
+                        using var promptError = JsonDocument.Parse(File.ReadAllText("fixture-prompt-error.json"));
+                        await Send(new { jsonrpc = "2.0", id, error = promptError.RootElement.Clone() }); break;
+                    }
                     if (File.Exists("fixture-reject-images") && p.GetProperty("prompt").EnumerateArray().Any(b => b.GetProperty("type").GetString() == "image"))
                     { await Send(new { jsonrpc = "2.0", id, error = new { code = -32602, message = "Upstream model does not support image content blocks" } }); break; }
                     string text = p.GetProperty("prompt")[0].GetProperty("text").GetString()!;

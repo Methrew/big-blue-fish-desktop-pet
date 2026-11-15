@@ -31,7 +31,7 @@
 
 2. 打開 DMG，把 App 拖到「應用程式」檔案夾，再從「應用程式」開啟。請不要直接從 DMG 執行：退出磁碟映像後 App 就不見了，「登入時自動開啟」也會拒絕設定。
 3. App 只有臨時（ad-hoc）簽章，沒有經過 Apple 公證，第一次打開時 macOS 會擋下來。請先試著打開一次，再到「系統設定 › 隱私權與安全性」，在下方找到藍色大肥魚的提示並按「強制打開」，然後依系統提示確認。
-4. 第一次啟動時會出現安裝模型的視窗：可以選擇 Hugging Face（推薦）或中國大陸鏡像（ModelScope）自動下載約 2.7 GB 的模型，或選「手動安裝」挑選已經下載好的 GGUF 檔案，也可以先以無模型模式啟動。不想在這台 Mac 上執行模型時，選「改用雲端 AI 服務」，就會打開「設定 › 模型與資訊」的雲端設定，改用 Claude、ChatGPT 或 Gemini（需要自己的 API Key，見「[雲端 AI 服務](#雲端-ai-服務)」）。之後可以到「設定 › 模型與資訊」安裝或管理模型。如果「模型來源」已經設成遠端伺服器或雲端 AI 服務，啟動時不會要求安裝本機模型。
+4. 第一次啟動時會出現安裝模型的視窗：可以選擇 Hugging Face（推薦）或中國大陸鏡像（ModelScope）自動下載約 2.7 GB 的模型，或選「手動安裝」挑選已經下載好的 GGUF 檔案，也可以先以無模型模式啟動。不想在這台 Mac 上執行模型時，選「改用雲端 AI 服務」，就會打開「設定 › 模型與資訊」的雲端設定，改用 Claude API、OpenAI API 或 Gemini API（需要自己的 API Key，見「[雲端 AI 服務](#雲端-ai-服務)」）。之後可以到「設定 › 模型與資訊」安裝或管理模型。如果「模型來源」已經設成遠端伺服器或雲端 AI 服務，啟動時不會要求安裝本機模型。
 
 App 啟動後會常駐在選單列。選單列圖示的選單有「顯示桌寵」「設定」「天氣」「說話測試」與「關閉桌寵」；在魚魚身上按右鍵，也有「設定」「天氣」「說話測試」「隱藏桌寵」與「關閉桌寵」。設定視窗分成「桌寵與顯示」「模型與資訊」「動作與作息」「連線 Agent」（只有標準版）「關於與更新」與「記錄主控台」。
 
@@ -117,7 +117,7 @@ App 啟動後會常駐在選單列。選單列圖示的選單有「顯示桌寵�
 
 ## 遠端模型
 
-魚魚可以改用另一台電腦上的 llama.cpp 伺服器說話，這台 Mac 就不必載入本機模型。設定在「設定 › 模型與資訊」。想改用 Claude、ChatGPT 或 Gemini 的 API，請看下一節「[雲端 AI 服務](#雲端-ai-服務)」。
+魚魚可以改用另一台電腦上的 llama.cpp 伺服器說話，這台 Mac 就不必載入本機模型。設定在「設定 › 模型與資訊」。想改用 Claude API、OpenAI API 或 Gemini API，請看下一節「[雲端 AI 服務](#雲端-ai-服務)」。
 
 1. 「啟用模型說話」要開著。這是魚魚用模型自己說話、播報天氣的總開關（設定鍵仍是 `ModelEnabled`）。使用遠端模型時也要開著，只是不會在這台電腦上載入模型。
 2. 「模型來源」選「遠端 llama.cpp 伺服器（OpenAI 相容介面）」。
@@ -189,21 +189,21 @@ RUNTIME="/Applications/藍色大肥魚.app/Contents/MacOS/runtime"
 
 ## 雲端 AI 服務
 
-魚魚也可以改用 Claude（Anthropic）、ChatGPT（OpenAI）或 Gemini（Google）的 API 說話。日常關心、天氣、新聞、說話測試，以及 Agent 請魚魚自己的模型說的話（`request_local_speech`、預約到期時由魚魚自己說），都會改由所選的服務產生；這台 Mac 不載入本機模型，也不必先安裝模型。標準版和無MCP版都有這個功能。
+魚魚也可以改用 Claude API（Anthropic）、OpenAI API 或 Gemini API（Google）說話。日常關心、天氣、新聞、說話測試，以及 Agent 請魚魚自己的模型說的話（`request_local_speech`、預約到期時由魚魚自己說），都會改由所選的服務產生；這台 Mac 不載入本機模型，也不必先安裝模型。標準版和無MCP版都有這個功能。
 
 開始之前：
 
 - 需要你自己的 API Key，費用由服務依 token 用量向你的帳戶收取。Claude Pro、ChatGPT Plus 這類聊天訂閱方案不包含 API 用量，API 要在各服務的開發者平台另外付款或儲值。
 - 每一句話都是一次獨立的請求，不帶對話歷史，服務那邊也不會因此記得魚魚之前說過什麼。
-- 這和「連線 Agent」裡的 Claude Code、Codex CLI、Gemini CLI 是兩回事：Agent 使用它們自己的登入和設定，不會用到這裡的 API Key。唯一的例外是在「連線 Agent」選 Claude Code 並開啟「Claude Code 改用 Claude API Key（依用量計費）」時，魚魚啟動的 Claude Code 會改用這裡的 Claude API Key（見「[連線 Agent 與輸入框附件](#連線-agent-與輸入框附件標準版)」）。
+- 這和「連線 Agent」裡的 Claude Code、Codex CLI、Gemini CLI 是兩回事：Agent 使用它們自己的登入和設定，不會用到這裡的 API Key。例外是在「連線 Agent」開啟「Claude Code 改用 Claude API Key（依用量計費）」、「Codex CLI 改用 OpenAI API Key（依用量計費）」或「Gemini CLI 改用 Gemini API Key（依用量計費）」時，魚魚啟動的那個 CLI 會改用這裡同一家的 API Key（見「[連線 Agent 與輸入框附件](#連線-agent-與輸入框附件標準版)」）。
 
 ### 1. 取得 API Key
 
 | 服務 | 建立 API Key 的網頁 | Key 的開頭 |
 | --- | --- | --- |
-| Claude（Anthropic） | <https://platform.claude.com/settings/keys> | `sk-ant-` |
-| ChatGPT（OpenAI） | <https://platform.openai.com/api-keys> | `sk-`（例如 `sk-proj-`） |
-| Gemini（Google） | <https://aistudio.google.com/apikey> | `AIza` 或 `AQ.` |
+| Claude API（Anthropic） | <https://platform.claude.com/settings/keys> | `sk-ant-` |
+| OpenAI API | <https://platform.openai.com/api-keys> | `sk-`（例如 `sk-proj-`） |
+| Gemini API（Google） | <https://aistudio.google.com/apikey> | `AIza` 或 `AQ.` |
 
 設定頁的「取得 API Key」按鈕會用瀏覽器打開所選服務的這個網頁。建議：
 
@@ -215,10 +215,10 @@ RUNTIME="/Applications/藍色大肥魚.app/Contents/MacOS/runtime"
 設定在「設定 › 模型與資訊」。
 
 1. 「啟用模型說話」要開著。這是魚魚用模型自己說話的總開關，使用雲端 AI 服務時也要開著。
-2. 「模型來源」選「雲端 AI 服務（Claude、ChatGPT、Gemini）」。切換時會先跳出「改用雲端 AI 服務？」的說明，列出會傳送給服務的內容和金鑰存放的位置；按「改用雲端 AI 服務」後才會切換，按「取消」維持原本的模型來源。
-3. 「服務」選 Claude（Anthropic）、ChatGPT（OpenAI）或 Gemini（Google）。
-4. 把 Key 貼到「API Key」欄。欄位平常會遮住內容，勾選「顯示 API Key」才看得到。貼上時會依 Key 的開頭自動選好服務：`sk-ant-` 是 Claude，`AIza` 和 `AQ.` 是 Gemini，其他 `sk-` 開頭的是 ChatGPT。三個服務的 Key 和模型分開記住，換服務不會刪掉另一家的 Key。
-5. 按「儲存並測試」。魚魚會用這把 Key 讀取服務的模型清單：讀得到就表示 Key 有效，並把這把 Key 能用的模型列進「模型」選單。這個測試只讀清單、不產生文字，不花費 token，也不算進每天的請求次數。Key 的開頭和「服務」對不上時（例如服務選 Claude、卻貼了 ChatGPT 的 Key），不會儲存，按鈕下方會說明這把 Key 是哪一家的。
+2. 「模型來源」選「雲端 AI 服務（Claude、OpenAI、Gemini）」。切換時會先跳出「改用雲端 AI 服務？」的說明，列出會傳送給服務的內容和金鑰存放的位置；按「改用雲端 AI 服務」後才會切換，按「取消」維持原本的模型來源。
+3. 「服務」選「Claude API（Anthropic）」、「OpenAI API」或「Gemini API（Google）」。
+4. 把 Key 貼到「API Key」欄。欄位平常會遮住內容，勾選「顯示 API Key」才看得到。貼上時會依 Key 的開頭自動選好服務：`sk-ant-` 是 Claude，`AIza` 和 `AQ.` 是 Gemini，其他 `sk-` 開頭的是 OpenAI API。三個服務的 Key 和模型分開記住，換服務不會刪掉另一家的 Key。
+5. 按「儲存並測試」。魚魚會用這把 Key 讀取服務的模型清單：讀得到就表示 Key 有效，並把這把 Key 能用的模型列進「模型」選單。這個測試只讀清單、不產生文字，不花費 token，也不算進每天的請求次數。Key 的開頭和「服務」對不上時（例如服務選「Claude API（Anthropic）」、卻貼了 OpenAI 的 Key），不會儲存，按鈕下方會說明這把 Key 是哪一家的。
 6. 視需要調整「模型」和「每天最多」，再按一次「儲存並測試」。改選服務、改 Key 或改模型之後，都要按「儲存並測試」才會生效。
 
 測試成功時，模型狀態會顯示「雲端 AI 服務就緒：Claude（claude-opus-5-5）（API Key 有效，找到 12 個可用模型）」這類文字；魚魚準備說話時，狀態會顯示「雲端生成短句」。
@@ -229,7 +229,7 @@ RUNTIME="/Applications/藍色大肥魚.app/Contents/MacOS/runtime"
 
 ### 3. 選擇模型與費用
 
-「儲存並測試」成功後，「模型」會預選：你之前選過、而且這把 Key 還能用的模型；沒有的話，選服務的建議模型（Claude 是 Claude Opus 5.5，ChatGPT 是 `gpt-6-luna`，Gemini 是 `gemini-3.5-flash-lite`）；清單裡也沒有時，選第一個適合聊天的模型。也可以直接輸入清單以外的模型名稱。「模型」留空時，使用服務的建議模型。
+「儲存並測試」成功後，「模型」會預選：你之前選過、而且這把 Key 還能用的模型；沒有的話，選服務的建議模型（Claude 是 Claude Opus 5.5，OpenAI API 是 `gpt-6-luna`，Gemini API 是 `gemini-3.5-flash-lite`）；清單裡也沒有時，選第一個適合聊天的模型。也可以直接輸入清單以外的模型名稱。「模型」留空時，使用服務的建議模型。
 
 Claude 的三個模型：
 
@@ -239,18 +239,18 @@ Claude 的三個模型：
 | Claude Sonnet 5.5（`claude-sonnet-5-5`） | US$0.01 | US$2／US$10 |
 | Claude Haiku 5.5（`claude-haiku-5-5`） | US$0.0005 | US$0.10／US$0.50 |
 
-Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 Sonnet 5.5 或 Haiku 5.5。ChatGPT 與 Gemini 有估計的模型：
+Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 Sonnet 5.5 或 Haiku 5.5。OpenAI API 與 Gemini API 有估計的模型：
 
 | 服務 | 模型 | 每句大約 |
 | --- | --- | --- |
-| ChatGPT | `gpt-6-luna`（預選） | US$0.0004 |
-| ChatGPT | `gpt-5.6-luna` | US$0.0008 |
-| ChatGPT | `gpt-6.1-terra` | US$0.0035 |
-| Gemini | `gemini-3.5-flash-lite`（預選） | US$0.001 |
+| OpenAI API | `gpt-6-luna`（預選） | US$0.0004 |
+| OpenAI API | `gpt-5.6-luna` | US$0.0008 |
+| OpenAI API | `gpt-6.1-terra` | US$0.0035 |
+| Gemini API | `gemini-3.5-flash-lite`（預選） | US$0.001 |
 
 - 選好模型後，設定頁會在旁邊顯示這個估計。估計依各服務在 2026 年 11 月公布的價格，以一句附視窗截圖的話（約 2,000 個輸入 token、幾百個輸出 token，包括思考）計算；只傳視窗文字時通常更少。其他模型不顯示估計。實際費用以服務的帳單為準。
 - 以預設的說話間隔（10–16 分鐘）來算，一小時大約說 4–6 句，用 Claude Opus 5.5 約 US$0.1。「每天最多」設 200 次時，Claude Opus 5.5 一天最多約 US$4，Claude Haiku 5.5 約 US$0.1。
-- 魚魚只需要一小句話，所以會請服務少想一點：Claude 的思考強度（effort）設為低，ChatGPT 的推論強度（reasoning effort）設為低，Gemini 用該系列最低的思考設定；每次最多輸出 4,096 個 token（包括思考）。不送 temperature 這類取樣參數。模型不接受這些設定時，會自動拿掉再送一次，這次重送不另外計次。
+- 魚魚只需要一小句話，所以會請服務少想一點：Claude 的思考強度（effort）設為低，OpenAI API 的推論強度（reasoning effort）設為低，Gemini API 用該系列最低的思考設定；每次最多輸出 4,096 個 token（包括思考）。不送 temperature 這類取樣參數。模型不接受這些設定時，會自動拿掉再送一次，這次重送不另外計次。
 - 使用 Claude Opus 5.5、Claude Opus 5、Claude Sonnet 5.5、Claude Fable 5.1 或 Claude Fable 5.2 時，請求會開啟 Anthropic 的伺服器端備援（server-side fallback）：模型婉拒時，由 Anthropic 改用它建議的備援模型，在同一次請求裡重新產生。仍然被婉拒時，魚魚這次就不說話。
 
 ### 4. 每天最多幾次
@@ -269,9 +269,9 @@ Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 S
 
 | 服務 | 端點 |
 | --- | --- |
-| Claude | `https://api.anthropic.com`（透過 Anthropic 官方的 C# SDK） |
-| ChatGPT | `https://api.openai.com/v1`（Chat Completions） |
-| Gemini | `https://generativelanguage.googleapis.com/v1beta`（generateContent） |
+| Claude API | `https://api.anthropic.com`（透過 Anthropic 官方的 C# SDK） |
+| OpenAI API | `https://api.openai.com/v1`（Chat Completions） |
+| Gemini API | `https://generativelanguage.googleapis.com/v1beta`（generateContent） |
 
 - 魚魚的說話設定（人設與說話要求）和目前時間。
 - 前景 App 的名稱與視窗標題。
@@ -285,7 +285,7 @@ Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 S
 - 只讀取最前面的那個視窗，不會傳送整個螢幕或其他視窗；最前面是桌面時，不截圖也不做 OCR，只告訴模型「目前在桌面」。
 - 「儲存並測試」只讀取模型清單，不會傳送螢幕上的任何內容。
 - 沒有 Key、暫停中或已達每天上限時，不讀取螢幕，也不送出任何請求。
-- API Key 只放在送往該服務官方端點的請求標頭裡（Claude 和 ChatGPT 是 `Authorization: Bearer`，Gemini 是 `x-goog-api-key`，不會放在網址裡），不會寫進記錄主控台、用量檔、錯誤訊息或 MCP。記錄主控台也不記錄服務回覆的原文，只記下失敗的種類（例如 `invalid_key`、`billing`、`rate_limited`）。
+- API Key 只放在送往該服務官方端點的請求標頭裡（Claude API 和 OpenAI API 是 `Authorization: Bearer`，Gemini API 是 `x-goog-api-key`，不會放在網址裡），不會寫進記錄主控台、用量檔、錯誤訊息或 MCP。記錄主控台也不記錄服務回覆的原文，只記下失敗的種類（例如 `invalid_key`、`billing`、`rate_limited`）。
 - 由 Agent 編寫日常關心時走的是另一條路：截圖或文字交給 Agent，不經過這裡的雲端 AI 服務。
 
 端點寫在程式裡，不能改成其他網址，也不受 `ANTHROPIC_BASE_URL`、`ANTHROPIC_CUSTOM_HEADERS` 這類環境變數影響；送往其他位址的請求會被擋下，也不跟隨轉址，所以 Key 不會被帶到別的伺服器。送給 OpenAI 的請求帶有 `store: false`，不會把這次的請求和回覆存進 OpenAI 平台的記錄。
@@ -326,12 +326,12 @@ Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 S
 | --- | --- | --- |
 | 中央氣象署授權碼 | `io.github.methrew.bigbluefish.tw` | `CwaApiKey` |
 | 遠端模型的 API Key | `io.github.methrew.bigbluefish.tw` | `RemoteApiKey` |
-| Claude 的 API Key | `io.github.methrew.bigbluefish.tw` | `ClaudeApiKey` |
-| ChatGPT（OpenAI）的 API Key | `io.github.methrew.bigbluefish.tw` | `OpenAiApiKey` |
-| Gemini 的 API Key | `io.github.methrew.bigbluefish.tw` | `GeminiApiKey` |
+| Claude API Key | `io.github.methrew.bigbluefish.tw` | `ClaudeApiKey` |
+| OpenAI API Key | `io.github.methrew.bigbluefish.tw` | `OpenAiApiKey` |
+| Gemini API Key | `io.github.methrew.bigbluefish.tw` | `GeminiApiKey` |
 
 - 標準版和無MCP版共用同一筆。`preferences.json` 只記下 `"CwaApiKeyProtected": "keychain"`、`"RemoteApiKeyProtected": "keychain"`（雲端 AI 服務是 `ClaudeApiKeyProtected`、`OpenAiApiKeyProtected`、`GeminiApiKeyProtected`）這類標記，不會有金鑰本身，所以備份或複製資料夾時，金鑰不會跟著外流。
-- Claude 的 API Key 在開啟「Claude Code 改用 Claude API Key」時，也交給魚魚啟動的 Claude Code：只放進那個程式的環境變數，不會寫進檔案；但 Claude Code 和它執行的指令可能讀得到，所以最好另外建立一把只給魚魚用的 Key。
+- 開啟「Claude Code 改用 Claude API Key」、「Codex CLI 改用 OpenAI API Key」或「Gemini CLI 改用 Gemini API Key」時，同一家的 API Key 也會交給魚魚啟動的那個 CLI：只放進那個程式的環境變數，不會寫進檔案；但 CLI 本身和它執行的指令可能讀得到（Codex CLI 不會把它放進所執行指令的環境變數，但在沙箱外執行的指令仍可能間接讀到），所以最好另外建立一把只給魚魚用的 Key。
 - MCP 的 `get_settings` 看不到這些資料，`update_settings` 也不能寫入。遠端模型的網址、模型名稱、模型來源、截圖選項，以及雲端 AI 服務的服務、各服務的模型和每天上限，可以從 `get_settings` 讀到，但 MCP 和 Agent 都不能修改。
 - 鑰匙圈項目由 Apple 內建的 `/usr/bin/security` 建立，App 更新後不會再跳出鑰匙圈授權視窗。相對地，同一個使用者帳號下的其他程式也能透過這個工具讀到它們，保護程度和 Windows 版的 DPAPI 相同。
 - 每次存取鑰匙圈最多等 5 秒。鑰匙圈鎖住時（例如只透過 SSH 登入，或啟動時鑰匙圈還沒解鎖），讀不到授權碼和 API Key：臺灣地點改用 Open-Meteo 估計，遠端模型的請求不帶 API Key，雲端 AI 服務沒有 Key 就先不說話，設定頁的金鑰欄位下方會顯示「無法讀取 macOS 鑰匙圈：」和原因。鑰匙圈裡的資料不會因此被刪除。App 會在 30 秒、2 分鐘、10 分鐘後各重讀一次，解鎖螢幕和打開設定時也會重讀；也可以按欄位下方的「重新讀取鑰匙圈」。每次讀取鎖住的鑰匙圈，macOS 可能會跳出解鎖視窗，所以不會一直重試。都讀不到時，重新啟動 App 就會再讀一次。
@@ -384,6 +384,9 @@ Claude Opus 5.5 是 Anthropic 建議的預設模型；想省錢時可以改選 S
 - Agent 要求在終端機登入時，魚魚會打開「終端機」App。按了 Control-C 或關掉終端機視窗時，設定頁會馬上顯示登入被中斷；取消登入不會關掉「終端機」裡正在進行的登入。
 - 工作區預設在「文件」資料夾裡；從原版匯入的設定會沿用原本的工作區。
 - 選 Claude Code 時可以開啟「Claude Code 改用 Claude API Key（依用量計費）」：魚魚啟動的 Claude Code 改用「設定 › 模型與資訊」雲端 AI 服務裡的 Claude API Key（鑰匙圈的 `ClaudeApiKey`），由 Anthropic 依用量計費；你自己開的 Claude Code 照樣用訂閱登入。這個 Claude Code 使用自己的設定資料夾 `~/Library/Application Support/bigbluefish-tw/agent/claude-api`（不是 `~/.claude`），對話也和用訂閱時分開。啟動時鑰匙圈還沒讀完，會等讀到 Key 再連線；沒有 Key 就不啟動。Claude Code 的用量比魚魚自己說話多很多，請先在 Claude Console 設定支出上限；想一直用比較省錢的 Sonnet 或 Haiku，請在這個資料夾的 `settings.json` 寫入 `{"model": "sonnet"}`（或 `"haiku"`），「模型與權限」選的模型只套用到目前這段對話。詳細說明見[連線本機 CLI Harness](ACP.md#claude-code-改用-claude-api-key依用量計費)。
+- 選 Codex CLI 時可以開啟「Codex CLI 改用 OpenAI API Key（依用量計費）」：魚魚啟動的 Codex CLI 改用雲端 AI 服務裡的 OpenAI API Key（鑰匙圈的 `OpenAiApiKey`），由 OpenAI 依用量計費；你自己開的 Codex CLI 照樣用原本的登入（例如 ChatGPT 帳號），`~/.codex` 裡的登入資料不會被讀取或修改。這個 Codex CLI 使用自己的資料夾 `~/Library/Application Support/bigbluefish-tw/agent/codex-api`（`CODEX_HOME`），Key 只放在記憶體，不會寫進 `auth.json` 或鑰匙圈，也不會放進 Codex CLI 執行的指令的環境變數（但在沙箱外執行的指令仍可能間接讀到）；對話和用 ChatGPT 帳號時分開。詳細說明見[連線本機 CLI Harness](ACP.md#codex-cli-改用-openai-api-key依用量計費)。
+- 選 Gemini CLI 時可以開啟「Gemini CLI 改用 Gemini API Key（依用量計費）」：魚魚啟動的 Gemini CLI 改用雲端 AI 服務裡的 Gemini API Key（鑰匙圈的 `GeminiApiKey`），依 Google 的 Gemini API 方案計費；你自己開的 Gemini CLI 照樣用原本的登入（例如 Google 帳號），`~/.gemini` 裡的登入資料和設定不會被使用或修改（Gemini CLI 仍可能讀到 `~/.gemini/.env` 裡魚魚沒有設定的變數，以及 `~/.gemini/policies` 的沙箱規則）。這個 Gemini CLI 使用自己的資料夾 `~/Library/Application Support/bigbluefish-tw/agent/gemini-api`（`GEMINI_CLI_HOME`），不會碰 macOS 鑰匙圈裡 Gemini CLI 自己存的登入資料；想固定用比較省錢的模型，請在 `gemini-api/.gemini/settings.json` 加上 `"model": {"name": "gemini-3-flash-preview"}`。詳細說明見[連線本機 CLI Harness](ACP.md#gemini-cli-改用-gemini-api-key依用量計費)。
+- 這三個選項在啟動時都會等鑰匙圈讀完；沒有 Key 就不啟動，也不會改用 CLI 自己的登入。
 
 ### 附加檔案
 
@@ -605,7 +608,7 @@ open release/藍色大肥魚.app
 | `get_context` 的 Finder 資料夾清單是空的 | 結果裡的 `openFoldersNote` 會說明原因，例如還沒允許「自動化 › Finder」、你拒絕了詢問，或 Finder 逾時沒有回應。 |
 | 遠端模型顯示「無法連線遠端模型」 | 檢查網址、伺服器是否在執行、防火牆，以及「區域網路」權限。 |
 | 雲端 AI 服務顯示「不接受這把 API Key」 | Key 貼錯、前後多了字元，或已經被撤銷。到服務建立 Key 的網頁確認，必要時建立新的 Key，貼上後按「儲存並測試」。Google 判定 Gemini 的 Key 外洩時會直接停用它，只能建立新的 Key。 |
-| 雲端 AI 服務顯示額度不足、花費上限已用完或帳單有問題 | 到服務的帳單頁面儲值、付款或調高上限（Claude 在 platform.claude.com，ChatGPT 在 OpenAI 平台，Gemini 在 Google AI Studio），再按「儲存並測試」。沒有按的話，魚魚會先暫停 30 分鐘再試。Gemini 顯示不能使用免費額度時，要為專案開啟付費。 |
+| 雲端 AI 服務顯示額度不足、花費上限已用完或帳單有問題 | 到服務的帳單頁面儲值、付款或調高上限（Claude API 在 Claude Console，OpenAI API 在 OpenAI Platform，Gemini API 在 Google AI Studio），再按「儲存並測試」。沒有按的話，魚魚會先暫停 30 分鐘再試。Gemini 顯示不能使用免費額度時，要為專案開啟付費。 |
 | 雲端 AI 服務顯示「請求太頻繁了，魚魚先安靜到 …」 | 達到服務的速率限制，魚魚會自己等到顯示的時間再試，不需要處理。常常出現時，把「自動說話間隔」調長，或到服務的主控台確認帳戶的使用等級。Gemini 免費額度的每日上限用完時，要等到每天的重置時間（台灣時間下午三點或四點），或為專案開啟付費。 |
 | 雲端 AI 服務顯示「不能使用模型 …」或「模型清單裡沒有 …」 | 模型名稱打錯、模型已經停止提供，或這把 Key 沒有權限。按「儲存並測試」重新讀取清單，再從「模型」選單選一個；清空「模型」就會使用服務的建議模型。 |
 | 選了雲端 AI 服務，魚魚卻不說話 | 看「設定 › 模型與資訊」的模型狀態：可能還沒填 Key、鑰匙圈讀不到 Key、正在暫停，或今天的請求已經達到「每天最多」的次數。 |

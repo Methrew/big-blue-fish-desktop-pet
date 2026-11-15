@@ -46,14 +46,15 @@ public partial class MainWindow
             Process.Start(new ProcessStartInfo(HarnessCatalog.Get(preferences.AgentHarnessId).Website) { UseShellExecute = true });
         }));
         extra.Children.Add(detectRow);
-        // Claude Code only: the Claude Code the fish starts runs on the cloud AI service's Claude API Key (AgentClaudeApiKey).
-        var claudeApi = new StackPanel { Visibility = preferences.AgentHarnessId == ClaudeApiKeyLaunch.Harness ? Visibility.Visible : Visibility.Collapsed };
-        var apiKey = new CheckBox { Content = AgentClaudeApiKeyLabel, IsChecked = preferences.AgentClaudeApiKey, Margin = new(0, 12, 0, 5) };
-        string claudeSettings = ClaudeApiKeyLaunch.SettingsFile(Path.Combine(Environment.CurrentDirectory, "agent"));
-        claudeApi.Children.Add(apiKey); claudeApi.Children.Add(ModernUI.Text(AgentClaudeApiKeyDescription)); claudeApi.Children.Add(ModernUI.Text(AgentClaudeModelHint(claudeSettings)));
-        var apiKeyState = ModernUI.Text(""); claudeApi.Children.Add(apiKeyState);
-        claudeApi.Children.Add(ModernUI.Button("前往雲端 AI 服務", () => { if (companionSettings is { } open) BuildCompanionSettingsContent(open, ModelSettingsPage); }));
-        extra.Children.Add(claudeApi);
+        // Claude Code, Codex CLI and Gemini CLI only: the CLI the fish starts runs on the cloud AI service's API Key of its
+        // company (ApiKeyLaunch; AgentClaudeApiKey, AgentOpenAiApiKey, AgentGeminiApiKey), shown for the selected harness.
+        string agentRoot = Path.Combine(Environment.CurrentDirectory, "agent");
+        var apiPanel = new StackPanel();
+        var apiKey = new CheckBox { Margin = new(0, 12, 0, 5) };
+        var apiDescription = ModernUI.Text(""); var apiModel = ModernUI.Text(""); var apiKeyState = ModernUI.Text("");
+        apiPanel.Children.Add(apiKey); apiPanel.Children.Add(apiDescription); apiPanel.Children.Add(apiModel); apiPanel.Children.Add(apiKeyState);
+        apiPanel.Children.Add(ModernUI.Button("前往雲端 AI 服務", () => { if (companionSettings is { } open) BuildCompanionSettingsContent(open, ModelSettingsPage); }));
+        extra.Children.Add(apiPanel);
         var state = new TextBlock { Foreground = ModernUI.Blue, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new(0, 12, 0, 5) };
         var description = ModernUI.Text(""); extra.Children.Add(state); extra.Children.Add(description);
         var actions = new WrapPanel();
@@ -79,7 +80,23 @@ public partial class MainWindow
         extra.Children.Add(new Expander { Header = "連線詳情", Content = details, Margin = new(0, 10, 0, 8) });
         var clock = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         static string OnOff(bool value) => value ? "開" : "關";
-        string? keySeen = null; bool keyUsable = false;
+        ApiKeyLaunch? shownApi = null; string keyProvider = ""; string? keySeen = null; bool keyUsable = false;
+        void RefreshApiKey()
+        {
+            var api = ApiKeyLaunch.For(preferences.AgentHarnessId);
+            apiPanel.Visibility = api != null ? Visibility.Visible : Visibility.Collapsed;
+            if (api == null) return;
+            string provider = CompanionPreferences.AgentApiKeyProvider(api.Harness)!;
+            if (api != shownApi) { shownApi = api; apiKey.Content = api.Label; apiDescription.Text = api.Description(ModelPageName); apiModel.Text = api.ModelHint(agentRoot); }
+            if (apiKey.IsEnabled) apiKey.IsChecked = preferences.AgentUsesApiKey(api.Harness);
+            // Whether the stored key can be used here (AgentLaunchFor gets "" for one this Windows account cannot decrypt):
+            // decrypted only when the stored value changes, not every half second.
+            string? stored = preferences.CloudApiKeyStored(provider);
+            if (keyProvider != provider || keySeen != stored) { keyProvider = provider; keySeen = stored; keyUsable = preferences.CloudApiKey(provider).Length > 0; }
+            apiKeyState.Text = !preferences.AgentUsesApiKey(api.Harness) ? api.OwnState
+                : keyUsable ? api.KeySaved
+                : !string.IsNullOrEmpty(keySeen) ? AgentKeyUnreadableHint(api) : api.MissingHint(CompanionCloud.Info(provider).DisplayName);
+        }
         void Refresh()
         {
             refreshWorkspace(); refreshConfiguration();
@@ -87,17 +104,10 @@ public partial class MainWindow
                 selected.Content = "Antigravity CLI" + (adapters.FindExecutable(HarnessCatalog.Get("antigravity")) == null ? " · 連線時準備官方元件" : " · 已偵測到");
             // The other page or MCP may have changed it meanwhile; a click still being confirmed keeps its own state.
             if (puppet.IsEnabled) puppet.IsChecked = preferences.PuppetMode;
-            claudeApi.Visibility = preferences.AgentHarnessId == ClaudeApiKeyLaunch.Harness ? Visibility.Visible : Visibility.Collapsed;
-            if (apiKey.IsEnabled) apiKey.IsChecked = preferences.AgentClaudeApiKey;
-            // Whether the stored key can be used here (AgentLaunchFor gets "" for one this Windows account cannot decrypt):
-            // decrypted only when the stored value changes, not every half second.
-            if (keySeen != preferences.ClaudeApiKeyProtected) { keySeen = preferences.ClaudeApiKeyProtected; keyUsable = preferences.ClaudeApiKey.Length > 0; }
-            apiKeyState.Text = !preferences.AgentClaudeApiKey ? "目前使用 Claude Code 自己的登入（例如訂閱）。"
-                : keyUsable ? "已儲存 Claude API Key，魚魚啟動的 Claude Code 會用它連線。"
-                : !string.IsNullOrEmpty(keySeen) ? AgentClaudeKeyUnreadableHint : AgentClaudeKeyMissingHint;
+            RefreshApiKey();
             state.Text = agent?.Status ?? "尚未連線";
             description.Text = agent?.Detail ?? "選擇已安裝的 Agent，連線後雙擊魚魚即可對話。";
-            string signIn = agent?.LaunchProfile == ClaudeApiKeyLaunch.Profile ? "Claude API Key（依用量計費）" : "Agent 自己的登入";
+            string signIn = ApiKeyLaunch.ForProfile(agent?.LaunchProfile)?.SignInDetail ?? "Agent 自己的登入";
             details.Text = $"程式：{agent?.ExecutablePath ?? "尚未啟動"}\nAgent 版本：{agent?.Version}\n登入：{signIn}\n模型：{agent?.CurrentModel}\n對話編號：{agent?.SessionId}\n內部工具連線：{mcpServer?.Connections ?? 0}\n輸入會發起對話；點選回應：{OnOff(preferences.AgentRespondToClick)}；拖曳回應：{OnOff(preferences.AgentRespondToDrag)}（可由 Agent 調整）";
             wake.Text = preferences.PuppetMode && preferences.AgentDailySpeech
                 ? "下一次日常關心：" + (agent?.NextWake ?? "等待 Agent 安排")
@@ -110,15 +120,17 @@ public partial class MainWindow
             preferences.AgentHarnessId = id; ConfigureAgent(); SaveCompanion(); Refresh();
         };
         apiKey.Click += async (_, _) => {
+            // The harness shown when the switch was clicked, even if another one is selected while the warning is open.
+            if (ApiKeyLaunch.For(preferences.AgentHarnessId) is not { } api) return;
             apiKey.IsEnabled = false;
             try
             {
                 bool on = apiKey.IsChecked == true;
-                if (on && !await ConfirmMcp(owner, AgentClaudeApiKeyLabel, AgentClaudeApiKeyWarning(claudeSettings))) { apiKey.IsChecked = false; return; }
-                // A new Claude Code process starts with the key, or again with its own login.
-                preferences.AgentClaudeApiKey = on; SaveCompanion(); AgentLaunchChanged();
+                if (on && !await ConfirmMcp(owner, api.Label, api.Warning(agentRoot))) { apiKey.IsChecked = false; return; }
+                // A new process of that CLI starts with the key, or again with its own sign-in.
+                preferences.SetAgentUsesApiKey(api.Harness, on); SaveCompanion(); AgentLaunchChanged();
             }
-            catch (Exception e) { apiKey.IsChecked = preferences.AgentClaudeApiKey; ModernUI.Error(owner, "連線設定失敗", e); }
+            catch (Exception e) { apiKey.IsChecked = preferences.AgentUsesApiKey(api.Harness); ModernUI.Error(owner, "連線設定失敗", e); }
             finally { apiKey.IsEnabled = true; Refresh(); }
         };
         daily.Click += (_, _) => {
@@ -161,26 +173,10 @@ public partial class MainWindow
         clock.Tick += (_, _) => Refresh(); Refresh(); clock.Start(); return clock.Stop;
     }
 
-    private const string AgentClaudeApiKeyLabel = "Claude Code 改用 Claude API Key（依用量計費）";
-    private const string AgentClaudeApiKeyDescription = "開啟後，魚魚啟動的 Claude Code 會改用「設定 › 模型與供電」雲端 AI 服務裡儲存的 Claude API Key，由 Anthropic 依用量計費；"
-        + "你自己開的 Claude Code 照樣使用訂閱登入，不受影響。Claude Code 每一輪都會送出很長的上下文，用量比魚魚自己說一句話多很多，"
-        + "建議先在 Claude Console 設定支出上限。"
-        + "改用 API Key 後是另一段魚魚對話，關閉後會回到原本用訂閱登入的那段；工作區的 .claude/settings.local.json 照樣適用。";
-    // A model picked under 模型與權限 lasts for the current conversation only (claude-agent-acp's set_config_option changes
-    // the live session); settings.json in Claude Code's own folder holds one for every conversation, the first turn included.
-    private static string AgentClaudeModelHint(string settingsFile) => "想一直用比較省錢的 Sonnet 或 Haiku，請在 " + settingsFile + " 寫入 {\"model\": \"sonnet\"}（或 \"haiku\"）；"
-        + "已經開啟這個選項時，寫好後按「重新連線」就會套用。這個檔案只影響魚魚用 API Key 啟動的 Claude Code，第一輪和之後每一段對話都會用這個模型。"
-        + "下方「模型與權限」選的模型只套用到目前這段對話，按「開始新對話」後會回到這個檔案指定的模型（沒有這個檔案時是 Claude Code 預設的模型）。";
-    private static string AgentClaudeApiKeyWarning(string settingsFile) => "開啟後，魚魚啟動的 Claude Code 會用你在雲端 AI 服務儲存的 Claude API Key，費用由 Anthropic 依用量向這把 API Key 的帳戶收取。"
-        + "Claude Code 每一輪都會送出很長的上下文（對話、讀到的檔案、工具結果），用量比魚魚自己說一句話多很多。\n\n"
-        + "建議先到 Claude Console 替這個帳戶設定支出上限。Claude Code 會用它預設的模型；想一直用比較省錢的 Sonnet 或 Haiku，請先在 " + settingsFile
-        + " 寫入 {\"model\": \"sonnet\"}（或 \"haiku\"）再開啟，第一輪就會用它。「模型與權限」選的模型只套用到目前這段對話。\n\n"
-        + "API Key 只交給魚魚啟動的這個 Claude Code，放在它的環境變數裡，所以它和它執行的指令也可能讀得到；工作區 .claude 資料夾裡設定檔的 env 和 hooks 也會生效，"
-        + "可能把 Key 送到別的主機，所以不要把來源不明的專案當作工作區。最好另外建立一把只給魚魚用的 API Key。你自己開的 Claude Code 不受影響，照樣使用訂閱登入。";
-    private const string AgentClaudeKeyMissingHint = "還沒有儲存 Claude API Key，Claude Code 會先暫停（不會改用訂閱登入）。請按「前往雲端 AI 服務」，模型來源選雲端 AI 服務、服務選 Claude，"
-        + "貼上 API Key 後按「儲存並測試」；之後魚魚自己說話要改回本機模型也可以，API Key 會留著。";
-    private const string AgentClaudeKeyUnreadableHint = "已儲存的 Claude API Key 無法在這個 Windows 帳戶解密（設定檔可能是從別的電腦或帳戶複製過來的），Claude Code 會先暫停（不會改用訂閱登入）。"
-        + "請按「前往雲端 AI 服務」重新貼上 API Key，再按「儲存並測試」。";
+    // Under the switch when the stored key cannot be decrypted by this Windows account (a settings file copied from another
+    // computer or account).
+    private static string AgentKeyUnreadableHint(ApiKeyLaunch api) => "已儲存的 " + api.KeyName + " 無法在這個 Windows 帳戶解密（設定檔可能是從別的電腦或帳戶複製過來的），"
+        + api.Product + " 會先暫停（不會改用" + api.Fallback + "）。請按「前往雲端 AI 服務」重新貼上 API Key，再按「儲存並測試」。";
 
     private void EditAgentPersona(Window owner)
     {

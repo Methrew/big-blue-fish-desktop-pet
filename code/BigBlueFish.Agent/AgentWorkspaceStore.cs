@@ -70,7 +70,8 @@ public sealed class AgentWorkspaceStore
         return Path.Combine(root, "sessions", Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(path))));
     }
     // One saved conversation per harness and launch profile (AgentLaunch.Profile): claude.json for the Agent's own setup,
-    // claude.claude-api.json for Claude Code on the Claude API Key, whose conversations Claude Code keeps in another folder.
+    // claude.claude-api.json for Claude Code on the Claude API Key (codex.codex-api.json, gemini.gemini-api.json likewise),
+    // whose conversations the CLI keeps in another folder.
     public string SessionPath(string harness, string? workspace = null, string profile = "") => Path.Combine(SessionDirectory(workspace),
         HarnessCatalog.Get(harness).Id + (profile.Length > 0 ? "." + profile : "") + ".json");
     // The harness a saved conversation's file name belongs to (the part before the profile).

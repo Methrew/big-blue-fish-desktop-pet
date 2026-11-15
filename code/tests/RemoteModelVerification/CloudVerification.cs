@@ -84,7 +84,7 @@ internal static class CloudVerification
             && CompanionCloud.ProviderForKey("hello") == null && CompanionCloud.ProviderForKey("") == null && CompanionCloud.ProviderForKey(null) == null,
             "a pasted key names its service: sk-ant- Claude, AIza and AQ. Gemini, other sk- OpenAI");
         var p = CompanionCloud.Providers;
-        Check(p.Select(x => x.Id).SequenceEqual(["Claude", "OpenAI", "Gemini"]) && p.Select(x => x.DisplayName).SequenceEqual(["Claude（Anthropic）", "ChatGPT（OpenAI）", "Gemini（Google）"])
+        Check(p.Select(x => x.Id).SequenceEqual(["Claude", "OpenAI", "Gemini"]) && p.Select(x => x.DisplayName).SequenceEqual(["Claude API（Anthropic）", "OpenAI API", "Gemini API（Google）"])
             && p.Select(x => x.Endpoint).SequenceEqual(["https://api.anthropic.com", "https://api.openai.com/v1/", "https://generativelanguage.googleapis.com/v1beta/"])
             && p.Select(x => x.KeyPage).SequenceEqual(["https://platform.claude.com/settings/keys", "https://platform.openai.com/api-keys", "https://aistudio.google.com/apikey"])
             && p.Select(x => x.KeychainAccount).SequenceEqual(["ClaudeApiKey", "OpenAiApiKey", "GeminiApiKey"]),
@@ -222,7 +222,7 @@ internal static class CloudVerification
                 "GET /v1/models, then the next page");
             Check(requests.All(r => r.Header("Authorization") == "Bearer " + ClaudeKey && r.Header("x-api-key") == null && r.Header("X-Leak") == null),
                 "the key from the settings (not ANTHROPIC_API_KEY), and no header from ANTHROPIC_CUSTOM_HEADERS");
-            Check(brain.ExecutionDevice == "雲端 AI 服務：Claude（Anthropic）", "the inference device names the service");
+            Check(brain.ExecutionDevice == "雲端 AI 服務：Claude API（Anthropic）", "the inference device names the service");
 
             // Opus 5.5: the beta endpoint with server-side fallbacks.
             server.Respond = _ => Sse(ClaudeStream("claude-opus-5-5", ["主人，", "記得喝水", "喔～"], "end_turn"));
@@ -441,7 +441,7 @@ internal static class CloudVerification
             var (reply, status, partials) = await Speak(brain);
             sent = server.Take().Single();
             var body = sent.Json!.AsObject();
-            Check(reply == Reply && status == "雲端 AI 服務就緒：OpenAI（gpt-6-luna）" && partials[^1] == Reply, "the streamed ChatGPT line is said");
+            Check(reply == Reply && status == "雲端 AI 服務就緒：OpenAI（gpt-6-luna）" && partials[^1] == Reply, "the streamed OpenAI line is said");
             Check(sent.Method == "POST" && sent.Path == "/v1/chat/completions" && sent.Header("Authorization") == "Bearer " + OpenAiKey, "POST /v1/chat/completions with the key");
             Check(body["model"]!.GetValue<string>() == "gpt-6-luna" && body["max_completion_tokens"]!.GetValue<int>() == 4096 && body["reasoning_effort"]!.GetValue<string>() == "low"
                 && body["store"]!.GetValue<bool>() == false && body["stream"]!.GetValue<bool>() && body["stream_options"]!["include_usage"]!.GetValue<bool>(),

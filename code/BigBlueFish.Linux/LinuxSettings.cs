@@ -127,8 +127,8 @@ internal sealed partial class LinuxPetWindow
             // Added only after the handlers: the open window attaches it at once, and a later handler would never run.
             var deviceStatus = Paragraph("");
             var deviceClock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-            // "GPU：Apple M4（MTL0）" reads with one colon here: 推論裝置：GPU Apple M4（MTL0）; "雲端 AI 服務：Claude（Anthropic）"
-            // reads 推論裝置：Claude（Anthropic）的雲端 AI 服務.
+            // "GPU：Apple M4（MTL0）" reads with one colon here: 推論裝置：GPU Apple M4（MTL0）; "雲端 AI 服務：Claude API（Anthropic）"
+            // reads 推論裝置：Claude API（Anthropic）的雲端 AI 服務.
             const string cloudDevice = "雲端 AI 服務：";
             void UpdateDevice() => deviceStatus.Text = "推論裝置：" + (brain.ExecutionDevice is var device && device.StartsWith("GPU：", StringComparison.Ordinal) ? "GPU " + device[4..]
                 : device.StartsWith(cloudDevice, StringComparison.Ordinal) ? device[cloudDevice.Length..] + "的雲端 AI 服務" : device);

@@ -52,8 +52,8 @@ internal sealed partial class LinuxPetWindow
                 : "要換模型時，選擇下載來源或匯入已下載的 GGUF 模型；開始下載或匯入時，目前的模型會先停止。兩個來源的模型有所不同，但都適用於本程式。"));
         }
         else panel.Children.Add(Paragraph("選擇下載來源，或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"
-            // The first run's other way: no model on this computer, the speech from Claude, ChatGPT or Gemini.
-            + (offerCloud ? "\n不想在這台電腦上執行模型，也可以改用雲端 AI 服務（Claude、ChatGPT 或 Gemini）：需要該服務的 API Key，並依用量付費。" : "")));
+            // The first run's other way: no model on this computer, the speech from Claude, OpenAI or Gemini.
+            + (offerCloud ? "\n不想在這台電腦上執行模型，也可以改用雲端 AI 服務（Claude、OpenAI 或 Gemini）：需要該服務的 API Key，並依用量付費。" : "")));
         var dialog = Dialog(CompanionEdition.AppName + (installed == null ? " · 安裝模型" : " · 管理模型"), panel, 680, 550);
         var status = Paragraph("模型資料夾：" + Path.Combine(Environment.CurrentDirectory, "models")); panel.Children.Add(status);
         var progress = new ProgressBar { Minimum = 0, Maximum = 100, Height = 8 }; panel.Children.Add(progress);

@@ -134,18 +134,22 @@ public partial class MainWindow
         agent?.Configure(preferences.AgentHarnessId, new(preferences.AgentEnabled, preferences.PuppetMode, preferences.AgentDailySpeech));
         if (!AgentDailyActive) nextWarmup = DateTime.MinValue;
     }
-    // Claude Code on the Claude API Key (AgentClaudeApiKey on the 連線 Agent page): the key the cloud AI service keeps
-    // (encrypted for this Windows account) goes into the environment of the Claude Code the fish starts, and nowhere else
-    // (BigBlueFish.Agent.ClaudeApiKeyLaunch). Without a key nothing starts; the subscription is never used in its place.
-    internal const string AgentClaudeKeyMissing = "已開啟「Claude Code 改用 Claude API Key」，但還沒有儲存 Claude API Key，所以先不啟動 Claude Code（不會改用訂閱登入）。"
-        + "請先在「設定 › 模型與供電」的雲端 AI 服務儲存 Claude API Key，或關閉這個選項。";
+    // Claude Code, Codex CLI or Gemini CLI on an API Key of the cloud AI service (AgentClaudeApiKey, AgentOpenAiApiKey,
+    // AgentGeminiApiKey on the 連線 Agent page): the key the cloud AI service keeps (encrypted for this Windows account) goes
+    // into the environment of the CLI the fish starts, and nowhere else (BigBlueFish.Agent.ApiKeyLaunch). Without a key
+    // nothing starts; the CLI's own sign-in is never used in its place.
+    private const string ModelPageName = "設定 › 模型與供電";
     // A key is stored but this Windows account cannot decrypt it (a settings file copied from another computer or account).
-    internal const string AgentClaudeKeyUnreadable = "已開啟「Claude Code 改用 Claude API Key」，但已儲存的 Claude API Key 無法在這個 Windows 帳戶解密，所以先不啟動 Claude Code（不會改用訂閱登入）。"
-        + "請在「設定 › 模型與供電」的雲端 AI 服務重新儲存 Claude API Key，或關閉這個選項。";
-    private AgentLaunch AgentLaunchFor(string harness) => harness != ClaudeApiKeyLaunch.Harness || !preferences.AgentClaudeApiKey ? AgentLaunch.Default
-        : ClaudeApiKeyLaunch.Create(Path.Combine(Environment.CurrentDirectory, "agent"), preferences.ClaudeApiKey,
-            string.IsNullOrEmpty(preferences.ClaudeApiKeyProtected) ? AgentClaudeKeyMissing : AgentClaudeKeyUnreadable);
-    // The option or the Claude API Key may have changed: the Agent compares and starts again only when its launch differs.
+    internal static string AgentKeyUnreadable(ApiKeyLaunch api) => "已開啟「" + api.Switch + "」，但已儲存的 " + api.KeyName + " 無法在這個 Windows 帳戶解密，"
+        + "所以先不啟動 " + api.Product + "（不會改用" + api.Fallback + "）。請在「" + ModelPageName + "」的雲端 AI 服務重新儲存 " + api.KeyName + "，或關閉這個選項。";
+    private AgentLaunch AgentLaunchFor(string harness)
+    {
+        if (ApiKeyLaunch.For(harness) is not { } api || !preferences.AgentUsesApiKey(harness)) return AgentLaunch.Default;
+        string provider = CompanionPreferences.AgentApiKeyProvider(harness)!;
+        return api.Create(Path.Combine(Environment.CurrentDirectory, "agent"), preferences.CloudApiKey(provider),
+            string.IsNullOrEmpty(preferences.CloudApiKeyStored(provider)) ? api.Missing(ModelPageName) : AgentKeyUnreadable(api));
+    }
+    // The option or the API Key may have changed: the Agent compares and starts again only when its launch differs.
     private void AgentLaunchChanged() { if (agent != null) _ = agent.LaunchChanged(); }
     private bool agentLoading;
     private void TickAgent(DateTime now)

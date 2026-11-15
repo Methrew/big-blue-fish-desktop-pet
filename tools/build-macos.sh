@@ -87,7 +87,7 @@ cat > "$work/$title.app/Contents/Info.plist" <<EOF
 <key>NSLocalNetworkUsageDescription</key><string>使用遠端模型時，會連線到你在「設定 › 模型與資訊 › 模型來源」填寫的區域網路模型伺服器（例如 llama.cpp），不會搜尋或連線其他裝置。</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
-<key>NSAppleEventsUsageDescription</key><string>Agent 讀取目前狀況（get_context）時，${title}會詢問 Finder 開著哪些資料夾；只讀取視窗的資料夾路徑，不會修改檔案。</string>
+<key>NSAppleEventsUsageDescription</key><string>Agent 讀取目前狀況（get_context）時，${plist_title}會詢問 Finder 開著哪些資料夾；只讀取視窗的資料夾路徑，不會修改檔案。</string>
 <key>NSHumanReadableCopyright</key><string>${credits}Apache-2.0；素材授權見 THIRD-PARTY.md。</string>
 </dict></plist>
 EOF

@@ -9,7 +9,7 @@ function Get-ModelSources {
             Sha256='8485535a36c9f333574d08b650ad698ac02ec30752bd9cd87e493a3b7531bee1'
         }
         [pscustomobject]@{
-            Id='modelscope'; Label='國內來源（穩定）'; FileName='qwen3-5-4B-Q4_K_M.gguf'
+            Id='modelscope'; Label='中國大陸鏡像（ModelScope）'; FileName='qwen3-5-4B-Q4_K_M.gguf'
             Url='https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/resolve/124e4a76470ea89369ecddc493a8c1d75e3c9498/qwen3-5-4B-Q4_K_M.gguf'
             Page='https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/files'
             Sha256='de8e96cd0d0c358487091aaaed1346bc02e61da3d4b412c833662702e233e78c'

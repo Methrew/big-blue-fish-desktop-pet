@@ -19,7 +19,7 @@ internal static class ModelStore
         "https://huggingface.co/Biomanticus/Qwen3.5-4B-heretic-gguf/resolve/b63ff4662e4863cfa005c9cd8ed34b87ed44b7e1/Qwen3.5-4B-heretic-f16_Q4_K_M.gguf?download=true",
         "https://huggingface.co/Biomanticus/Qwen3.5-4B-heretic-gguf/tree/b63ff4662e4863cfa005c9cd8ed34b87ed44b7e1",
         "8485535a36c9f333574d08b650ad698ac02ec30752bd9cd87e493a3b7531bee1");
-    internal static readonly ModelSource Domestic = new("modelscope", "國內來源（穩定）",
+    internal static readonly ModelSource Domestic = new("modelscope", "中國大陸鏡像（ModelScope）",
         "qwen3-5-4B-Q4_K_M.gguf",
         "https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/resolve/124e4a76470ea89369ecddc493a8c1d75e3c9498/qwen3-5-4B-Q4_K_M.gguf",
         "https://modelscope.cn/models/diodel/Qwen3.5-4B-Q4_K_M-GGUF/files",

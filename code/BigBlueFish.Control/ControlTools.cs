@@ -29,21 +29,36 @@ public static class ControlTools
     public static object Image(string dataUrl, object metadata) => new { content = new object[] {
         new { type = "text", text = JsonSerializer.Serialize(metadata) },
         new { type = "image", mimeType = dataUrl[5..dataUrl.IndexOf(';')], data = dataUrl[(dataUrl.IndexOf(',') + 1)..] } } };
-    public static readonly string[] SettingNames = ["ModelEnabled", "GpuEnabled", "PublicInfo", "ForegroundEnabled", "StopModelOnBattery",
+    // ShowOnAllSpaces exists on macOS only (CompanionPreferences under COMPANION_MAC); elsewhere update_settings refuses it by name.
+    public static readonly string[] SettingNames = [.. new[] { "ModelEnabled", "GpuEnabled", "PublicInfo", "ForegroundEnabled", "StopModelOnBattery",
         "HideOnFullscreen", "CheckUpdatesOnStartup", "ChatLogShowAll", "WeatherRegionCode", "Scale", "BubbleScale", "SpeechMinMinutes",
         "BubbleDurationIndex", "AnimationIntervalSeconds", "BreakfastHour", "LunchHour", "DinnerHour", "Left", "Top", "LastBrushDate", "StartupEnabled", "PuppetMode", "McpChatEnabled",
         "AgentDailySpeech", "AgentRespondToClick", "AgentRespondToDrag",
-        "SitReminderMinutes", "MealReminder", "LateReminder", "LateReminderHour", "BatteryReminder", "RainReminder", "DailyBriefing", "WelcomeBackMinutes", "EventReminderMinutes"];
-    private const string SettingsInput = """
+        "SitReminderMinutes", "MealReminder", "LateReminder", "LateReminderHour", "BatteryReminder", "RainReminder", "DailyBriefing", "WelcomeBackMinutes", "EventReminderMinutes" },
+        .. OperatingSystem.IsMacOS() ? new[] { "ShowOnAllSpaces" } : []];
+    // Why update_settings refuses a field outside SettingNames, the same text on every platform: the fields get_settings
+    // shows read-only name who may change them, a secret is never echoed, anything else is unknown.
+    public static string RefusedSetting(string name, bool isPrivate) => name switch
+    {
+        "McpEnabled" => "MCP 介面只能由使用者在設定中開啟或關閉。",
+        "AgentEnabled" or "AgentHarnessId" => "Agent 連線只能由使用者在設定中開啟、關閉或選擇。",
+        "ModelSource" or "RemoteUrl" or "RemoteModel" or "ScreenImages" => "模型來源與遠端模型只能由使用者在設定中修改。",
+        "ShowOnAllSpaces" => "ShowOnAllSpaces 只有 macOS 版提供。",
+        _ when isPrivate => "API Key 與授權碼只能由使用者在設定中填寫。",
+        _ => "未知設定：" + name
+    };
+    private static string SettingsInput => SettingsSchema.Replace("@ShowOnAllSpaces@", OperatingSystem.IsMacOS()
+        ? "\n          \"ShowOnAllSpaces\":{\"type\":\"boolean\",\"description\":\"macOS的「在所有桌面空間顯示桌寵」：切換桌面空間時，桌寵、氣泡和輸入框跟著過去，Mission Control也不移動它們。\"}," : "");
+    private const string SettingsSchema = """
         {"settings":{"type":"object","additionalProperties":false,"description":"按需提供欄位；省略的欄位保留。欄位名區分大小寫。McpEnabled、AgentEnabled、AgentHarnessId 與遠端模型設定唯讀。成功後讀取實際值；位置可能因工作區限制調整。","properties":{
           "ModelEnabled":{"type":"boolean","description":"設定頁的「啟用模型說話」：允許桌寵用內建或遠端模型自主說話與播報天氣；不限制外部 say。"},
           "GpuEnabled":{"type":"boolean","description":"本機推論使用 GPU；切換會停止目前模型任務。"},
           "PublicInfo":{"type":"boolean","description":"內建天氣和科技新聞。"},
           "ForegroundEnabled":{"type":"boolean","description":"內建模型是否讀取螢幕；不是 MCP 截圖的權限開關。"},
           "StopModelOnBattery":{"type":"boolean","description":"拔掉電源時暫停內建模型並釋放記憶體；不限制外部文字。"},
-          "HideOnFullscreen":{"type":"boolean","description":"外部全螢幕時隱藏桌寵；不限制 MCP 截圖。"},
+          "HideOnFullscreen":{"type":"boolean","description":"外部全螢幕時隱藏桌寵；不限制 MCP 截圖。"},@ShowOnAllSpaces@
           "CheckUpdatesOnStartup":{"type":"boolean","description":"啟動時檢查更新。"},
-          "ChatLogShowAll":{"type":"boolean","description":"Windows版對話輸入框的聊天記錄是否顯示魚魚說過的所有話；false時只列出主人的訊息及前後相鄰的魚魚話語。"},
+          "ChatLogShowAll":{"type":"boolean","description":"對話輸入框的聊天記錄是否顯示魚魚說過的所有話；false時只列出主人的訊息及前後相鄰的魚魚話語。目前只有Windows版的輸入框有聊天記錄，macOS與Linux版只記下這個設定。"},
           "WeatherRegionCode":{"type":"string","pattern":"^([0-9]{6}|[0-9]{9}|TW-[0-9]{3}-[0-9]{2}|[A-Z]{2}-[0-9]+)$","description":"內建地區表中最下層地點的代碼，不是地名，也不是縣市、省、州或一級行政區代碼：中國為6位區縣代碼，如340104（含原有清單的臺灣省各區，如710101，天氣為縣市層級的Open-Meteo估計、北京時間），部分直轄縣級行政區為9位代碼，如419001000；國家「臺灣」為鄉鎮市區代碼TW-三位資料集編號-兩位序號，如臺北市中正區TW-061-01；美國為US-加5位郡FIPS代碼，如US-06037；其他國家為國家代碼-GeoNames城市ID，如JP-1850147。新安裝與無效代碼使用TW-061-01，已儲存的有效地點不會被改動。國家「臺灣」的鄉鎮在Windows與macOS版填了中央氣象署授權碼時使用氣象署鄉鎮預報；沒有授權碼時（以及Linux版）為Open-Meteo在鄉鎮市區中心的估計。"},
           "Scale":{"type":"number","minimum":0.5,"maximum":2,"description":"角色大小倍率；1為100%。"},
           "BubbleScale":{"type":"number","minimum":0.5,"maximum":2,"description":"獨立氣泡大小倍率；不改變角色大小。"},
@@ -53,7 +68,7 @@ public static class ControlTools
           "BreakfastHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的早餐小時。"},
           "LunchHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的午餐小時。"},
           "DinnerHour":{"type":"integer","minimum":0,"maximum":23,"description":"本地時間的晚餐小時。"},
-          "Left":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗左座標：Windows邏輯單位，Linux螢幕畫素；Linux只取整數。null不重設位置。"},
+          "Left":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗左座標：Windows為邏輯單位，macOS為視窗位置（與walk_to回傳的Left相同），Linux為螢幕畫素；macOS與Linux只取整數。null不重設位置。"},
           "Top":{"type":["number","null"],"minimum":-1000000,"maximum":1000000,"description":"視窗上座標，與Left相同的平臺語意；最終座標受螢幕工作區約束。"},
           "LastBrushDate":{"type":["string","null"],"pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}$","description":"有效本地日期yyyy-MM-dd或null，用於每日刷牙動作去重；通常無需修改。"},
           "StartupEnabled":{"type":"boolean","description":"目前使用者的開機時啟動設定（macOS為登入時自動開啟）。"},
@@ -98,7 +113,7 @@ public static class ControlTools
              "image_height":{"type":"number","minimum":1,"maximum":100000,"description":"同image_width，那張圖的高度；只給其中一個時按比例換算。"},
              "desktop_item":{"type":"string","minLength":1,"maxLength":260,"description":"改以一個桌面圖示的完整名稱定位（@DesktopReader@，不分大小寫：先完全相同，再單向比對副檔名（報告1找得到報告1.docx，報告1.pdf不會配到報告1.docx，版本號如3.12不算副檔名），再唯一一個包含它的名稱，三個字以上時再容許只差一個非數字的字且沒有其他同樣接近的名稱）；被視窗擋住的圖示也找得到。找一類東西（所有PDF、資料夾）請用find_on_screen。提供時忽略x、y、space。同一步有多個名稱符合時回錯誤並列出這些名稱；找不到時回錯誤，只列出真的相近的名稱。"},
              "side":{"type":"string","enum":["auto","left","right","above","below"],"default":"auto","description":"魚魚站在目標的哪一側；auto選空間足夠且離目前位置較近的一側，指定側放不下時改用auto。"},
-             "arrive_action":{"type":"string","minLength":1,"maxLength":200,"description":"抵達後接著播放的動作，需和list_actions的名稱完全相同；省略時轉身面向使用者後回到待機。"},
+             "arrive_action":{"type":"string","minLength":1,"maxLength":200,"description":"抵達後接著播放的動作，名稱規則同play_action（list_actions的簡體名稱，寫成繁體也認得）；省略時轉身面向使用者後回到待機。"},
              "say":{"type":"string","minLength":1,"maxLength":4000,"description":"抵達時顯示的氣泡原文，規則同say。"},
              "label":{"type":"string","minLength":1,"maxLength":80,"description":"抵達時氣泡裡顯示的簡短名稱；有stops時用於沒有自己label的每一站。"},
              "wait":{"type":"boolean","default":true,"description":"true等到抵達（有stops時為整趟跑完）或被打斷才回傳（每站通常不超過約9秒加上pause_seconds）；false啟動後立即回傳started=true。"},
@@ -137,9 +152,11 @@ public static class ControlTools
             required = required ?? [], additionalProperties = false } };
     public static string RequiredText(JsonElement args, string name, int maximum = 4000)
     {
-        if (!args.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String || string.IsNullOrWhiteSpace(value.GetString()) || value.GetString()!.Length > maximum)
-            throw new ArgumentException($"{name} 必須是 1–{maximum} 字元的文字。");
-        return value.GetString()!;
+        if (!args.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String) throw new ArgumentException($"{name} 必須是 1–{maximum} 字元的文字。");
+        string text = value.GetString()!;
+        if (text.Length > maximum) throw new ArgumentException($"{name} 最多 {maximum} 個字元。");
+        if (string.IsNullOrWhiteSpace(text)) throw new ArgumentException(text.Length == 0 ? $"{name} 必須是 1–{maximum} 字元的文字。" : $"{name} 不能只有空白。");
+        return text;
     }
     public static int ImageLimit(JsonElement args, int fallback)
     {

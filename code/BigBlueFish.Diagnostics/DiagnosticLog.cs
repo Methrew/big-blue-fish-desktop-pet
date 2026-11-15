@@ -52,7 +52,9 @@ public static class DiagnosticLog
         + "McpEnabled McpDoubleClickChat McpWakeEnabled McpWakeOnText McpWakeOnClick McpWakeOnDrag AgentWorkspaceId "
         // Taiwan edition settings, by name only: the remote API key and the CWA authorization code are never observed.
         + "McpChatEnabled ModelSource RemoteUrl RemoteModel ScreenImages SitReminderMinutes MealReminder LateReminder LateReminderHour "
-        + "BatteryReminder RainReminder DailyBriefing WelcomeBackMinutes EventReminderMinutes").Split(' '), StringComparer.Ordinal);
+        + "BatteryReminder RainReminder DailyBriefing WelcomeBackMinutes EventReminderMinutes "
+        // macOS only; on other platforms the preferences have no such property, so it is never observed there.
+        + "ShowOnAllSpaces").Split(' '), StringComparer.Ordinal);
     static HashSet<string> LoadActions()
     {
         using var stream = typeof(DiagnosticLog).Assembly.GetManifestResourceStream("BuiltinActions.json")!;

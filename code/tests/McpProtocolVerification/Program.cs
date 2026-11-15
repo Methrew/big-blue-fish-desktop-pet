@@ -86,6 +86,17 @@ Check(ControlTools.OptionalNumber(sample, "x", -10, 100) == 12.5 && ControlTools
     && ControlTools.OptionalChoice(sample, "space", "screen", "capture") == "capture" && ControlTools.OptionalChoice(sample, "side", "auto", "left") == "auto"
     && ControlTools.OptionalText(sample, "word", 10) == "text" && ControlTools.OptionalText(sample, "empty") == null, "Optional arguments parse with their defaults");
 bool Rejected(Action parse) { try { parse(); return false; } catch (ArgumentException) { return true; } }
+string Refusal(Action parse) { try { parse(); return ""; } catch (ArgumentException error) { return error.Message; } }
+var texts = JsonSerializer.SerializeToElement(new { blank = "  \n ", empty = "", long_ = new string('魚', 11) });
+Check(Refusal(() => ControlTools.RequiredText(texts, "blank")) == "blank 不能只有空白。" && Refusal(() => ControlTools.RequiredText(texts, "long_", 10)) == "long_ 最多 10 個字元。"
+    && Refusal(() => ControlTools.RequiredText(texts, "empty", 10)) == "empty 必須是 1–10 字元的文字。" && Refusal(() => ControlTools.RequiredText(texts, "missing")).Contains("必須是"),
+    "A refused text says whether it was blank, too long or missing");
+// update_settings names why a field it does not take is refused, the same on every platform.
+Check(ControlTools.RefusedSetting("ModelSource", false) == "模型來源與遠端模型只能由使用者在設定中修改。" && ControlTools.RefusedSetting("RemoteUrl", false).Contains("只能由使用者")
+    && ControlTools.RefusedSetting("AgentHarnessId", false).StartsWith("Agent 連線只能由使用者") && ControlTools.RefusedSetting("McpEnabled", false).StartsWith("MCP 介面只能由使用者")
+    && ControlTools.RefusedSetting("CwaApiKeyProtected", true).StartsWith("API Key 與授權碼") && ControlTools.RefusedSetting("Nonsense", false) == "未知設定：Nonsense"
+    && ControlTools.RefusedSetting("ShowOnAllSpaces", false).Contains("macOS"), "Read-only, private and unknown settings are refused with their reason");
+Check(ControlTools.SettingNames.Contains("ShowOnAllSpaces") == OperatingSystem.IsMacOS(), "ShowOnAllSpaces is writable on macOS only");
 Check(Rejected(() => ControlTools.OptionalNumber(sample, "word", 0, 1)) && Rejected(() => ControlTools.OptionalNumber(sample, "big", 0, 100))
     && Rejected(() => ControlTools.OptionalBool(sample, "x", true)) && Rejected(() => ControlTools.OptionalChoice(sample, "space", "screen"))
     && Rejected(() => ControlTools.OptionalText(sample, "word", 2)), "Invalid optional arguments are rejected");

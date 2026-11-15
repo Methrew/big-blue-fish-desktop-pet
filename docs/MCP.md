@@ -26,7 +26,7 @@ macOS、Windows 與 Linux 使用同一份工具清單與事件；平台之間的
 
 `get_settings` 回傳 `settings` 與 `state`。settings 是會儲存下來的欄位與系統啟動設定；state 是視窗是否顯示、隱藏原因、目前動作、播放階段、動作佇列、待說文字、工具連線、輸入框、Agent 狀態和模型狀態的快照。`modelAvailable` 表示有模型檔，不等於推論程式已經載入。`connections` 是已初始化的客戶端總數，`mcpClients` 是其中經 MCP 介面連線的外部客戶端。各版本的 state 也有 `bubbleVisible`、`externalBubble`（目前氣泡來自 `say` 或 `say_next`）、`speechPending`（魚魚正在準備自己的說話或天氣）、`fullscreen`、`idleSeconds`、`activeMinutes`、`lastBreakMinutes`；Windows 與 macOS 版另有 `walk_to` 的 `walk`、`tour`、`lastWalk` 與 `walkBubble`；macOS 與 Linux 版另有 `platform`（`macos` 或 `linux`）。
 
-`update_settings` 的參數為 `{"settings":{...}}`，省略的欄位保留，欄位名稱區分大小寫，會先驗證整份修改。`AgentEnabled`、`AgentHarnessId` 只能讀取，由使用者在連線頁選擇。`McpEnabled` 與遠端模型設定（`ModelSource`、`RemoteUrl`、`RemoteModel`、`ScreenImages`）同樣只能讀取；遠端模型的 API Key 與中央氣象署授權碼由使用者在設定中填寫（macOS 存在鑰匙圈，Windows 以目前的 Windows 帳戶加密），不會出現在 `get_settings`，也不能透過 `update_settings` 寫入，被拒絕的欄位只列出名稱、不回傳數值。以下是可以寫入的欄位：
+`update_settings` 的參數為 `{"settings":{...}}`，省略的欄位保留，欄位名稱區分大小寫，會先驗證整份修改。`AgentEnabled`、`AgentHarnessId` 只能讀取，由使用者在連線頁選擇。`McpEnabled` 與遠端模型設定（`ModelSource`、`RemoteUrl`、`RemoteModel`、`ScreenImages`）同樣只能讀取；遠端模型的 API Key 與中央氣象署授權碼由使用者在設定中填寫（macOS 存在鑰匙圈，Windows 以目前的 Windows 帳戶加密），不會出現在 `get_settings`，也不能透過 `update_settings` 寫入，被拒絕的欄位只列出名稱、不回傳數值。寫入唯讀欄位時，各平台都回覆同樣的原因（例如「模型來源與遠端模型只能由使用者在設定中修改。」），只有真的不存在的欄位才回覆「未知設定：」。以下是可以寫入的欄位：
 
 | 欄位 | 類型與範圍 | 意義 |
 | --- | --- | --- |
@@ -36,8 +36,9 @@ macOS、Windows 與 Linux 使用同一份工具清單與事件；平台之間的
 | ForegroundEnabled | bool | 內建模型讀取螢幕，以及 Agent 日常關心附上的畫面；不控制明確呼叫的截圖工具 |
 | StopModelOnBattery | bool | 拔掉電源時暫停內建模型並釋放記憶體 |
 | HideOnFullscreen | bool | 其他程式全螢幕時自動隱藏 |
+| ShowOnAllSpaces | bool | 只有 macOS 版：設定頁的「在所有桌面空間顯示桌寵」；其他平台不會列出，寫入時回覆「ShowOnAllSpaces 只有 macOS 版提供。」 |
 | CheckUpdatesOnStartup | bool | 啟動時檢查更新 |
-| ChatLogShowAll | bool | Windows 版輸入框的聊天記錄是否顯示魚魚說過的所有話；false 時只列出主人的訊息與前後相鄰的魚魚話語 |
+| ChatLogShowAll | bool | 輸入框的聊天記錄是否顯示魚魚說過的所有話；false 時只列出主人的訊息與前後相鄰的魚魚話語。目前只有 Windows 版的輸入框有聊天記錄 |
 | WeatherRegionCode | 字串 | 內建地區表中最下層地點的代碼：中國為六位區縣代碼（例如 340104；包括原版清單的臺灣省各區，例如 710101），少數直轄縣級行政區為九位代碼（例如 419001000）；國家「臺灣」為鄉鎮市區代碼 TW-三位資料集編號-兩位序號（例如臺北市中正區 TW-061-01）；美國為 US- 加五位郡 FIPS 代碼（例如 US-06037）；其他國家為國家代碼-GeoNames 城市 ID（例如 JP-1850147）。格式為 `^([0-9]{6}\|[0-9]{9}\|TW-[0-9]{3}-[0-9]{2}\|[A-Z]{2}-[0-9]+)$`，而且必須是地區表裡的最下層地點；縣市、省、州或國家代碼與地名都不接受。新安裝和無效代碼使用 TW-061-01，已儲存的有效地點不會被改動。國家「臺灣」的鄉鎮在 macOS 與 Windows 版填了中央氣象署授權碼時使用氣象署的鄉鎮預報，沒有授權碼時（以及 Linux 版）改用 Open-Meteo 在鄉鎮市區中心的估計；中國清單的臺灣省沿用原版，以縣市為單位估算、使用北京時間 |
 | Scale / BubbleScale | 0.5–2 的有限數 | 角色／獨立氣泡的倍率 |
 | SpeechMinMinutes | 2、3、5、10、15、20 之一 | 分別對應 2–3、3–5、5–8、10–16、15–23、20–30 分鐘 |

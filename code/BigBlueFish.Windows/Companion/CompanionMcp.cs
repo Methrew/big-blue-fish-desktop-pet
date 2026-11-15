@@ -366,12 +366,7 @@ public partial class MainWindow
         foreach (var property in patch.EnumerateObject())
         {
             // A refused field is named, never echoed with its value.
-            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(property.Name switch {
-                "McpEnabled" => "MCP 介面只能由使用者在設定中開啟或關閉。",
-                "AgentEnabled" or "AgentHarnessId" => "Agent 連線只能由使用者在設定中開啟、關閉或選擇。",
-                "ModelSource" or "RemoteUrl" or "RemoteModel" or "ScreenImages" => "模型來源與遠端模型只能由使用者在設定中修改。",
-                _ when CompanionPreferences.PrivateSettings.Contains(property.Name) => "API Key 與授權碼只能由使用者在設定中填寫。",
-                _ => "未知設定：" + property.Name });
+            if (!ControlTools.SettingNames.Contains(property.Name)) throw new ArgumentException(ControlTools.RefusedSetting(property.Name, CompanionPreferences.PrivateSettings.Contains(property.Name)));
             if (property.Name == "StartupEnabled") { values[property.Name] = property.Value.GetBoolean(); continue; }
             var field = typeof(CompanionPreferences).GetProperty(property.Name)!;
             values[property.Name] = JsonSerializer.Deserialize(property.Value.GetRawText(), field.PropertyType);

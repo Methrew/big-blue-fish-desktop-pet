@@ -24,6 +24,10 @@ internal static class CompanionEdition
     // (BigBlueFish-TW-v1.1.3-tw.1-macOS-arm64.dmg), so a release of the original never matches an update check here.
     internal const string Publisher = "Methrew";
     internal const string AssetPrefix = "BigBlueFish-TW";
+    // Windows registrations of this edition beside the original's (BlueWhaleCompanion, App Paths\BigBlueFish.exe):
+    // the per-user Run value and an App Paths alias. Both editions install into one folder, so they share them.
+    internal const string WindowsStartupName = "BigBlueFish-TW";
+    internal const string WindowsAppPathAlias = "BigBlueFish-TW.exe";
     // macOS bundle identifiers. Each edition's LaunchAgent label is its own bundle identifier; the keychain service
     // is the Standard identifier for both editions, which share one data folder.
     internal const string MacBundleId = "io.github.methrew.bigbluefish.tw";

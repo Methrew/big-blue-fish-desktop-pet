@@ -842,11 +842,22 @@ public partial class MainWindow
         companionSettings?.Close();
     }
 
-    private const string StartupName = "BlueWhaleCompanion";
+    // This edition's own Run value; the original (and acer1204's edition) keep BlueWhaleCompanion, which is read or
+    // removed here only when it starts this very executable, so the original's login item is never taken over.
+    private const string StartupName = CompanionEdition.WindowsStartupName, LegacyStartupName = "BlueWhaleCompanion";
+    private static bool StartsThisApp(object? command)
+    {
+        if (command is not string text || (text = text.Trim()).Length == 0) return false;
+        // "C:\...\BigBlueFish.exe" --args, or an unquoted path that may hold spaces.
+        int exe = text.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+        string path = text[0] == '"' ? text[1..Math.Max(1, text.IndexOf('"', 1))] : exe >= 0 ? text[..(exe + 4)] : text;
+        try { return Environment.ProcessPath != null && string.Equals(Path.GetFullPath(path), Path.GetFullPath(Environment.ProcessPath), StringComparison.OrdinalIgnoreCase); }
+        catch (Exception error) when (error is ArgumentException or NotSupportedException or PathTooLongException) { return false; }
+    }
     private static bool StartupEnabled()
     {
         using var k = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
-        return k?.GetValue(StartupName) != null;
+        return StartsThisApp(k?.GetValue(StartupName)) || StartsThisApp(k?.GetValue(LegacyStartupName));
     }
 
     private void SetCompanionStartup(bool enabled)
@@ -856,6 +867,8 @@ public partial class MainWindow
             k.SetValue(StartupName, "\"" + Environment.ProcessPath + "\"");
         else
             k.DeleteValue(StartupName, false);
+        // An entry an earlier build of this edition wrote under the original's name goes either way.
+        if (StartsThisApp(k.GetValue(LegacyStartupName))) k.DeleteValue(LegacyStartupName, false);
     }
 
     private void ShutdownCompanion()

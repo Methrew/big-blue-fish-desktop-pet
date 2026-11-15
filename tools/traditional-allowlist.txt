@@ -79,3 +79,4 @@ code/THIRD-PARTY.md	進行公眾釋出	wording the Open Government Data License 
 code/THIRD-PARTY.md	台湾省	the province name as written in the original region data
 code/THIRD-PARTY.md	乐米小奶泡体	name of the upstream bubble font, which this edition no longer ships
 code/THIRD-PARTY.md	一起干杯	Simplified input phrase of the documented OpenCC fix
+installer/InstallationLifecycle.cs	蓝色大肥鱼	the original edition's Start menu group, removed when an install over its folder leaves it empty

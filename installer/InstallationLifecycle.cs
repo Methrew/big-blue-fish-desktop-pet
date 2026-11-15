@@ -18,7 +18,12 @@ internal static class InstallationLifecycle
     internal const string UninstallerName = "Uninstall.exe";
     private const string InfoName = "uninstall-info.json";
     private const string UninstallRoot = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
-    internal const string ApplicationPathKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\BigBlueFish.exe";
+    // This edition's own App Paths alias (the key name need not match the executable); the shared BigBlueFish.exe key
+    // belongs to the original and is only removed when an earlier build of this edition left it pointing here.
+    internal const string ApplicationPathKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\" + BigBlueFish.Windows.CompanionEdition.WindowsAppPathAlias;
+    internal const string SharedApplicationPathKey = @"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\BigBlueFish.exe";
+    // The original's Start menu group, removed with this install when nothing is left in it.
+    private const string OriginalMenuGroup = "蓝色大肥鱼";
     private sealed record InstallInfo(string Directory, string[] Shortcuts, string UserSid);
 
     internal static string ValidateDirectory(string directory)
@@ -78,7 +83,12 @@ internal static class InstallationLifecycle
         var target = ValidateDirectory(directory);
         if (!File.Exists(Path.Combine(target, UninstallerName)))
             throw new IOException("安裝檔案中缺少解除安裝程式。");
-        var info = new InstallInfo(target, shortcuts, WindowsIdentity.GetCurrent().User!.Value);
+        // Installed over an earlier install in the same folder (the original's, or acer1204's): its shortcuts stay
+        // recorded, so uninstalling removes them too. RemoveShortcut only deletes a link that starts this folder's app.
+        string[] earlier = [];
+        try { if (File.Exists(Path.Combine(target, InfoName))) earlier = JsonSerializer.Deserialize<InstallInfo>(File.ReadAllText(Path.Combine(target, InfoName)))?.Shortcuts ?? []; }
+        catch (Exception error) when (error is JsonException or NotSupportedException or IOException) { }
+        var info = new InstallInfo(target, [.. earlier.Concat(shortcuts).Distinct(StringComparer.OrdinalIgnoreCase)], WindowsIdentity.GetCurrent().User!.Value);
         File.WriteAllText(Path.Combine(target, InfoName), JsonSerializer.Serialize(info));
         using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
         using var key = machine.CreateSubKey(UninstallRoot + "\\" + RegistrationName(target));
@@ -166,8 +176,11 @@ internal static class InstallationLifecycle
             RemoveShortcut(shortcut, executable);
             RemoveShortcut(shortcut, Path.Combine(target, LegacyApplicationName));
         }
-        var menuGroup = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), BigBlueFish.Windows.CompanionEdition.DisplayName);
-        if (Directory.Exists(menuGroup) && !Directory.EnumerateFileSystemEntries(menuGroup).Any()) Directory.Delete(menuGroup);
+        foreach (var group in new[] { BigBlueFish.Windows.CompanionEdition.DisplayName, OriginalMenuGroup })
+        {
+            var menuGroup = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), group);
+            if (Directory.Exists(menuGroup) && !Directory.EnumerateFileSystemEntries(menuGroup).Any()) Directory.Delete(menuGroup);
+        }
         foreach (var sid in Registry.Users.GetSubKeyNames().Where(s => s.StartsWith("S-1-5-21-") && !s.EndsWith("_Classes")))
         {
             using var user = Registry.Users.OpenSubKey(sid + @"\Software\Microsoft\Windows\CurrentVersion\Run", writable: true);
@@ -197,14 +210,46 @@ internal static class InstallationLifecycle
             }
             foreach (var pattern in new[] { "preferences.json*", "model-selection.json*", "news-last-day.txt*", "companion.lock", "ready.status", "companion-errors.log", "test-*.json", "test-command.txt", "test-render.png", "test-settings.png", "ocr-status.json", "vision-status.json", "vision-input.jpg" })
                 foreach (var path in Directory.EnumerateFiles(target, pattern)) File.Delete(path);
+            RemovePastedAttachments(info.UserSid);
         }
         DeleteEmptyDirectories(target);
         using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
         machine.DeleteSubKeyTree(UninstallRoot + "\\" + RegistrationName(target), throwOnMissingSubKey: false);
-        bool ownsApplicationPath;
-        using (var application = machine.OpenSubKey(ApplicationPathKey))
-            ownsApplicationPath = string.Equals(application?.GetValue("") as string, executable, StringComparison.OrdinalIgnoreCase);
-        if (ownsApplicationPath) machine.DeleteSubKeyTree(ApplicationPathKey, throwOnMissingSubKey: false);
+        foreach (var applicationPath in new[] { ApplicationPathKey, SharedApplicationPathKey })
+        {
+            bool ownsApplicationPath;
+            using (var application = machine.OpenSubKey(applicationPath))
+                ownsApplicationPath = string.Equals(application?.GetValue("") as string, executable, StringComparison.OrdinalIgnoreCase);
+            if (ownsApplicationPath) machine.DeleteSubKeyTree(applicationPath, throwOnMissingSubKey: false);
+        }
+    }
+
+    // Screenshots pasted into the input box are kept in each user's own %LOCALAPPDATA%\BigBlueFish\attachments, outside
+    // the install folder (CompanionMcpAttachments). Removing the data removes the pet's own paste-* files there, for the
+    // user who installed and for the one running the uninstaller; acer1204's edition uses the same folder, so nothing
+    // else in it is touched, and the folders go only when empty.
+    private static void RemovePastedAttachments(string installerSid)
+    {
+        var profiles = new List<string> { Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData) };
+        try
+        {
+            using var profile = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\" + installerSid);
+            if (profile?.GetValue("ProfileImagePath") is string home) profiles.Add(Path.Combine(Environment.ExpandEnvironmentVariables(home), "AppData", "Local"));
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException or ArgumentException) { }
+        foreach (var local in profiles.Where(p => p.Length > 0).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            var app = Path.Combine(local, "BigBlueFish"); var folder = Path.Combine(app, "attachments");
+            try
+            {
+                if (!Directory.Exists(folder) || (File.GetAttributes(app) & FileAttributes.ReparsePoint) != 0 || (File.GetAttributes(folder) & FileAttributes.ReparsePoint) != 0) continue;
+                foreach (var file in Directory.EnumerateFiles(folder, "paste-*"))
+                    try { File.Delete(file); } catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+                if (!Directory.EnumerateFileSystemEntries(folder).Any()) Directory.Delete(folder);
+                if (!Directory.EnumerateFileSystemEntries(app).Any()) Directory.Delete(app);
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { }
+        }
     }
 
     private static bool IsWithin(string directory, string path) => path.StartsWith(directory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);

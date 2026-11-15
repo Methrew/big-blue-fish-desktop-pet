@@ -134,6 +134,10 @@ internal sealed partial class LinuxPetWindow
         if (File.Exists(notices)) links.Children.Add(ActionButton("授權與第三方元件", () => OpenUrl(notices)));
         body.Children.Add(links);
         body.Children.Add(Paragraph("設定、模型和 Agent 資料存放在：" + Environment.CurrentDirectory));
+#if COMPANION_MAC
+        if (File.Exists(MacDataImport.NoteName))
+            body.Children.Add(Paragraph("第一次啟動時已經從原版的資料夾匯入設定，原版的資料沒有變動；匯入了哪些項目，記在這個資料夾的 " + MacDataImport.NoteName + "。"));
+#endif
         body.Children.Add(ActionButton("開啟資料夾", () => OpenUrl(Environment.CurrentDirectory)));
         body.Children.Add(new TextBlock { Text = "更新", FontSize = 18, FontWeight = FontWeight.SemiBold, Margin = new Thickness(0, 18, 0, 4) });
         body.Children.Add(Paragraph("只會從本版的發布頁面檢查更新，不會換成原作者的版本。"

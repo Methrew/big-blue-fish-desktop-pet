@@ -12,9 +12,18 @@ internal static class Program
         if (args.Length == 2 && args[0] == "--wait-for-exit" && int.TryParse(args[1], out int pid)) {
             try { using var old = System.Diagnostics.Process.GetProcessById(pid); if (!old.WaitForExit(30000)) return; } catch (ArgumentException) { }
         }
+        // macOS: this edition's own folder (bigbluefish-tw), apart from the original's, which it can also be installed beside.
+        // Linux keeps the original's folder: its packages replace the original's, so the two never run side by side.
         var directory = Environment.GetEnvironmentVariable("BIGBLUEFISH_DATA") ?? (OperatingSystem.IsMacOS()
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library/Application Support/bigbluefish")
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library/Application Support", CompanionEdition.MacDataFolder)
             : Path.Combine(Environment.GetEnvironmentVariable("XDG_DATA_HOME") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".local/share"), "bigbluefish"));
+#if COMPANION_MAC
+        if (Environment.GetEnvironmentVariable("BIGBLUEFISH_DATA") == null && !args.Contains("--test-mode"))
+        {
+            MacDataImport.Run(directory, Path.Combine(Path.GetDirectoryName(directory)!, CompanionEdition.OriginalMacDataFolder));
+            MacLoginItem.Refresh();
+        }
+#endif
         Directory.CreateDirectory(directory); Environment.CurrentDirectory = directory;
         if (OperatingSystem.IsMacOS()) ImportLoginPath();
         Build().StartWithClassicDesktopLifetime(args);

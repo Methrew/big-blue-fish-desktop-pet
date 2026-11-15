@@ -19,17 +19,28 @@ internal sealed partial class LinuxPetWindow
     Window? consentWindow;
     Action? refreshLinuxSettings;
     Action? disposeLogConsole;
-    static string AutostartFile => OperatingSystem.IsMacOS() ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Library/LaunchAgents/io.github.bai-cute.bigbluefish.plist")
-        : Path.Combine(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config"), "autostart/bigbluefish.desktop");
+#if COMPANION_MAC
+    // A LaunchAgent labelled with this edition's bundle identifier (MacLoginItem). Refused while the app runs from a
+    // translocated or read-only location; the switch then shows the real state again.
+    bool StartupEnabled => MacLoginItem.Enabled;
+    void SetStartup(bool on)
+    {
+        try { MacLoginItem.Set(on); }
+        catch (Exception error) {
+            if (!consentOpen) _ = Confirm("登入時啟動", error.Message, "知道了");
+            Dispatcher.UIThread.Post(() => refreshLinuxSettings?.Invoke());
+        }
+    }
+#else
+    static string AutostartFile => Path.Combine(Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config"), "autostart/bigbluefish.desktop");
     bool StartupEnabled => File.Exists(AutostartFile);
     void SetStartup(bool on)
     {
         if (!on) { File.Delete(AutostartFile); return; }
         Directory.CreateDirectory(Path.GetDirectoryName(AutostartFile)!);
-        if (OperatingSystem.IsMacOS()) File.WriteAllText(AutostartFile, "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict><key>Label</key><string>io.github.bai-cute.bigbluefish</string><key>ProgramArguments</key><array><string>"
-            + System.Security.SecurityElement.Escape(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mac")) + "</string></array><key>RunAtLoad</key><true/><key>ProcessType</key><string>Interactive</string></dict></plist>\n");
-        else File.WriteAllText(AutostartFile, "[Desktop Entry]\nType=Application\nName=蓝色大肥鱼\nExec=\"" + Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\nTerminal=false\n");
+        File.WriteAllText(AutostartFile, "[Desktop Entry]\nType=Application\nName=" + CompanionEdition.DisplayName + "\nExec=\"" + Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux").Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"\nTerminal=false\n");
     }
+#endif
     void ApplySettings(PixelPoint? requestedPosition = null)
     {
         speechVersion++; brain.Stop(); brain.UseGpu = Preferences.GpuEnabled; brain.StopOnBattery = Preferences.StopModelOnBattery; brain.WeatherRegionCode = Preferences.WeatherRegionCode;

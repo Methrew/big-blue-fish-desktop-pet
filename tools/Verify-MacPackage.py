@@ -90,8 +90,10 @@ check(True, "native runner guard executes a child")
 
 with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
     data = pathlib.Path(temporary)
+    # The Safe edition shares the data folder with the Standard edition: it must leave the Standard Agent switches alone.
+    standard_agent = {"AgentEnabled": True, "PuppetMode": True, "AgentDailySpeech": True} if args.edition == "Safe" else {}
     (data / "preferences.json").write_text(json.dumps({"ModelEnabled": False, "PublicInfo": False,
-        "CheckUpdatesOnStartup": False, "HideOnFullscreen": False, "Left": 300, "Top": 250}))
+        "CheckUpdatesOnStartup": False, "HideOnFullscreen": False, "Left": 300, "Top": 250, **standard_agent}))
     (data / "model-selection.json").write_text('{"Source":"none"}')
     env = {**os.environ, "BIGBLUEFISH_DATA": str(data), "DOTNET_ROOT": "/nonexistent",
            "DOTNET_MULTILEVEL_LOOKUP": "0", "DYLD_LIBRARY_PATH": "", "DYLD_FALLBACK_LIBRARY_PATH": ""}
@@ -128,6 +130,9 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
             (data / "test-command.txt").write_text("exit")
             process.wait(timeout=15)
             check(process.returncode == 0, "application exits normally")
+            if standard_agent:
+                saved = json.loads((data / "preferences.json").read_text(encoding="utf-8-sig"))
+                check(all(saved.get(name) is True for name in standard_agent), "Safe edition keeps the Standard edition's Agent switches")
         finally:
             if process.poll() is None:
                 process.terminate()

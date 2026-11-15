@@ -37,7 +37,7 @@ public static class HarnessCatalog
     ];
 
     public static HarnessDefinition Get(string id) => All.FirstOrDefault(x => x.Id == id)
-        ?? throw new ArgumentException("請選擇支援的 Harness。");
+        ?? throw new ArgumentException("請選擇支援的 Agent。");
 
     public static string? FindExecutable(string command, string? path = null)
     {

@@ -26,7 +26,7 @@ public sealed class AgentAdapterStore(string root)
         if (harness.AdapterPackage == null) return (executable, harness.Arguments);
         string? existing = HarnessCatalog.FindExecutable(harness.AdapterCommand!);
         if (existing != null) return (existing, []);
-        var npm = HarnessCatalog.FindExecutable("npm") ?? throw new IOException("這個 Harness 的 ACP 轉接器需要 Node.js / npm，請先安裝 Node.js。");
+        var npm = HarnessCatalog.FindExecutable("npm") ?? throw new IOException("這個 Agent 的 ACP 轉接器需要 Node.js / npm，請先安裝 Node.js。");
         string folder = Path.Combine(root, "adapters", harness.Id);
         string command = Path.Combine(folder, "node_modules", ".bin", harness.AdapterCommand! + (OperatingSystem.IsWindows() ? ".cmd" : ""));
         string receipt = Path.Combine(folder, "fish-adapter.json");

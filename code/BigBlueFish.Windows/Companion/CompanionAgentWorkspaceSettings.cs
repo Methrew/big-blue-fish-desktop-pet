@@ -27,7 +27,7 @@ public partial class MainWindow
     {
         panel.Children.Add(new TextBlock { Text = "工作區", FontWeight = FontWeights.SemiBold, Margin = new(0, 20, 0, 6) });
         var path = ModernUI.Text(""); path.TextWrapping = TextWrapping.Wrap; panel.Children.Add(path);
-        panel.Children.Add(ModernUI.Text("檔案由各 Harness 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的請求。"));
+        panel.Children.Add(ModernUI.Text("檔案由各個 Agent 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的請求。"));
         var buttons = new WrapPanel(); panel.Children.Add(buttons); bool operating = false;
         async Task Run(Func<Task> action)
         {
@@ -76,7 +76,7 @@ public partial class MainWindow
     {
         panel.Children.Add(new TextBlock { Text = "模型與權限", FontWeight = FontWeights.SemiBold, Margin = new(0, 20, 0, 6) });
         var rows = new StackPanel(); panel.Children.Add(rows);
-        panel.Children.Add(ModernUI.Text("選項和適用範圍由目前的 Harness 提供；權限／工作模式決定它怎麼執行工作、何時要求你確認。"));
+        panel.Children.Add(ModernUI.Text("選項和適用範圍由目前的 Agent 提供；權限／工作模式決定它怎麼執行工作、何時要求你確認。"));
         AgentCoordinator? rendered = null; int revision = -1; bool applying = false; Action? refresh = null;
         async Task Apply(AgentCoordinator current, string id, string value)
         {
@@ -91,14 +91,14 @@ public partial class MainWindow
             if (applying || ReferenceEquals(rendered, current) && revision == (current?.Configuration.Revision ?? 0)) return;
             rendered = current; revision = current?.Configuration.Revision ?? 0; rows.Children.Clear();
             var options = current?.Configuration.Options ?? [];
-            if (options.Length == 0) { rows.Children.Add(ModernUI.Text(current?.Connected == true ? "模型、權限和工作模式由 Harness 設定；這個連線沒有提供可以調整的選項。" : "連線後會顯示 Agent 提供的模型、權限和思考選項。")); return; }
+            if (options.Length == 0) { rows.Children.Add(ModernUI.Text(current?.Connected == true ? "模型、權限和工作模式由 Agent 自己設定；這個連線沒有提供可以調整的選項。" : "連線後會顯示 Agent 提供的模型、權限和思考選項。")); return; }
             if (!options.Any(o => o.Category == "model")) rows.Children.Add(ModernUI.Text("目前模型：" + current!.CurrentModel));
             foreach (var option in options)
             {
                 string label = option.Category switch { "model" => "模型 · ", "mode" => "權限／工作模式 · ", "thought_level" => "思考深度 · ", _ => "" };
                 rows.Children.Add(ModernUI.Text(label + option.Name));
                 if (option.Description.Length > 0) rows.Children.Add(ModernUI.Text(option.Description));
-                if (option.Method.Length == 0) { rows.Children.Add(ModernUI.Text(option.CurrentValue + " · 由 Harness 設定")); continue; }
+                if (option.Method.Length == 0) { rows.Children.Add(ModernUI.Text(option.CurrentValue + " · 由 Agent 設定")); continue; }
                 if (option.Type == "boolean")
                 {
                     var toggle = new CheckBox { Content = option.Name, IsChecked = option.CurrentValue == "true", Margin = new(0, 6, 0, 8) };
@@ -109,7 +109,7 @@ public partial class MainWindow
                     var selector = new ComboBox { MinHeight = 34, HorizontalContentAlignment = HorizontalAlignment.Stretch, Margin = new(0, 5, 0, 8) };
                     foreach (var choice in option.Choices) selector.Items.Add(new ComboBoxItem { Content = (choice.Group.Length > 0 ? choice.Group + " · " : "") + choice.Name, Tag = choice.Value, ToolTip = choice.Description });
                     selector.SelectedItem = selector.Items.OfType<ComboBoxItem>().FirstOrDefault(i => (string?)i.Tag == option.CurrentValue);
-                    if (selector.SelectedItem == null) { var actual = new ComboBoxItem { Content = option.CurrentValue.Length > 0 ? option.CurrentValue : "由 Harness 設定", Tag = option.CurrentValue, IsEnabled = false }; selector.Items.Add(actual); selector.SelectedItem = actual; }
+                    if (selector.SelectedItem == null) { var actual = new ComboBoxItem { Content = option.CurrentValue.Length > 0 ? option.CurrentValue : "由 Agent 設定", Tag = option.CurrentValue, IsEnabled = false }; selector.Items.Add(actual); selector.SelectedItem = actual; }
                     selector.SelectionChanged += async (_, _) => { if (selector.SelectedItem is ComboBoxItem { Tag: string value } && value != option.CurrentValue) await Apply(current!, option.Id, value); };
                     rows.Children.Add(selector);
                 }

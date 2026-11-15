@@ -50,7 +50,7 @@ public sealed class AgentCoordinator : IDisposable
     public string SessionId => sessionId;
     public string? ExecutablePath { get; private set; }
     public string Version => connection?.AgentVersion ?? "";
-    public string CurrentModel { get; private set; } = "由 Harness 設定";
+    public string CurrentModel { get; private set; } = "由 Agent 設定";
     public bool RestoresSessions { get; private set; }
     public string? NextWake => Wakeups.List(harnessId, sessionId).FirstOrDefault()?.Due.ToLocalTime().ToString("MM-dd HH:mm:ss");
     public event Action? Changed;
@@ -82,7 +82,7 @@ public sealed class AgentCoordinator : IDisposable
             Interlocked.Increment(ref epoch);
             connectionLifetime.Cancel(); connectionLifetime = new();
             var previous = Interlocked.Exchange(ref connection, null); if (previous != null) _ = previous.DisposeAsync();
-            sessionId = ""; guideFingerprint = null; ExecutablePath = null; CurrentModel = "由 Harness 設定"; RestoresSessions = false; Configuration.Reset();
+            sessionId = ""; guideFingerprint = null; ExecutablePath = null; CurrentModel = "由 Agent 設定"; RestoresSessions = false; Configuration.Reset();
             lock (gate) { while (events.Reader.TryRead(out var abandoned)) abandoned.Completion?.TrySetCanceled(); coalesced.Clear(); }
         }
         harnessId = selected; mode = updated;
@@ -518,7 +518,7 @@ public sealed class AgentCoordinator : IDisposable
     }
     private async Task DropConnection()
     {
-        var old = Interlocked.Exchange(ref connection, null); sessionId = ""; guideFingerprint = null; CurrentModel = "由 Harness 設定"; Configuration.Reset();
+        var old = Interlocked.Exchange(ref connection, null); sessionId = ""; guideFingerprint = null; CurrentModel = "由 Agent 設定"; Configuration.Reset();
         if (old != null) { DiagnosticLog.Write(DiagnosticEvent.AgentDisconnected); await old.DisposeAsync(); }
     }
     private Task<string?> HandlePermission(AgentPermission request, CancellationToken token)

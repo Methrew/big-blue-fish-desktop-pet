@@ -56,7 +56,7 @@ Windows 用可以直接啟動的程式入口打開登入終端機；macOS 打開
 
 設定頁的「模型與權限」依 Agent 回傳的設定畫出選擇器，保留對方提供的名稱、選項分組、說明和目前的值。模型、權限／工作模式、思考深度和其他參數依回傳的順序顯示。初始值沿用 Harness 的設定，操作不會在其他設定檔寫入固定的模型或權限。實際的作用範圍依對應的 Harness 而定。
 
-優先使用 ACP 的 `configOptions`，支援 select 和已宣告能力的 boolean 類型；透過 `session/set_config_option` 修改，並接收完整的設定結果與 `config_option_update`。一次修改可能會換掉模型清單或思考選項。沒有設定選項時，相容舊式的 `models`、`modes` 狀態，分別呼叫 `session/set_model`、`session/set_mode`；不支援的切換方式改為唯讀顯示。沒有可以調整的選項時，連線會顯示「由 Harness 設定」。連線、切換或產生回覆期間，選擇器會等目前的請求結束後才啟用。
+優先使用 ACP 的 `configOptions`，支援 select 和已宣告能力的 boolean 類型；透過 `session/set_config_option` 修改，並接收完整的設定結果與 `config_option_update`。一次修改可能會換掉模型清單或思考選項。沒有設定選項時，相容舊式的 `models`、`modes` 狀態，分別呼叫 `session/set_model`、`session/set_mode`；不支援的切換方式改為唯讀顯示。沒有可以調整的選項時，連線會顯示「由 Agent 設定」。連線、切換或產生回覆期間，選擇器會等目前的請求結束後才啟用。
 
 權限／工作模式與單項操作的核准分開處理。Agent 要求執行檔案、指令等操作時，魚魚會顯示它提供的具體內容和核准選項。切換模型、對話或工作區時，不會把一般的 ACP 回答送進氣泡。
 

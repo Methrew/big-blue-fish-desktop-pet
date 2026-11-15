@@ -80,7 +80,7 @@ public partial class MainWindow
             // The other page or MCP may have changed it meanwhile; a click still being confirmed keeps its own state.
             if (puppet.IsEnabled) puppet.IsChecked = preferences.PuppetMode;
             state.Text = agent?.Status ?? "尚未連線";
-            description.Text = agent?.Detail ?? "選擇已安裝的 Harness，連線後雙擊魚魚即可對話。";
+            description.Text = agent?.Detail ?? "選擇已安裝的 Agent，連線後雙擊魚魚即可對話。";
             details.Text = $"程式：{agent?.ExecutablePath ?? "尚未啟動"}\nAgent 版本：{agent?.Version}\n模型：{agent?.CurrentModel}\n對話編號：{agent?.SessionId}\n內部工具連線：{mcpServer?.Connections ?? 0}\n輸入會發起對話；點選回應：{OnOff(preferences.AgentRespondToClick)}；拖曳回應：{OnOff(preferences.AgentRespondToDrag)}（可由 Agent 調整）";
             wake.Text = preferences.PuppetMode && preferences.AgentDailySpeech
                 ? "下一次日常關心：" + (agent?.NextWake ?? "等待 Agent 安排")

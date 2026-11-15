@@ -23,7 +23,7 @@ internal sealed partial class LinuxPetWindow
     Action BuildAgentWorkspaceSettings(StackPanel panel)
     {
         panel.Children.Add(Paragraph("工作區")); var path = Paragraph(""); panel.Children.Add(path);
-        panel.Children.Add(Paragraph("檔案由各 Harness 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的請求。"));
+        panel.Children.Add(Paragraph("檔案由各個 Agent 共用；新的對話和專案也使用目前的資料夾。切換工作區會結束目前的請求。"));
         var buttons = new WrapPanel(); panel.Children.Add(buttons); bool operating = false;
         async Task Run(Func<Task> action)
         {
@@ -65,7 +65,7 @@ internal sealed partial class LinuxPetWindow
     Action BuildAgentConfigurationSettings(StackPanel panel)
     {
         panel.Children.Add(Paragraph("模型與權限")); var rows = new StackPanel { Spacing = 8 }; panel.Children.Add(rows);
-        panel.Children.Add(Paragraph("選項和適用範圍由目前的 Harness 提供；權限／工作模式決定它怎麼執行工作、何時要求你確認。"));
+        panel.Children.Add(Paragraph("選項和適用範圍由目前的 Agent 提供；權限／工作模式決定它怎麼執行工作、何時要求你確認。"));
         AgentCoordinator? rendered = null; int revision = -1; bool applying = false; Action? refresh = null;
         async Task Apply(AgentCoordinator current, string id, string value)
         {
@@ -79,14 +79,14 @@ internal sealed partial class LinuxPetWindow
             if (applying || ReferenceEquals(rendered, current) && revision == (current?.Configuration.Revision ?? 0)) return;
             rendered = current; revision = current?.Configuration.Revision ?? 0; rows.Children.Clear();
             var options = current?.Configuration.Options ?? [];
-            if (options.Length == 0) { rows.Children.Add(Paragraph(current?.Connected == true ? "模型、權限和工作模式由 Harness 設定；這個連線沒有提供可以調整的選項。" : "連線後會顯示 Agent 提供的模型、權限和思考選項。")); return; }
+            if (options.Length == 0) { rows.Children.Add(Paragraph(current?.Connected == true ? "模型、權限和工作模式由 Agent 自己設定；這個連線沒有提供可以調整的選項。" : "連線後會顯示 Agent 提供的模型、權限和思考選項。")); return; }
             if (!options.Any(o => o.Category == "model")) rows.Children.Add(Paragraph("目前模型：" + current!.CurrentModel));
             foreach (var option in options)
             {
                 string label = option.Category switch { "model" => "模型 · ", "mode" => "權限／工作模式 · ", "thought_level" => "思考深度 · ", _ => "" };
                 rows.Children.Add(Paragraph(label + option.Name));
                 if (option.Description.Length > 0) rows.Children.Add(Paragraph(option.Description));
-                if (option.Method.Length == 0) { rows.Children.Add(Paragraph(option.CurrentValue + " · 由 Harness 設定")); continue; }
+                if (option.Method.Length == 0) { rows.Children.Add(Paragraph(option.CurrentValue + " · 由 Agent 設定")); continue; }
                 if (option.Type == "boolean")
                 {
                     var toggle = new CheckBox { Content = option.Name, IsChecked = option.CurrentValue == "true" };
@@ -97,7 +97,7 @@ internal sealed partial class LinuxPetWindow
                     var selector = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
                     var choices = option.Choices.Select(c => { var item = new ComboBoxItem { Content = (c.Group.Length > 0 ? c.Group + " · " : "") + c.Name, Tag = c.Value }; ToolTip.SetTip(item, c.Description); return item; }).ToList();
                     var selected = choices.FirstOrDefault(i => (string?)i.Tag == option.CurrentValue);
-                    if (selected == null) { selected = new ComboBoxItem { Content = option.CurrentValue.Length > 0 ? option.CurrentValue : "由 Harness 設定", Tag = option.CurrentValue, IsEnabled = false }; choices.Add(selected); }
+                    if (selected == null) { selected = new ComboBoxItem { Content = option.CurrentValue.Length > 0 ? option.CurrentValue : "由 Agent 設定", Tag = option.CurrentValue, IsEnabled = false }; choices.Add(selected); }
                     selector.ItemsSource = choices; selector.SelectedItem = selected;
                     selector.SelectionChanged += async (_, _) => { if (selector.SelectedItem is ComboBoxItem { Tag: string value } && value != option.CurrentValue) await Apply(current!, option.Id, value); };
                     rows.Children.Add(selector);

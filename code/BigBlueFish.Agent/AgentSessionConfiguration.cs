@@ -15,7 +15,7 @@ public sealed class AgentSessionConfiguration
     private bool modern;
     public int Revision { get; private set; }
     public AgentConfigOption[] Options { get { lock (gate) return options.ToArray(); } }
-    public string Model => Options.FirstOrDefault(o => o.Category == "model")?.CurrentValue ?? "由 Harness 設定";
+    public string Model => Options.FirstOrDefault(o => o.Category == "model")?.CurrentValue ?? "由 Agent 設定";
     public void Reset() { lock (gate) { options = []; modern = false; Revision++; } }
     private static string Text(JsonElement obj, string key, string fallback = "") => obj.TryGetProperty(key, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() ?? fallback : fallback;
     public void Read(JsonElement data)
@@ -61,7 +61,7 @@ public sealed class AgentSessionConfiguration
                         if (key.Length > 0) choices.Add(new(key, Text(item, "name", key), Text(item, "description")));
                     }
                 legacy.RemoveAll(o => o.Id == id);
-                if (current.Length > 0 || choices.Count > 0) legacy.Add(new(id, category == "model" ? "模型" : "權限／工作模式", "由目前的 Harness 提供", category, "select", current, choices.ToArray(), method));
+                if (current.Length > 0 || choices.Count > 0) legacy.Add(new(id, category == "model" ? "模型" : "權限／工作模式", "由目前的 Agent 提供", category, "select", current, choices.ToArray(), method));
             }
             Legacy("models", "currentModelId", "availableModels", "model", "session/set_model");
             Legacy("modes", "currentModeId", "availableModes", "mode", "session/set_mode");
@@ -90,7 +90,7 @@ public sealed class AgentSessionConfiguration
     public async Task Apply(AcpConnection client, string sessionId, string id, string value, CancellationToken token)
     {
         AgentConfigOption option = Options.FirstOrDefault(o => o.Id == id) ?? throw new ArgumentException("Agent 已經不提供這個設定項目，請重新整理後再試。");
-        if (option.Method.Length == 0) throw new InvalidOperationException("這個選項由 Harness 設定。");
+        if (option.Method.Length == 0) throw new InvalidOperationException("這個選項由 Agent 設定。");
         if (option.Type == "boolean" ? value is not ("true" or "false") : !option.Choices.Any(c => c.Value == value)) throw new ArgumentException("請選擇 Agent 提供的有效選項。");
         object args = option.Method switch {
             "session/set_mode" => new { sessionId, modeId = value },
@@ -104,7 +104,7 @@ public sealed class AgentSessionConfiguration
         catch (AcpException error) when (error.Code == -32601)
         {
             lock (gate) { options = options.Select(o => o.Id == id ? o with { Method = "" } : o).ToArray(); Revision++; }
-            throw new IOException("Agent 沒有提供切換這個設定的方法，請在對應的 Harness 裡設定。", error);
+            throw new IOException("Agent 沒有提供切換這個設定的方法，請在對應的 Agent 命令列工具裡設定。", error);
         }
         token.ThrowIfCancellationRequested();
         if (option.Method == "session/set_config_option")

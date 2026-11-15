@@ -14,6 +14,9 @@ internal sealed partial class LinuxPetWindow
         // them, so the window behaviour is applied on each Opened. Until the first frame the pet lets clicks through.
         Opened += (_, _) => { CompanionNative.TrackPointerWindow(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero); ConfigurePlatformWindow(this); };
         bubbleWindow.Opened += (_, _) => ConfigurePlatformWindow(bubbleWindow);
+        // Openings of the clips a click or a drag starts, from where Play starts them (the drag clip at 1.5 s): about 33 MB.
+        foreach (var rule in policy.Rules.Where(r => r.Pool == "Click")) player.Preload(Path.Combine(AppContext.BaseDirectory, "assets/fish", rule.File));
+        player.Preload(Path.Combine(AppContext.BaseDirectory, "assets/fish", policy.Find("被鼠标拖拽悬空反馈").File), 1.5);
     }
 
     partial void ConfigurePlatformWindow(Window window) => CompanionNative.ConfigureSpaces(window, Preferences.ShowOnAllSpaces, !Preferences.HideOnFullscreen);

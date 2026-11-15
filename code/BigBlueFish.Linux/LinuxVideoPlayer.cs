@@ -6,7 +6,7 @@ using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using Avalonia.Threading;
 namespace BigBlueFish.Windows;
-internal sealed class LinuxVideoPlayer(Image image) : IDisposable
+internal sealed partial class LinuxVideoPlayer(Image image) : IDisposable
 {
     readonly SemaphoreSlim serial=new(1);
     WriteableBitmap? bitmap;
@@ -30,17 +30,27 @@ internal sealed class LinuxVideoPlayer(Image image) : IDisposable
         image.RenderTransformOrigin=new(.5,.5,RelativeUnit.Relative);image.RenderTransform=new Avalonia.Media.ScaleTransform(mirror?-1:1,1);
         double pixels=image.Width*(TopLevel.GetTopLevel(image)?.RenderScaling??1);
         int width=Math.Clamp((int)Math.Ceiling((double.IsFinite(pixels)?pixels:640)/128)*128,256,1280);
+        // A preloaded opening (LinuxVideoOpenings.cs) shows its first frame now and the rest on the clip's clock while the
+        // previous pipeline is released and this one is created; the pipeline then continues where the opening ends.
+        var opening=TakeOpening(path,startSeconds,endSeconds);Task<long> shown=Task.FromResult(0L);
+        if(opening!=null){var clock=Stopwatch.StartNew();ShowOpening(opening,0,mirror);shown=Task.Run(()=>PlayOpening(opening,clock,id,token,rate,mirror));}
+        double resume=opening?.End??startSeconds;
         _=Task.Run(async()=>
         {
             try
             {
+                if(endSeconds.HasValue&&resume>=endSeconds.Value)
+                {await shown;token.ThrowIfCancellationRequested();await Dispatcher.UIThread.InvokeAsync(()=>{if(id==generation&&!disposed)completed();});return;}
                 await serial.WaitAsync(token);
                 try
                 {
                     CompanionMedia.Initialize();bool hardware=!hardwareFailed&&CompanionMedia.HardwareAvailable;
+#if COMPANION_MAC
+                    hardware=false; // the bundled macOS GStreamer has no hardware VP9 alpha decoder, and the app ships only compat/ clips
+#endif
                     while(true)
                     {
-                        try{await Decode(path,hardware,width,id,token,mirror,completed,startSeconds,endSeconds,rate);break;}
+                        try{await Decode(path,hardware,width,id,token,mirror,completed,resume,endSeconds,rate,shown);break;}
                         catch(Exception e)when(hardware&&!token.IsCancellationRequested)
                         {hardwareFailed=true;hardware=false;DiagnosticLog.Write(DiagnosticEvent.AnimationFailed, state: "hardware_fallback", error: e);}
                     }
@@ -51,12 +61,15 @@ internal sealed class LinuxVideoPlayer(Image image) : IDisposable
             catch(Exception e){await Dispatcher.UIThread.InvokeAsync(()=>{if(id==generation&&!disposed)Failed?.Invoke(e.Message);});}
         });
     }
-    async Task Decode(string file,bool hardware,int width,long id,CancellationToken token,bool mirror,Action completed,double start,double? end,double rate)
+    async Task Decode(string file,bool hardware,int width,long id,CancellationToken token,bool mirror,Action completed,double start,double? end,double rate,Task<long> opening)
     {
         if(!hardware){file=Path.Combine(Path.GetDirectoryName(file)!,"compat",Path.GetFileName(file));width=640;}
         int height=width*9/16;
         using var stream=new CompanionMediaStream(file,hardware,width,height,start,end,rate);
-        Backend=stream.Description;stream.SetPaused(Paused);bool wasPaused=Paused;long count=0;byte[] pixels=new byte[width*height*4];
+        Backend=stream.Description;
+        // The prerolled pipeline waits for a preloaded opening to finish and starts where it ends.
+        long count=await opening;token.ThrowIfCancellationRequested();
+        stream.SetPaused(Paused);bool wasPaused=Paused;byte[] pixels=new byte[width*height*4];
         while(true)
         {
             token.ThrowIfCancellationRequested();
@@ -70,17 +83,22 @@ internal sealed class LinuxVideoPlayer(Image image) : IDisposable
             await Dispatcher.UIThread.InvokeAsync(()=>
             {
                 if(id!=generation||disposed)return;
-                var copy=Stopwatch.StartNew();
-                if(bitmap==null||bitmap.PixelSize.Width!=width||bitmap.PixelSize.Height!=height)
-                {bitmap?.Dispose();bitmap=new(new PixelSize(width,height),new Vector(96,96),PixelFormat.Bgra8888,AlphaFormat.Unpremul);image.Source=bitmap;}
-                using(var target=bitmap.Lock())for(int y=0;y<height;y++)Marshal.Copy(pixels,y*width*4,target.Address+y*target.RowBytes,width*4);
-                LastCopyMs=copy.Elapsed.TotalMilliseconds;copy.Restart();image.InvalidateVisual();Frames=++count;PositionSeconds=frame.Seconds;
-                PixelsPresented?.Invoke(pixels,width,height,mirror);LastShapeMs=copy.Elapsed.TotalMilliseconds;FramePresented?.Invoke(PositionSeconds);
+                Present(pixels,width,height,mirror,frame.Seconds,++count);
             });
             LastUiMs=clock.Elapsed.TotalMilliseconds;
         }
         if(count==0)throw new IOException("动画没有生成可显示的帧。");
         await Dispatcher.UIThread.InvokeAsync(()=>{if(id==generation&&!disposed)completed();});
+    }
+    // On the UI thread: one decoded or preloaded frame into the sprite's bitmap, then the hit-testing and position listeners.
+    void Present(byte[] pixels,int width,int height,bool mirror,double seconds,long frames)
+    {
+        var copy=Stopwatch.StartNew();
+        if(bitmap==null||bitmap.PixelSize.Width!=width||bitmap.PixelSize.Height!=height)
+        {bitmap?.Dispose();bitmap=new(new PixelSize(width,height),new Vector(96,96),PixelFormat.Bgra8888,AlphaFormat.Unpremul);image.Source=bitmap;}
+        using(var target=bitmap.Lock())for(int y=0;y<height;y++)Marshal.Copy(pixels,y*width*4,target.Address+y*target.RowBytes,width*4);
+        LastCopyMs=copy.Elapsed.TotalMilliseconds;copy.Restart();image.InvalidateVisual();Frames=frames;PositionSeconds=seconds;
+        PixelsPresented?.Invoke(pixels,width,height,mirror);LastShapeMs=copy.Elapsed.TotalMilliseconds;FramePresented?.Invoke(PositionSeconds);
     }
     public void Dispose(){if(disposed)return;disposed=true;generation++;current?.Cancel();current?.Dispose();bitmap?.Dispose();}
 }

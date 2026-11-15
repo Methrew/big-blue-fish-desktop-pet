@@ -7,6 +7,7 @@
     <Compile Include="../BigBlueFish.Linux/GlobalDiagnostics.cs" Link="Linux/GlobalDiagnostics.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxPetWindow.cs" Link="Linux/LinuxPetWindow.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxVideoPlayer.cs" Link="Linux/LinuxVideoPlayer.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxVideoOpenings.cs" Link="Linux/LinuxVideoOpenings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxVisuals.cs" Link="Linux/LinuxVisuals.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxTray.cs" Link="Linux/LinuxTray.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxProcesses.cs" Link="Linux/LinuxProcesses.cs" />

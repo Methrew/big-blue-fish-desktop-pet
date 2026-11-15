@@ -20,6 +20,7 @@
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionRegions.cs" Link="Shared/CompanionRegions.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="Shared/CompanionEdition.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionOcrLayout.cs" Link="Shared/CompanionOcrLayout.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionTraditional.cs" Link="Shared/CompanionTraditional.cs" />
     <Compile Include="../../deployment/ModelStore.cs" Link="Shared/ModelStore.cs" />
     <Compile Include="../../deployment/ArtifactDownload.cs" Link="Shared/ArtifactDownload.cs" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/china-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.china-regions.json" />
@@ -27,6 +28,8 @@
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/us-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.us-regions.json" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/world-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.world-regions.json" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/world-countries.json" LogicalName="BigBlueFish.Windows.assets.regions.world-countries.json" />
+    <!-- OpenCC 1.4.2 dictionaries for CompanionTraditional; the names must match its resource prefix. -->
+    <EmbeddedResource Include="../BigBlueFish.Windows/assets/opencc/*.txt" LogicalName="BigBlueFish.Windows.assets.opencc.%(Filename)%(Extension)" />
     <AvaloniaResource Include="../BigBlueFish.Windows/Res/Font/jf-openhuninn-2.1.ttf" Link="Assets/jf-openhuninn-2.1.ttf" />
     <Content Include="../BigBlueFish.Windows/assets/fish/**/*" Link="assets/fish/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../BigBlueFish.Windows/BigBlueFish.ico" Link="BigBlueFish.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

@@ -43,6 +43,15 @@ for name in ["BigBlueFish.Mcp", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dl
     check((payload / name).is_file() == (args.edition == "Standard"), "edition isolation: " + name)
 check(len(list((payload / "assets/fish").glob("*.webm"))) == 106, "106 enhanced clips")
 check(len(list((payload / "assets/fish/compat").glob("*.webm"))) == 106, "106 compatibility clips")
+# Taiwan edition bubble: jf open huninn and the OpenCC dictionaries are embedded and ship with their licenses
+# (Kosugi Maru, the source of jf's Hanzi, under Apache-2.0); the Simplified-only Lemi font is gone.
+program = (payload / "BigBlueFish.Mac.dll").read_bytes()
+check(b"Assets/jf-openhuninn-2.1.ttf" in program and b"BigBlueFish.Windows.assets.opencc.STPhrases.txt" in program,
+      "bubble font and OpenCC dictionaries embedded")
+for name in ["licenses/jf-open-huninn-OFL.txt", "licenses/OpenCC-Apache-2.0.txt", "licenses/Apache-2.0.txt"]:
+    check((payload / name).is_file(), "bundled license: " + name)
+check(b"LemiXiaoNaiPaoTi" not in program and not any(p.name.lower().replace("-", "").startswith("lemixiao") for p in payload.rglob("*")),
+      "no Lemi font or license in the bundle")
 native = list(payload.rglob("*.dylib")) + [payload / n for n in [
     "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr"]]
 if args.edition == "Standard":
@@ -117,6 +126,17 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
             ocr = subprocess.run([str(payload / "runtime/BigBlueFish.MacOcr")], input=(data / "pet.png").read_bytes(),
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True, timeout=30)
             check(ocr.stdout.startswith(b"level\tpage_num\t"), "bundled Apple Vision OCR processes a real PNG")
+            (data / "test-command.txt").write_text("bubble 主人，我们一起干杯吧！", encoding="utf-8")
+            deadline = time.monotonic() + 10
+            while time.monotonic() < deadline:
+                try:
+                    status = json.loads((data / "test-status.json").read_text(encoding="utf-8"))
+                    if status["text"] == "主人，我們一起乾杯吧！":
+                        break
+                except (FileNotFoundError, json.JSONDecodeError):
+                    pass
+                time.sleep(.25)
+            check(status["text"] == "主人，我們一起乾杯吧！" and status["bubbleVisible"], "bubble shows Simplified text in Taiwan Traditional")
             (data / "test-command.txt").write_text("exit")
             process.wait(timeout=15)
             check(process.returncode == 0, "application exits normally")

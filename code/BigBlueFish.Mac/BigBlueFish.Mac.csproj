@@ -18,6 +18,8 @@
     <Compile Include="../BigBlueFish.Linux/LinuxAgentSettings.cs" Link="Linux/LinuxAgentSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxAgentWorkspaceSettings.cs" Link="Linux/LinuxAgentWorkspaceSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxFonts.cs" Link="Linux/LinuxFonts.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxBubbleText.cs" Link="Linux/LinuxBubbleText.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionTraditional.cs" Link="Shared/CompanionTraditional.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionCaptureFallback.cs" Link="Shared/CompanionCaptureFallback.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionMedia.cs" Link="Shared/CompanionMedia.cs" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />
@@ -41,6 +43,8 @@
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/us-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.us-regions.json" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/world-regions.json" LogicalName="BigBlueFish.Windows.assets.regions.world-regions.json" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/world-countries.json" LogicalName="BigBlueFish.Windows.assets.regions.world-countries.json" />
+    <!-- OpenCC 1.4.2 dictionaries for CompanionTraditional; the names must match its resource prefix. -->
+    <EmbeddedResource Include="../BigBlueFish.Windows/assets/opencc/*.txt" LogicalName="BigBlueFish.Windows.assets.opencc.%(Filename)%(Extension)" />
     <AvaloniaResource Include="../BigBlueFish.Windows/Res/Font/jf-openhuninn-2.1.ttf" Link="Assets/jf-openhuninn-2.1.ttf" />
     <Content Include="../BigBlueFish.Windows/assets/fish/**/*" Link="assets/fish/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../BigBlueFish.Windows/BigBlueFish.ico" Link="BigBlueFish.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

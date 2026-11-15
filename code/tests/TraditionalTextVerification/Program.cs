@@ -75,6 +75,10 @@ Check(CompanionTraditional.ConvertPartial("我们走吧。") == "我們走吧。
 foreach (var same in new[] { "", "Hello, world! 123", "\uD800 lone high surrogate", "lone low \uDC00", "𠮷野家👨‍👩‍👧", "台灣、干擾、皇后、公里、面對、一台電腦" })
     Check(CompanionTraditional.Convert(same) == same, "unchanged: " + same);
 
+// Lines the Linux and macOS pet shows through ShowText, which converts them like CompanionSpeech on Windows.
+Check(CompanionTraditional.Convert("主人早上好，鱼鱼给主人请安啦~") == "主人早上好，魚魚給主人請安啦~", "Linux and macOS welcome converted");
+Check(CompanionTraditional.Convert("主人再见~鱼鱼喜欢主人哦") == "主人再見~魚魚喜歡主人哦", "Linux and macOS farewell converted");
+
 // A full-length say (4000 UTF-16 units) must not stall the UI thread.
 var longText = string.Concat(Enumerable.Repeat("今天天气很好，我們一起去公园散步吧！Today is nice. ", 160))[..4000];
 clock.Restart();

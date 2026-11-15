@@ -87,6 +87,9 @@ try:
     context=request('tools/call',dict(name='get_context',arguments={}))
     check(context.get('isError') and 'Linux' in context['content'][0]['text'],'get_context reports unsupported on Linux')
     check(len(content('list_actions'))==106,'same 106 production actions')
+    # The bubble converts Simplified text to Taiwan Traditional; the Agent gets back exactly what it sent.
+    said=content('say',text='主人，我们一起干杯吧！'); wait(lambda: state()['text']=='主人，我們一起乾杯吧！')
+    check(said['text']=='主人，我们一起干杯吧！','say shows Taiwan Traditional and returns the original text')
     text='主人，Linux 端收到的原文呀~ ABC 123'
     content('say',text=text); wait(lambda: state()['text']==text)
     check(state()['modelPid'] is None and state()['bubbleVisible'],'literal speech works without local model')

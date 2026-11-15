@@ -166,11 +166,11 @@ internal sealed partial class LinuxPetWindow
                 catch (Exception error) when (error is HttpRequestException or TaskCanceledException) { throw new IOException("無法連線到 GitHub，請確認網路連線後再試一次。", error); }
             }
             using var response = await Latest();
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound) { if (manual) await Confirm("檢查更新", "本版目前還沒有發布任何正式版本，之後再來看看。", "知道了"); return; }
+            if (response.StatusCode == System.Net.HttpStatusCode.NotFound) { if (manual) await Inform("檢查更新", "本版目前還沒有發布任何正式版本，之後再來看看。"); return; }
             if (!response.IsSuccessStatusCode) throw new IOException("GitHub 暫時無法回應（HTTP " + (int)response.StatusCode + "），請稍後再試一次。");
             using var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             var root = json.RootElement; string tag = root.GetProperty("tag_name").GetString() ?? "";
-            if (!ReleaseVersion.TryParse(tag, out var latest) || !(latest > ReleaseVersion.Current(typeof(LinuxPetWindow).Assembly))) { if (manual) await Confirm("檢查更新", "目前已經是最新版本。", "知道了"); return; }
+            if (!ReleaseVersion.TryParse(tag, out var latest) || !(latest > ReleaseVersion.Current(typeof(LinuxPetWindow).Assembly))) { if (manual) await Inform("檢查更新", "目前已經是最新版本。"); return; }
             var assets = root.GetProperty("assets").EnumerateArray().ToArray();
             string? Url(string name) => assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name) is { ValueKind: JsonValueKind.Object } found
                 && found.TryGetProperty("browser_download_url", out var value) ? value.GetString() : null;
@@ -183,7 +183,7 @@ internal sealed partial class LinuxPetWindow
 #if COMPANION_MAC
             // A DMG release: the app is never replaced from inside; the user downloads the DMG and replaces the app.
             string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-macOS-arm64.dmg";
-            if (Url(asset) == null) { if (manual) await Confirm("發現新版本", app + " " + latest + " 已經發布，但 macOS 安裝檔還沒準備好，請稍後再檢查一次。", "知道了"); return; }
+            if (Url(asset) == null) { if (manual) await Inform("發現新版本", app + " " + latest + " 已經發布，但 macOS 安裝檔還沒準備好，請稍後再檢查一次。"); return; }
             if (await Confirm("發現新版本", app + " " + latest + " 已經發布。請在發布頁面下載「" + asset + "」，結束目前的" + app
                 + "，打開 DMG 後把新版拖到「應用程式」檔案夾，取代舊版。設定和模型存放在資料夾「" + Environment.CurrentDirectory + "」，不會受影響；取代後如果讀不到畫面，請到「系統設定 › 隱私權與安全性 › " + CompanionNative.ScreenRecordingPane + "」重新允許。", "開啟發布頁面", reject: "稍後再說"))
                 OpenUrl(root.GetProperty("html_url").GetString() ?? CompanionEdition.ReleasesPage);
@@ -202,7 +202,7 @@ internal sealed partial class LinuxPetWindow
             var restart = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Linux")) { UseShellExecute = false };
             restart.ArgumentList.Add("--wait-for-exit"); restart.ArgumentList.Add(Environment.ProcessId.ToString()); Process.Start(restart); CloseImmediately();
 #endif
-        } catch (Exception error) { if (manual && !closed && !consentOpen) await Confirm("檢查更新", "這次沒有完成檢查更新：" + error.Message, "知道了"); }
+        } catch (Exception error) { if (manual && !closed && !consentOpen) await Inform("檢查更新", "這次沒有完成檢查更新：" + error.Message); }
         finally { updateChecking = false; }
     }
 }

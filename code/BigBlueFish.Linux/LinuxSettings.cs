@@ -28,7 +28,7 @@ internal sealed partial class LinuxPetWindow
     {
         try { MacLoginItem.Set(on); }
         catch (Exception error) {
-            if (!consentOpen) _ = Confirm(StartupLabel, error.Message, "知道了");
+            if (!consentOpen) _ = Inform(StartupLabel, error.Message);
             Dispatcher.UIThread.Post(() => refreshLinuxSettings?.Invoke());
         }
     }
@@ -64,15 +64,20 @@ internal sealed partial class LinuxPetWindow
         FontFamily = LinuxFonts.Interface, FontSize = 14,
         WindowStartupLocation = WindowStartupLocation.CenterScreen, Background = new SolidColorBrush(Color.FromRgb(247, 248, 251)),
         Content = new Border { Padding = new Thickness(28), Child = content } };
-    async Task<bool> Confirm(string title, string message, string accept = "確定", CancellationToken token = default, string reject = "取消")
+    // reject null: a notice with its one button (Inform).
+    async Task<bool> Confirm(string title, string message, string accept = "確定", CancellationToken token = default, string? reject = "取消")
     {
         if (consentOpen) throw new InvalidOperationException("請先處理已開啟的提示視窗。");
         consentOpen = true; bool accepted = false;
         try {
             var panel = new StackPanel { Spacing = 15 };
             panel.Children.Add(new TextBlock { Text = title, FontSize = 23, FontWeight = FontWeight.SemiBold }); panel.Children.Add(Paragraph(message));
-            var dialog = Dialog(title, panel); var buttons = new WrapPanel();
-            buttons.Children.Add(ActionButton(accept, () => { accepted = true; dialog.Close(); })); buttons.Children.Add(ActionButton(reject, dialog.Close)); panel.Children.Add(buttons);
+            var dialog = Dialog(title, panel, reject == null ? 480 : 630); var buttons = new WrapPanel();
+            // As tall as the message: a short one leaves no empty half window under its buttons.
+            dialog.MinHeight = 0; dialog.Height = double.NaN; dialog.SizeToContent = SizeToContent.Height;
+            buttons.Children.Add(ActionButton(accept, () => { accepted = true; dialog.Close(); }));
+            if (reject != null) buttons.Children.Add(ActionButton(reject, dialog.Close));
+            panel.Children.Add(buttons);
             using var registration = token.Register(() => Dispatcher.UIThread.Post(() => { accepted = false; dialog.Close(); }));
             var finished = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             dialog.Closed += (_, _) => finished.TrySetResult(accepted && !token.IsCancellationRequested);
@@ -81,13 +86,16 @@ internal sealed partial class LinuxPetWindow
             return await finished.Task;
         } finally { consentWindow = null; consentOpen = false; }
     }
+    // A notice that only tells something: one button, as tall as its text.
+    Task Inform(string title, string message, string accept = "知道了") => Confirm(title, message, accept, reject: null);
     void OpenSettings()
     {
         if (settings != null) { if (settings.WindowState == WindowState.Minimized) settings.WindowState = WindowState.Normal; settings.Activate(); return; }
         var root = new Grid { ColumnDefinitions = new ColumnDefinitions("180,*") };
         var navigation = new StackPanel { Spacing = 10, Margin = new Thickness(0, 0, 20, 0) };
-        var body = new StackPanel { Spacing = 8 }; var scroll = new ScrollViewer { Content = body }; Grid.SetColumn(scroll, 1); root.Children.Add(navigation); root.Children.Add(scroll);
-        settings = Dialog(CompanionEdition.DisplayName + " · 設定", root, 880, 700); settings.MinWidth = 780; settings.MinHeight = 600;
+        // The right margin keeps the overlay scroll bar off the last characters and the right edge of the fields.
+        var body = new StackPanel { Spacing = 8, Margin = new Thickness(0, 0, 16, 0) }; var scroll = new ScrollViewer { Content = body }; Grid.SetColumn(scroll, 1); root.Children.Add(navigation); root.Children.Add(scroll);
+        settings = Dialog(CompanionEdition.AppName + " · 設定", root, 880, 700); settings.MinWidth = 780; settings.MinHeight = 600;
         settings.Closed += (_, _) => { disposeLogConsole?.Invoke(); disposeLogConsole = null; settings = null; refreshLinuxSettings = null; DiagnosticLog.Write(DiagnosticEvent.SettingsClosed); Save(); nextEvent = DateTime.UtcNow.AddSeconds(Preferences.AnimationIntervalSeconds); };
         Action selectedPage = General;
         void Navigate(Action page) { selectedPage = page; page(); }

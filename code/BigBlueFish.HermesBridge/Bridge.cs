@@ -1118,8 +1118,10 @@ internal sealed class Bridge(BridgeOptions options)
         }
     }
 
+    // Null too from a pet without get_context (macOS and Linux for now), which is not asked at all.
     private async Task<string?> WeatherAsync(PetLink link, CancellationToken token)
     {
+        if (link.Tools is { } tools && !tools.Contains("get_context")) return null;
         if (await CallAsync(link, "get_context", new { }, token) is not { } context) return null;
         try { using var document = JsonDocument.Parse(context); return TextOf(document.RootElement, "weather"); }
         catch (JsonException) { return null; }

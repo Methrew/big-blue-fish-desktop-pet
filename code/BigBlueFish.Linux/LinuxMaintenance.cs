@@ -25,25 +25,29 @@ internal sealed partial class LinuxPetWindow
         modelInstalling = true;
         // With a model in place the window manages it: it names the model, and the resident model keeps running until a
         // download or an import begins (v1.1.3 stopped it as the window opened and loaded it again once it closed).
+        // With the remote model nothing local runs, so nothing is stopped and a reply from the server is not cut off.
         string? installed = ModelStore.Resolve(Environment.CurrentDirectory);
-        bool modelStopped = false;
-        void StopModel() { if (modelStopped) return; modelStopped = true; brain.Stop(); speechVersion++; }
+        bool remote = brain.UseRemote, modelStopped = false;
+        void StopModel() { if (modelStopped || remote) return; modelStopped = true; brain.Stop(); speechVersion++; }
         if (installed == null) StopModel();
         var panel = new StackPanel { Spacing = 10 };
         panel.Children.Add(new TextBlock { Text = installed == null ? "安裝本機模型" : "管理本機模型", FontSize = 24 });
         if (installed != null)
         {
             var selection = ModelStore.ReadSelection(Environment.CurrentDirectory);
+            // An imported file that matches a known model is recorded under that source, like a download of it.
             string origin = selection?.Source switch
             {
-                "huggingface" => "從 Hugging Face 下載，已驗證檢查碼",
-                "modelscope" => "從 ModelScope 下載，已驗證檢查碼",
-                "manual" when selection.Sha256 is { } hash && ModelStore.Expected(hash) => "手動匯入，和本程式預期的模型相同",
+                "huggingface" => "Hugging Face 版本，已驗證檢查碼",
+                "modelscope" => "ModelScope 版本，已驗證檢查碼",
                 "manual" => "手動匯入，不是本程式預期的模型",
                 _ => "放在模型資料夾中",
             };
-            panel.Children.Add(Paragraph("目前使用：" + Path.GetFileName(installed) + "（" + origin + "）。"));
-            panel.Children.Add(Paragraph("要換模型時，選擇下載來源或匯入已下載的 GGUF 模型；開始下載或匯入時，目前的模型會先停止。兩個來源的模型有所不同，但都適用於本程式。"));
+            panel.Children.Add(Paragraph(remote
+                ? "本機模型：" + Path.GetFileName(installed) + "（" + origin + "）。目前由遠端伺服器說話，切回「本機內建模型」時才會用到這個模型。"
+                : "目前使用：" + Path.GetFileName(installed) + "（" + origin + "）。"));
+            panel.Children.Add(Paragraph(remote ? "要換模型時，選擇下載來源或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"
+                : "要換模型時，選擇下載來源或匯入已下載的 GGUF 模型；開始下載或匯入時，目前的模型會先停止。兩個來源的模型有所不同，但都適用於本程式。"));
         }
         else panel.Children.Add(Paragraph("選擇下載來源，或匯入已下載的 GGUF 模型。兩個來源的模型有所不同，但都適用於本程式。"));
         var dialog = Dialog(CompanionEdition.AppName + (installed == null ? " · 安裝模型" : " · 管理模型"), panel, 680, 550);

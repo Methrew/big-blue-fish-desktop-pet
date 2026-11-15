@@ -137,7 +137,7 @@ internal sealed partial class LinuxPetWindow
 #else
             body.Children.Add(Paragraph("使用本機模型時，螢幕內容只在這台電腦上辨識；使用遠端模型時，會傳送到上面填寫的伺服器。由 Agent 編寫日常關心時，會提供前景視窗截圖給 Agent。"));
 #endif
-            body.Children.Add(ActionButton(brain.ModelAvailable ? "管理本機模型" : "安裝模型", async () => await InstallModel()));
+            body.Children.Add(ActionButton(BigBlueFish.Deployment.ModelStore.Resolve(Environment.CurrentDirectory) != null ? "管理本機模型" : "安裝模型", async () => await InstallModel()));
             var frequency = Select("自動說話間隔", CompanionPreferences.SpeechRanges.Select(r => $"{r.Min}–{r.Max} 分鐘").ToArray(), Preferences.SpeechRangeIndex, value => { Preferences.SpeechMinMinutes = CompanionPreferences.SpeechRanges[value].Min; nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); });
             frequency.IsEnabled = !Puppet;
             body.Children.Add(Paragraph(Puppet ? "日常關心的觸發時機已交給 Agent，此時說話間隔不可調整。關閉接管後會恢復使用此設定。" : AgentDailyActive ? "魚魚按此間隔觸發日常關心，由 Agent 編寫要說的話。" : "魚魚按此間隔觸發日常關心，由模型編寫要說的話。"));

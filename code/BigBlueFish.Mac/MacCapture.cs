@@ -33,7 +33,7 @@ internal sealed record CompanionWindowImage(string DataUrl, int Width, int Heigh
 {
     internal void SaveJpeg(string path) => File.WriteAllBytes(path, Convert.FromBase64String(DataUrl[(DataUrl.IndexOf(',') + 1)..]));
 }
-internal static class CompanionNative
+internal static partial class CompanionNative
 {
     // Stands for the desktop, like the X11 root window: the frontmost app has no visible window.
     internal static readonly IntPtr Desktop = new(-1);
@@ -41,6 +41,7 @@ internal static class CompanionNative
     {
         get
         {
+            if (TestPowerOverride is { } forced) return forced;
             if (App.Args.Contains("--test-mode") && App.Args.Contains("--test-battery")) return false;
             try {
                 var info = IOPSCopyPowerSourcesInfo(); if (info == IntPtr.Zero) return true;
@@ -102,12 +103,12 @@ internal static class CompanionNative
     }
     internal static bool IsFullscreen()
     {
+        if (TestFullscreenOverride is { } forced) return forced;
         var handle = GetForegroundWindow(); if (IsDesktopWindow(handle)) return false;
         var bounds = Windows().FirstOrDefault(w => w.Id == handle.ToInt64()).Bounds;
         var displays = new uint[16]; if (CGGetActiveDisplayList(16, displays, out uint count) != 0) return false;
         return displays.Take((int)count).Select(CGDisplayBounds).Any(d => bounds.X <= d.X && bounds.Y <= d.Y && bounds.X + bounds.Width >= d.X + d.Width && bounds.Y + bounds.Height >= d.Y + d.Height);
     }
-    internal static double IdleSeconds => CGEventSourceSecondsSinceLastEventType(1, uint.MaxValue);
     internal static CompanionWindowImage Encode(SKBitmap bitmap, int maximum)
     {
         double scale = Math.Min(1d, maximum / (double)Math.Max(bitmap.Width, bitmap.Height));

@@ -73,7 +73,8 @@ AtomicText.Write(wrapper, OperatingSystem.IsWindows() ? "@echo off\r\nnode \"%dp
 if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(wrapper, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
 var oldPath = Environment.GetEnvironmentVariable("PATH");
 Environment.SetEnvironmentVariable("PATH", shimDirectory + Path.PathSeparator + oldPath);
-string pipe = "BigBlueFish.AgentVerification." + Guid.NewGuid().ToString("N");
+// macOS keeps a relative pipe under the long $TMPDIR, past the 104-byte socket path limit; the pet's own pipes live in /tmp there too.
+string pipe = OperatingSystem.IsMacOS() ? "/tmp/bbf-agent-" + Guid.NewGuid().ToString("N")[..12] : "BigBlueFish.AgentVerification." + Guid.NewGuid().ToString("N");
 string fakeBridge = Path.Combine(root, "bridge-placeholder"); File.WriteAllText(fakeBridge, "fixture uses the configured pipe directly");
 AgentCoordinator? host = null;
 var said = new List<string>(); int permissions = 0, authentications = 0;
@@ -153,6 +154,8 @@ try
     await Until(() => said.Count == manualBefore + 3 && !host.Busy, "user message completes after speech brief");
     Check(!File.ReadAllText(Path.Combine(host.Workspaces.Current, "fixture-last-prompt.txt")).Contains("host brief"), "user conversation does not receive the spontaneous speech brief");
     const string samplePng = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jB9sAAAAASUVORK5CYII=";
+    Check(File.ReadAllText(Path.Combine(host.Workspaces.Current, "fixture-last-prompt.txt")).Contains("事件內容：{\"text\":\"brief check\"}\n"), "text-only user_message event stays exactly { text }");
+    await AttachmentVerification.Run(host, root, samplePng, () => said.Count, Check, Until);
     host.SpeechBrief = (kind, allowImages, _) => Task.FromResult(allowImages
         ? new AgentSpeechBrief("host visual brief", new("image/png", samplePng), "image")
         : new AgentSpeechBrief("host ocr fallback brief for " + kind, null, "ocr"));

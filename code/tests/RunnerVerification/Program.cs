@@ -210,7 +210,7 @@ internal static class Program
                 "observer guidance and random voice are system instructions while user content is screen data");
             Check(CompanionBrain.BuildMessages(CompanionBrain.Persona, request, new CompanionWindowImage("data:image/jpeg;base64,AA==", 1, 1))[1].content is object[] { Length: 2 },
                 "vision content keeps image and screen text in the user role");
-            Check(CompanionBrain.Persona.Contains("目前活動") && CompanionBrain.Persona.Contains("桌面、新標籤頁、主頁"), "Persona matches current content and entry-screen behavior");
+            Check(CompanionBrain.Persona.Contains("目前活動") && CompanionBrain.Persona.Contains("桌面、新分頁、首頁"), "Persona matches current content and entry-screen behavior");
             Check(CompanionBrain.Persona.Contains("台灣繁體中文") && CompanionBrain.WeatherPersona.Contains("台灣繁體中文") && CompanionBrain.NewsPersona.Contains("台灣繁體中文"),
                 "speech, weather and news prompts ask for Taiwan Traditional Chinese");
             using (var briefBrain = new CompanionBrain(Process.Start, TimeSpan.FromSeconds(60), newsRoll: () => 1))

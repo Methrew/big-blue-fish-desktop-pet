@@ -57,7 +57,7 @@ internal static class CompanionOcrLayout
         }
         string[] names = { "畫面上部", "畫面左側", "畫面主體", "畫面右側", "畫面底部" };
         int[] budgets = { 700, 650, 3000, 500, 650 };
-        var output = new StringBuilder("目前前臺視窗的螢幕文字（按區域分別從上到下排列）：\n");
+        var output = new StringBuilder("目前前景視窗的螢幕文字（按區域分別從上到下排列）：\n");
         for (int i = 0; i < regions.Length; i++)
         {
             var readable = regions[i].Where(s => s.Text.Any(char.IsLetterOrDigit)).ToArray();

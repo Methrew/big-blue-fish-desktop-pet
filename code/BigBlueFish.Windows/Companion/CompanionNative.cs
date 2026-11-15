@@ -165,7 +165,7 @@ internal static class CompanionNative
     {
         var h = preferredHandle == IntPtr.Zero ? GetForegroundWindow() : preferredHandle;
         if (h == IntPtr.Zero)
-            return "前臺視窗：Windows 桌面\n目前可見活動線索：桌面沒有活動視窗標題。";
+            return "前景視窗：Windows 桌面\n目前可見活動線索：桌面沒有活動視窗標題。";
         GetWindowThreadProcessId(h, out var id);
         if (id == Environment.ProcessId)
             return "使用者正在檢視桌寵";
@@ -173,7 +173,7 @@ internal static class CompanionNative
         GetWindowText(h, s, 256);
         var className = new StringBuilder(128);
         GetClassName(h, className, className.Capacity);
-        string name = "未知應用";
+        string name = "未知的程式";
         try
         {
             name = Process.GetProcessById((int)id).ProcessName;
@@ -205,10 +205,10 @@ internal static class CompanionNative
         var category = new StringBuilder(128);
         GetClassName(handle, category, category.Capacity);
         if (IsDesktopWindow(handle))
-            return "目前前臺畫面：Windows 桌面，桌布與捷徑圖示。";
-        string name = "未知應用";
+            return "目前前景畫面：Windows 桌面，桌布與捷徑圖示。";
+        string name = "未知的程式";
         try { using var process = Process.GetProcessById((int)id); name = process.ProcessName; } catch { }
-        return "前臺輔助資訊（以螢幕文字為主要依據）：\n程式：" + name + "\n標題：" + title;
+        return "前景輔助資訊（以螢幕文字為主要依據）：\n程式：" + name + "\n標題：" + title;
     }
 
     // get_context: the program and window title in front; null for the pet itself or no window at all.
@@ -220,7 +220,7 @@ internal static class CompanionNative
         if (id == Environment.ProcessId) return null;
         var title = new StringBuilder(512);
         GetWindowText(handle, title, title.Capacity);
-        string name = "未知應用";
+        string name = "未知的程式";
         try { using var process = Process.GetProcessById((int)id); name = process.ProcessName; } catch { }
         return new { process = name, title = Limit(title.ToString(), 200) };
     }
@@ -275,11 +275,11 @@ internal static class CompanionNative
     {
         var lines = new List<string>
         {
-            "前臺應用：" + Limit(processName, 120),
+            "前景程式：" + Limit(processName, 120),
             "視窗標題：" + (Limit(title, 220) is { Length: > 0 } safeTitle ? safeTitle : "（沒有視窗標題）"),
             "視窗類別：" + (Limit(className, 120) is { Length: > 0 } safeClass ? safeClass : "（未知）"),
             "無障礙名稱：" + (Limit(accessibleName, 180) is { Length: > 0 } safeName ? safeName : "（沒有提供）"),
-            "無障礙控制元件型別：" + (Limit(controlType, 120) is { Length: > 0 } safeType ? safeType : "（未知）")
+            "無障礙控制項類型：" + (Limit(controlType, 120) is { Length: > 0 } safeType ? safeType : "（未知）")
         };
         var clues = descendants
             .Select(x => Normalize(x, 120))
@@ -288,7 +288,7 @@ internal static class CompanionNative
             .Take(16)
             .ToArray();
         lines.Add(clues.Length == 0
-            ? "可見介面線索：沒有讀取到子控制元件名稱。"
+            ? "可見介面線索：沒有讀取到子控制項名稱。"
             : "可見介面線索：\n" + string.Join("\n", clues.Select(x => "- " + x)));
         return string.Join("\n", lines);
     }

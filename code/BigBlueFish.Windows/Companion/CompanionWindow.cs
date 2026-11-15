@@ -137,7 +137,7 @@ public partial class MainWindow
         ShowActivated = false;
         ShowInTaskbar = false;
         Topmost = true;
-        Title = "藍色大肥魚";
+        Title = CompanionEdition.DisplayName;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.Manual;
         companionLayout = new Grid
@@ -801,7 +801,7 @@ public partial class MainWindow
         menu.Items.Add("顯示桌寵", null, (_, _) => Dispatcher.Invoke(() => { if (IsVisible) HideCompanion(); else RestoreCompanion(); }));
         menu.Items.Add("設定", null, (_, _) => Dispatcher.Invoke(OpenCompanionSettings));
         menu.Items.Add("天氣", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionWeather).Task.Unwrap());
-        menu.Items.Add("吐字測試", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionTest).Task.Unwrap());
+        menu.Items.Add("說話測試", null, async (_, _) => await Dispatcher.InvokeAsync(SpeakCompanionTest).Task.Unwrap());
         menu.Items.Add("關閉桌寵", null, (_, _) => Dispatcher.Invoke(() => base.Close()));
         string[] icons = ["\uE7F4", "\uE713", "\uE706", "\uE8F2", "\uE8BB"];
         for (int index = 0; index < menu.Items.Count; index++) menu.Items[index].Tag = icons[index];
@@ -809,7 +809,7 @@ public partial class MainWindow
         notifyIcon = new CompanionTrayIcon
         {
             Icon = new System.Drawing.Icon(sourceIcon, new System.Drawing.Size(32, 32)),
-            Text = "藍色大肥魚",
+            Text = CompanionEdition.DisplayName,
             ContextMenuStrip = menu
         };
         notifyIcon.DoubleClick += (_, _) => Dispatcher.Invoke(RestoreCompanion);

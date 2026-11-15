@@ -63,7 +63,7 @@ internal static class MacDataImport
                 if (modelsReady) { File.Copy(Path.Combine(source, "model-selection.json"), Path.Combine(staging, "model-selection.json")); note.AppendLine("- 模型選擇（model-selection.json）：已複製。"); }
                 else note.AppendLine("- 模型選擇（model-selection.json）：因為模型沒有複製，也一併略過。");
             }
-            note.AppendLine().AppendLine("天氣、新聞等快取沒有複製，會重新取得。之後兩個版本各自保存設定，互不影響。");
+            note.AppendLine().AppendLine("天氣、新聞等快取沒有複製，會重新取得。之後兩個版本各自儲存設定，互不影響。");
             File.WriteAllText(Path.Combine(staging, NoteName), note.ToString(), new UTF8Encoding(false));
             Directory.Move(staging, target);
         }

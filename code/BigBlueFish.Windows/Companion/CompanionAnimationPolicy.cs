@@ -54,7 +54,7 @@ internal sealed class CompanionAnimationPolicy
 #else
             if (Path.GetFileName(rule.File) != rule.File || !File.Exists(Path.Combine(directory, rule.File)))
 #endif
-                throw new FileNotFoundException("動畫素材缺失", rule.File);
+                throw new FileNotFoundException("找不到動畫素材", rule.File);
         return new(rules);
     }
     internal CompanionAnimationRule Find(string id) => Rules.First(r => r.Id == id);

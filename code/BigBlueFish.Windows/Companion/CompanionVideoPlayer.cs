@@ -104,7 +104,7 @@ internal sealed class CompanionVideoPlayer : IDisposable
 
     Opening? DecodeOpening(string source, double start, bool hardware)
     {
-        if (!File.Exists(source)) throw new FileNotFoundException("動畫素材缺失", Path.GetFileName(source));
+        if (!File.Exists(source)) throw new FileNotFoundException("找不到動畫素材", Path.GetFileName(source));
         const int frameBytes = OpeningWidth * OpeningHeight * 4;
         long room = (PreloadBudget - Interlocked.Read(ref preloadedBytes)) / frameBytes;
         int limit = (int)Math.Min(room, OpeningFrames);
@@ -278,7 +278,7 @@ internal sealed class CompanionVideoPlayer : IDisposable
         {
             file = CompatFile(file);
             width = 640; height = 360;
-            if (!File.Exists(file)) throw new IOException("相容動畫素材缺失：" + Path.GetFileName(file));
+            if (!File.Exists(file)) throw new IOException("找不到相容動畫素材：" + Path.GetFileName(file));
         }
         using var stream = new CompanionMediaStream(file, hardware, width, height, start, end, rate);
         token.ThrowIfCancellationRequested();
@@ -324,7 +324,7 @@ internal sealed class CompanionVideoPlayer : IDisposable
                 FramePresented?.Invoke(PositionSeconds);
             }, System.Windows.Threading.DispatcherPriority.Render);
         }
-        if (presented == 0) throw new IOException("動畫沒有產生可顯示的幀。");
+        if (presented == 0) throw new IOException("動畫沒有產生可顯示的影格。");
         await image.Dispatcher.InvokeAsync(() => { if (id == Interlocked.Read(ref generation) && !disposed) completed(); });
     }
 

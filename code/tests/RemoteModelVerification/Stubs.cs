@@ -22,7 +22,7 @@ internal static class CompanionNative
     internal static IntPtr GetForegroundWindow() => Foreground;
     internal static bool IsDesktopWindow(IntPtr handle) => handle == IntPtr.Zero || handle == Desktop;
     internal static string ForegroundIdentity(IntPtr handle) => IsDesktopWindow(handle)
-        ? "前台窗口：macOS 桌面\n画面是壁纸与快捷方式。" : "前台应用：備忘錄\n窗口标题：購物清單";
+        ? "前景視窗：macOS 桌面\n畫面是背景圖片與桌面圖示。" : "前景程式：備忘錄\n視窗標題：購物清單";
 }
 
 // Window captures (MacCapture.cs runs /usr/sbin/screencapture here): each call and the image it returned.

@@ -15,7 +15,7 @@ internal sealed partial class LinuxVideoPlayer(Image image) : IDisposable
     bool disposed,hardwareFailed;
     internal long Frames {get;private set;}
     internal double PositionSeconds {get;private set;}
-    internal string Backend {get;private set;}="未运行";
+    internal string Backend {get;private set;}="未執行";
     internal double LastReadMs,LastUiMs,LastCopyMs,LastShapeMs;
     internal volatile bool Paused;
     internal event Action<double>? FramePresented;
@@ -87,7 +87,7 @@ internal sealed partial class LinuxVideoPlayer(Image image) : IDisposable
             });
             LastUiMs=clock.Elapsed.TotalMilliseconds;
         }
-        if(count==0)throw new IOException("动画没有生成可显示的帧。");
+        if(count==0)throw new IOException("動畫沒有產生可顯示的影格。");
         await Dispatcher.UIThread.InvokeAsync(()=>{if(id==generation&&!disposed)completed();});
     }
     // On the UI thread: one decoded or preloaded frame into the sprite's bitmap, then the hit-testing and position listeners.

@@ -11,9 +11,9 @@ internal sealed partial class LinuxPetWindow
     {
         var menu = new NativeMenu();
         NativeMenuItem Item(string title, Action action) { var item = new NativeMenuItem(title); item.Click += (_, _) => action(); menu.Items.Add(item); return item; }
-        Item("显示桌宠", RestorePet); Item("设置", OpenSettings);
-        var weather = Item("天气", async () => await Speak(true)); var speech = Item("吐字测试", async () => await Speak(false)); Item("关闭桌宠", Close);
-        tray = new TrayIcon { Icon = new WindowIcon(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico")), ToolTipText = "蓝色大肥鱼", Menu = menu, IsVisible = true };
+        Item("顯示桌寵", RestorePet); Item("設定", OpenSettings);
+        var weather = Item("天氣", async () => await Speak(true)); var speech = Item("說話測試", async () => await Speak(false)); Item("關閉桌寵", Close);
+        tray = new TrayIcon { Icon = new WindowIcon(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico")), ToolTipText = CompanionEdition.DisplayName, Menu = menu, IsVisible = true };
         tray.Clicked += (_, _) => RestorePet();
         TrayIcon.SetIcons(Avalonia.Application.Current!, new TrayIcons { tray });
         var status = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };

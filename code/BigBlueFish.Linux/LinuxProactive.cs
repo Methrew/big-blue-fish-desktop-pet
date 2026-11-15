@@ -233,6 +233,6 @@ internal sealed partial class LinuxPetWindow
         Switch("低電量提醒（沒插電且電量剩 20%、10% 時）", Preferences.BatteryReminder, value => Preferences.BatteryReminder = value);
         if (CompanionNative.BatteryPercent == null)
             body.Children.Add(Paragraph(OperatingSystem.IsMacOS() ? "這台 Mac 沒有內建電池，不會跳出低電量提醒。" : "這台電腦沒有偵測到電池，不會跳出低電量提醒。"));
-        Switch("下雨提醒（需開啟聯網取得天氣，6 小時內降雨機率 60% 以上時）", Preferences.RainReminder, value => Preferences.RainReminder = value);
+        Switch("下雨提醒（需開啟連網取得天氣，6 小時內降雨機率 60% 以上時）", Preferences.RainReminder, value => Preferences.RainReminder = value);
     }
 }

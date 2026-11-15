@@ -9,9 +9,9 @@ namespace BigBlueFish.Control;
 public static class ControlTools
 {
     // Consent for the built-in Agent connection (ACP, which reaches the fish through a private pipe of its own) ...
-    public const string PrivacyWarning = "開啟連線後，所選的 Agent 可以讀取和修改大肥魚的設定、取得目前前景視窗或整個螢幕的截圖、讀取你的使用狀態（閒置時間、前景程式名稱與視窗標題、電源與電量），並接收你透過魚魚輸入的內容、附加檔案的路徑與互動事件。Agent 可能把這些資訊傳送給它設定的模型服務。請留意隱私安全，僅連線你信任的 Agent。";
+    public const string PrivacyWarning = "開啟連線後，所選的 Agent 可以讀取和修改魚魚的設定、取得目前前景視窗或整個螢幕的截圖、讀取你的使用狀態（閒置時間、前景 App 或程式名稱與視窗標題、電源與電量），並接收你透過魚魚輸入的內容、附加檔案的路徑與互動事件。Agent 可能把這些資訊傳送給它設定的模型服務。請留意隱私安全，僅連線你信任的 Agent。";
     // ... and for the MCP interface, which any local MCP client such as the Hermes bridge reaches through BigBlueFish.Mcp.
-    public const string McpPrivacyWarning = "開啟 MCP 介面後，連線的 Agent 可以讀取和修改大肥魚的設定、取得目前前景視窗或整個螢幕的截圖、讀取你的使用狀態（閒置時間、前景程式名稱與視窗標題、電源與電量），並接收你點選、拖曳大肥魚的事件。讀取到的螢幕內容會被 MCP 連線者取得，並可能由對方傳送給其使用的雲端服務。請留意隱私安全，僅連線你信任的 Agent。";
+    public const string McpPrivacyWarning = "開啟 MCP 介面後，連線的 Agent 可以讀取和修改魚魚的設定、取得目前前景視窗或整個螢幕的截圖、讀取你的使用狀態（閒置時間、前景 App 或程式名稱與視窗標題、電源與電量），並接收你點選、拖曳魚魚的事件。讀取到的螢幕內容會被 MCP 連線者取得，並可能由對方傳送給其使用的雲端服務。請留意隱私安全，僅連線你信任的 Agent。";
     public const string DailySpeechLabel = "把日常關心要說的話交給 Agent";
     public const string BehaviorControlLabel = "把日常關心的觸發和日常的動作切換邏輯交給 Agent";
     public const string BehaviorControlTitle = "讓 Agent 安排日常關心與動作";
@@ -20,7 +20,7 @@ public static class ControlTools
     public const string PuppetWarning = "開啟後，魚魚會暫停自己的日常關心計時和動作切換，保持待機，等待 Agent 安排。如果 Agent 關閉或中斷連線，需關閉此開關，才能恢復魚魚自己的日常關心與動作安排。";
     // The same PuppetMode switch as the MCP interface names it.
     public const string McpPuppetTitle = "開啟提線木偶模式";
-    public const string McpPuppetWarning = "開啟提線木偶模式後，大肥魚會停止自己的說話和動作切換，完全由外部 Agent 接管。如果外部 Agent 程式關閉或中斷連線，大肥魚不會自動恢復原有功能；需關閉提線木偶模式才能恢復。";
+    public const string McpPuppetWarning = "開啟提線木偶模式後，魚魚會停止自己的說話和動作切換，完全由外部 Agent 接管。如果外部 Agent 程式關閉或中斷連線，魚魚不會自動恢復原有功能；需關閉提線木偶模式才能恢復。";
     // macOS $TMPDIR is long and its domain sockets allow only 104 characters, so the socket gets a short absolute path there.
     public static string PipeName => (OperatingSystem.IsMacOS() ? "/tmp/bbf-" : "BigBlueFish.Control.") + Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
         Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)))).Substring(0, 20);

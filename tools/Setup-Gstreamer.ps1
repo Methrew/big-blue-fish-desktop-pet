@@ -23,19 +23,19 @@ foreach($archive in $manifest.archives){
         [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
         $client=[Net.WebClient]::new()
         try{$client.DownloadFile($archive.url,$partial)}finally{$client.Dispose()}
-        if((FileHash $partial) -ine $archive.sha256){throw '动画组件下载校验失败。'}
+        if((FileHash $partial) -ine $archive.sha256){throw '動畫元件下載驗證失敗。'}
         Move-Item -LiteralPath $partial -Destination $zipPath
     }
-    if((FileHash $zipPath) -ine $archive.sha256){throw '动画组件缓存校验失败。'}
+    if((FileHash $zipPath) -ine $archive.sha256){throw '動畫元件快取驗證失敗。'}
     $zip=[IO.Compression.ZipFile]::OpenRead($zipPath)
     try{
         foreach($item in $missing){
             $entry=$zip.GetEntry($item.source)
-            if(!$entry){throw "动画组件缺失：$($item.source)"}
+            if(!$entry){throw "動畫元件缺少：$($item.source)"}
             $target=Join-Path $DestinationDirectory $item.target
             [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($target)) | Out-Null
             [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$target,$true)
-            if((FileHash $target) -ine $item.sha256){throw "动画组件文件校验失败：$($item.target)"}
+            if((FileHash $target) -ine $item.sha256){throw "動畫元件檔案驗證失敗：$($item.target)"}
         }
     }finally{$zip.Dispose()}
 }

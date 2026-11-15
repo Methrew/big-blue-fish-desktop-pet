@@ -19,18 +19,18 @@ if(!(Test-Path -LiteralPath $archive)){
     [Net.ServicePointManager]::SecurityProtocol=[Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     $download=[Net.WebClient]::new()
     try{$download.DownloadFile('https://github.com/GyanD/codexffmpeg/releases/download/9.0.1/ffmpeg-9.0.1-essentials_build.zip',$partial)}finally{$download.Dispose()}
-    if((Get-ArchiveSha256 $partial) -ine $hash){throw '动画解码组件 SHA256 不匹配。'}
+    if((Get-ArchiveSha256 $partial) -ine $hash){throw '動畫解碼元件 SHA256 不符。'}
     Move-Item -LiteralPath $partial -Destination $archive
 }
-if((Get-ArchiveSha256 $archive) -ine $hash){throw '动画解码组件缓存 SHA256 不匹配。'}
+if((Get-ArchiveSha256 $archive) -ine $hash){throw '動畫解碼元件快取 SHA256 不符。'}
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 $zip=[IO.Compression.ZipFile]::OpenRead($archive)
 try{
     $entry=$zip.Entries | Where-Object {$_.FullName -match '/bin/ffmpeg\.exe$'} | Select-Object -First 1
-    if(!$entry){throw '动画解码组件中缺少 ffmpeg.exe。'}
+    if(!$entry){throw '動畫解碼元件中缺少 ffmpeg.exe。'}
     [IO.Compression.ZipFileExtensions]::ExtractToFile($entry,$executable,$true)
     $license=$zip.Entries | Where-Object {$_.FullName -match '/LICENSE$'} | Select-Object -First 1
-    if(!$license){throw '动画解码组件中缺少许可证。'}
+    if(!$license){throw '動畫解碼元件中缺少授權條款。'}
     [IO.Compression.ZipFileExtensions]::ExtractToFile($license,(Join-Path $DestinationDirectory 'FFmpeg-LICENSE.txt'),$true)
 }finally{$zip.Dispose()}
 return $executable

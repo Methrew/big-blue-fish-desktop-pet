@@ -8,5 +8,5 @@ try {
     $argsBuild=@('build',$project,'-c','Release','-p:Platform=x64',"-p:CompanionInputMode=$InputMode",'--nologo')
     if($Locked){$argsBuild+='-p:RestoreLockedMode=true'}
     & $sdk @argsBuild
-    if($LASTEXITCODE -ne 0){throw '编译失败'}
+    if($LASTEXITCODE -ne 0){throw '編譯失敗'}
 } finally {Pop-Location}

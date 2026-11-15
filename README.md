@@ -215,7 +215,7 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET �
 
 ## 授權與第三方
 
-本專案以 [Apache License 2.0](LICENSE) 發布，原作者的著作權聲明（Copyright 2026 Bai-Cute）和授權條款維持不變，本版的修改同樣以 Apache-2.0 授權發布。魚魚的形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」；專案使用的動畫、模型、執行環境、字型和資料分別來自以下專案，各自遵循其原有授權：
+本專案以 [Apache License 2.0](LICENSE) 發布，原作者的著作權聲明（Copyright 2026 Bai-Cute）和授權條款維持不變，本版的修改同樣以 Apache-2.0 授權發布。依授權條款第 4 條，修改過的原始碼檔案開頭會註明修改者與日期；和原作者 1.1.3 版的完整差異，可以在本儲存庫用 `git diff 75cd217` 檢視。魚魚的形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」；專案使用的動畫、模型、執行環境、字型和資料分別來自以下專案，各自遵循其原有授權：
 
 - 角色動畫：106 段透明 WebM 動畫來自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT 授權；播放素材經原作者提升到 1280×720、60 幀／秒，並保留原始解析度與幀率的相容素材（macOS 版只內含相容素材），動作的選擇與觸發邏輯為本專案自訂。dsh-pet 的 README 另外規定素材禁止商用、角色形象採 CC BY-NC-SA 4.0，並要求衍生作品附上 dsh-pet 的網址；這些限制由 acer1204 的台灣版補充說明，詳見[第三方聲明](code/THIRD-PARTY.md)。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象。
 - 本機模型：Qwen3.5-4B 及其衍生的 heretic 版本與 GGUF 轉換，Apache-2.0 授權，模型檔由使用者另外下載；

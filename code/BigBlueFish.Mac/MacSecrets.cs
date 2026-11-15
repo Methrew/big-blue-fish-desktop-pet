@@ -19,6 +19,8 @@ internal sealed partial class LinuxPetWindow
             if (closed) return;
             if (moved) Save();
             brain.CwaApiKey = Preferences.CwaApiKey;
+            // A remote model server gets its API key only now.
+            if (Preferences.UseRemoteModel) ApplyModelSource();
             refreshLinuxSettings?.Invoke();
         }), TaskScheduler.Default);
 }

@@ -83,7 +83,7 @@ text 不能全為空白，最多 4000 個 UTF-16 單元，以每秒約 28 個組
 
 ## 使用者狀況、找畫面與走過去
 
-`get_context`（各版本都有）沒有參數，唯讀，不截圖也不連網。回傳 `summary`（已換算好的一段說明）、`localTime`、`weekday`、`idleSeconds`、`activeMinutes`（這次連續使用幾分鐘，不在電腦前時為 null）、`lastBreakMinutes`、`fullscreen`、`power`（`onAC`、`batteryPercent`，沒有電池時為 null）、`foreground`、`weather`（魚魚快取的天氣原文）、`openFolders` 與 `lastReminder`（魚魚最近一次的主動提醒）。
+`get_context`（各版本都有）沒有參數，唯讀，不截圖也不連網。回傳 `summary`（已換算好的一段說明）、`localTime`、`weekday`、`idleSeconds`、`activeMinutes`（這次連續使用幾分鐘，不在電腦前時為 null）、`lastBreakMinutes`、`fullscreen`、`power`（`onAC`、`batteryPercent`，沒有電池時為 null）、`foreground`、`weather`（魚魚快取的天氣原文）、`openFolders` 與 `lastReminder`（魚魚最近一次的主動提醒）。Linux 在 Wayland 桌面上只有 GNOME 會提供閒置時間；其他 Wayland 桌面上 `idleSeconds`、`activeMinutes` 與 `lastBreakMinutes` 為 null，另有 `idleNote` 說明原因，魚魚自己的提醒只依時間判斷，也不會送出 `user_returned`。
 
 - `foreground`：使用者關閉 ForegroundEnabled 時為 null。Windows 與 Linux 為 `{process, title}`；macOS 為 `{process, bundleId, title}`，前景是桌面時為 Finder／「macOS 桌面」，前景是沒有視窗的選單列 App 時給該 App 名稱、標題為空字串，螢幕鎖定時是 `loginwindow`，沒有「螢幕與系統錄音」權限時其他 App 的 `title` 為 null。
 - `openFolders`：畫面上開著的檔案總管（macOS 為 Finder）資料夾，`folder` 是完整路徑、`window` 是視窗標題，最上層的排第一且 `front=true`；縮到 Dock 的視窗和「最近項目」「AirDrop」這類不是資料夾的視窗不列。macOS 需要「自動化 › Finder」權限，`openFoldersNote` 說明清單為空的原因（例如還沒允許權限、使用者拒絕或逾時），其他情況為 null。Linux 為空陣列。

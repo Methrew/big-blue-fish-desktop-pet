@@ -106,13 +106,62 @@ internal static partial class CompanionNative
             return window != IntPtr.Zero && Integers((ulong)window.ToInt64(), "_NET_WM_STATE").Contains(Atom("_NET_WM_STATE_FULLSCREEN"));
         }
     }
+    // Seconds since the last keyboard or mouse input. The pet is an X11 client, and on a Wayland desktop XScreenSaver
+    // (through XWayland) only sees input sent to X11 windows: it reads as idle while the user types in native Wayland
+    // apps. There GNOME's compositor tells the session's idle time (org.gnome.Mutter.IdleMonitor), read with gdbus in
+    // the background every few seconds; other compositors give no reliable answer, and the idle time is unknown
+    // (IdleKnown false): the reminders then go by the clock alone and no break or return is reported.
     internal static double IdleSeconds
     {
         get {
-            if (display == IntPtr.Zero) return 10;
-            lock (gate) { var info = XScreenSaverAllocInfo(); if (info == IntPtr.Zero) return 0;
-                try { XScreenSaverQueryInfo(display, Root, info); return Marshal.PtrToStructure<SaverInfo>(info).idle / 1000d; } finally { XFree(info); } }
+            double x11 = X11IdleSeconds();
+            if (!Wayland) return x11;
+            RefreshCompositorIdle();
+            return compositorIdle is { } read ? Math.Min(read.Seconds + (Environment.TickCount64 - read.At) / 1000d, x11) : 0;
         }
+    }
+    internal static bool IdleKnown => !Wayland || compositorIdle != null;
+    static double X11IdleSeconds()
+    {
+        if (display == IntPtr.Zero) return 10;
+        lock (gate) { var info = XScreenSaverAllocInfo(); if (info == IntPtr.Zero) return 0;
+            try { XScreenSaverQueryInfo(display, Root, info); return Marshal.PtrToStructure<SaverInfo>(info).idle / 1000d; } finally { XFree(info); } }
+    }
+    static volatile Tuple<double, long>? compositorRead;
+    static (double Seconds, long At)? compositorIdle => compositorRead is { } read ? (read.Item1, read.Item2) : null;
+    static long nextCompositorRead;
+    static int compositorReading, compositorFailures;
+    static void RefreshCompositorIdle()
+    {
+        long now = Environment.TickCount64;
+        if (compositorFailures >= 3 || now < Interlocked.Read(ref nextCompositorRead) || Interlocked.Exchange(ref compositorReading, 1) == 1) return;
+        Interlocked.Exchange(ref nextCompositorRead, now + 5000);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var start = new ProcessStartInfo("gdbus") { UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true };
+                foreach (var item in new[] { "call", "--session", "--timeout", "2", "--dest", "org.gnome.Mutter.IdleMonitor", "--object-path", "/org/gnome/Mutter/IdleMonitor/Core",
+                    "--method", "org.gnome.Mutter.IdleMonitor.GetIdletime" }) start.ArgumentList.Add(item);
+                using var process = Process.Start(start) ?? throw new IOException("gdbus");
+                using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                _ = process.StandardError.ReadToEndAsync(limit.Token);
+                string output = await process.StandardOutput.ReadToEndAsync(limit.Token);
+                await process.WaitForExitAsync(limit.Token);
+                // (uint64 1234,): milliseconds.
+                var match = System.Text.RegularExpressions.Regex.Match(output, @"uint64 (\d+)");
+                if (process.ExitCode != 0 || !match.Success || !ulong.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out ulong milliseconds))
+                    throw new IOException("GetIdletime");
+                compositorRead = Tuple.Create(milliseconds / 1000d, Environment.TickCount64);
+                compositorFailures = 0;
+            }
+            catch (Exception error) when (error is IOException or System.ComponentModel.Win32Exception or InvalidOperationException or OperationCanceledException)
+            {
+                // Not GNOME (or no gdbus): unknown, and after three tries no longer asked.
+                compositorRead = null; compositorFailures++;
+            }
+            finally { Interlocked.Exchange(ref compositorReading, 0); }
+        });
     }
     internal static CompanionWindowImage Capture(IntPtr handle, int maximum, bool full)
     {

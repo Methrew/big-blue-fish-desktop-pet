@@ -32,6 +32,9 @@ internal static partial class CompanionNative
         }
     }
 
+    // macOS always knows the idle time (Linux on some Wayland desktops does not).
+    internal static bool IdleKnown => true;
+
     // Milliseconds on a clock that never jumps and keeps counting while the Mac sleeps. Environment.TickCount64 on
     // macOS is CLOCK_UPTIME_RAW, which stops during sleep: a lid closed for 40 minutes would read as a wall clock
     // moved forward, not as a break.

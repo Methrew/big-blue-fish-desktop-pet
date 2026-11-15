@@ -220,11 +220,13 @@ internal sealed class CompanionReminders
 
     // get_context's plain reading of the moment, so an agent does not have to turn seconds into minutes itself:
     // 10月28日 星期三 15:50。使用者 8 秒前還在操作電腦，這次已經連續使用 1 小時 5 分鐘沒休息。有插電。
-    internal static string Summary(DateTime now, double idleSeconds, TimeSpan? active, bool onAC, int? battery)
+    // idleSeconds null: the desktop does not tell (Linux on most Wayland desktops).
+    internal static string Summary(DateTime now, double? idleSeconds, TimeSpan? active, bool onAC, int? battery)
     {
-        var idle = TimeSpan.FromSeconds(Math.Max(0, idleSeconds));
+        var idle = TimeSpan.FromSeconds(Math.Max(0, idleSeconds ?? 0));
         string since = idle < TimeSpan.FromMinutes(1) ? $"{(int)idle.TotalSeconds} 秒" : Duration(idle);
-        string use = active is { } stretch ? $"使用者 {since}前還在操作電腦，這次已經連續使用 {(stretch < TimeSpan.FromMinutes(1) ? "不到 1 分鐘" : Duration(stretch))}沒休息。"
+        string use = idleSeconds == null ? "不知道使用者多久沒碰電腦（這個桌面不提供閒置時間）。"
+            : active is { } stretch ? $"使用者 {since}前還在操作電腦，這次已經連續使用 {(stretch < TimeSpan.FromMinutes(1) ? "不到 1 分鐘" : Duration(stretch))}沒休息。"
             : $"使用者已經 {since}沒碰電腦，不在電腦前。";
         string power = onAC ? "有插電。" : battery is int percent ? $"沒插電，電量 {percent}%。" : "沒插電。";
         return $"{now.Month}月{now.Day}日 {Weekday(now)} {now.ToString("HH:mm", CultureInfo.InvariantCulture)}。" + use + power;

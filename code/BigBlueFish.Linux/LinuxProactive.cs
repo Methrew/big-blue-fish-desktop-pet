@@ -27,7 +27,10 @@ internal sealed partial class LinuxPetWindow
     TimeSpan reminderClockShift;
     double? reminderIdleOverride;
     DateTime ReminderNow => DateTime.Now + reminderClockShift;
-    double ReminderIdle => reminderIdleOverride ?? CompanionNative.IdleSeconds;
+    // An unknown idle time (a Wayland desktop that does not tell it) counts as present: the reminders go by the clock,
+    // and no break, and so no user_returned, is ever seen.
+    bool ReminderIdleKnown => reminderIdleOverride != null || CompanionNative.IdleKnown;
+    double ReminderIdle => reminderIdleOverride ?? (CompanionNative.IdleKnown ? CompanionNative.IdleSeconds : 0);
     CompanionReminders Reminders => reminders ??= new(ReadReminderMemory());
     CompanionReminders.Settings ReminderSettings => new(Preferences.SitReminderMinutes, Preferences.MealReminder,
         Preferences.BreakfastHour, Preferences.LunchHour, Preferences.DinnerHour, Preferences.LateReminder ? Preferences.LateReminderHour : -1, Preferences.BatteryReminder, Preferences.RainReminder);
@@ -178,19 +181,21 @@ internal sealed partial class LinuxPetWindow
     {
         var now = ReminderNow;
         double idle = ReminderIdle;
-        var active = Reminders.ActiveFor(now);
+        bool known = ReminderIdleKnown;
+        var active = known ? Reminders.ActiveFor(now) : null;
         bool onAC = CompanionNative.OnAC;
         int? battery = CompanionNative.BatteryPercent;
         string weather = Preferences.PublicInfo ? brain.CachedWeather : "";
         var handle = CompanionNative.ResolveForeground(CompanionNative.GetForegroundWindow(), lastForeground);
         return new
         {
-            summary = CompanionReminders.Summary(now, idle, active, onAC, battery),
+            summary = CompanionReminders.Summary(now, known ? idle : null, active, onAC, battery),
             localTime = ReminderIso(now),
             weekday = CompanionReminders.Weekday(now),
-            idleSeconds = Math.Round(idle),
+            idleSeconds = known ? Math.Round(idle) : (double?)null,
             activeMinutes = active is { } stretch ? (int?)stretch.TotalMinutes : null,
-            lastBreakMinutes = ReminderLastBreakMinutes,
+            lastBreakMinutes = known ? ReminderLastBreakMinutes : null,
+            idleNote = known ? null : "這個 Wayland 桌面不提供鍵盤滑鼠的閒置時間，無法判斷使用者是否在電腦前；只有 GNOME 會提供。",
             fullscreen = CompanionNative.IsFullscreen(),
             power = new { onAC, batteryPercent = battery },
             foreground = Preferences.ForegroundEnabled ? CompanionNative.ForegroundApp(handle) : null,

@@ -289,7 +289,8 @@ internal sealed partial class LinuxPetWindow : Window
         if (Remind(now)) return;
         if (Puppet || dragging || settings != null || modelInstalling || now < nextSpeech) return;
         if (nextExternalText == null && !AgentDailyActive && (generating || brain.Busy || !Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower)) return;
-        if (CompanionNative.IdleSeconds < 8 || CompanionNative.IdleSeconds > 600) { nextSpeech = now.AddSeconds(30); return; }
+        // Not while the user types (or is away); with no idle time known (some Wayland desktops) the clock alone decides.
+        if (CompanionNative.IdleKnown && (CompanionNative.IdleSeconds < 8 || CompanionNative.IdleSeconds > 600)) { nextSpeech = now.AddSeconds(30); return; }
         if (nextExternalText != null) { string text = nextExternalText; nextExternalText = null; SayExternal(text); nextSpeech = now.Add(Preferences.NextSpeechDelay(random)); }
         else if (!DispatchAgentDaily()) await Speak(false);
     }

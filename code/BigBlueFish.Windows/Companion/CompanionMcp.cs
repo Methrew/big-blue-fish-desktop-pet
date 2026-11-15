@@ -60,7 +60,8 @@ public partial class MainWindow
     // The double-click input: always with the Agent connection on (it shows the connection state and keeps the draft),
     // or for the MCP interface once the user allowed chat there and a real client has initialized.
     private bool McpChatOn => preferences.McpEnabled && preferences.McpChatEnabled;
-    private bool McpChatAvailable => McpChatOn && (mcpInterface?.Connections ?? 0) > 0;
+    // Only a client that listens for the interaction events (the Hermes bridge) takes typed input; one that only calls tools never would.
+    private bool McpChatAvailable => McpChatOn && (mcpInterface?.Listeners ?? 0) > 0;
     private bool McpInputEnabled => preferences.AgentEnabled || McpChatOn;
     private bool McpInputAvailable => preferences.AgentEnabled || McpChatAvailable;
     private bool PuppetActive => preferences.AnyAgentControl && preferences.PuppetMode;
@@ -441,7 +442,7 @@ public partial class MainWindow
         var chat = new CheckBox { Content = "雙擊輸入交給 MCP 介面（Hermes 橋接程式）", IsChecked = preferences.McpChatEnabled, Margin = new(0, 16, 0, 4) };
         chat.Click += (_, _) => { preferences.McpChatEnabled = chat.IsChecked == true; if (!McpInputEnabled && !mcpInputPicking) mcpInput?.Close(); SaveCompanion(); };
         extra.Children.Add(chat);
-        extra.Children.Add(new TextBlock { Text = "開啟且 MCP 介面有客戶端連線時，雙擊魚魚輸入的內容只會傳給 MCP 介面，不會再送給「連線 Agent」頁的 Agent，避免兩邊各回答一次；沒有客戶端連線時，仍交給 Agent 連線。", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
+        extra.Children.Add(new TextBlock { Text = "開啟且 MCP 介面有接收輸入的客戶端（例如執行中的 Hermes 橋接程式）時，雙擊魚魚輸入的內容只會傳給 MCP 介面，不會再送給「連線 Agent」頁的 Agent，避免兩邊各回答一次；沒有這樣的客戶端時，仍交給 Agent 連線。只呼叫工具的客戶端不算。", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
         // Said by the Hermes bridge (it hears user_returned and reads these two settings); without it they do nothing.
         var briefing = new CheckBox { Content = "每天第一次坐下時講今日簡報", IsChecked = preferences.DailyBriefing, Margin = new(0, 16, 0, 4) };
         briefing.Click += (_, _) => { preferences.DailyBriefing = briefing.IsChecked == true; SaveCompanion(); };

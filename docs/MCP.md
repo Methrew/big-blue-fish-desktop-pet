@@ -10,7 +10,7 @@ macOS、Windows 與 Linux 使用同一份工具清單與事件；平台之間的
 
 開啟前會顯示隱私提示，只有使用者能開關，`get_settings` 只讀得到 `McpEnabled`。兩條連線使用同一份工具清單與事件，可以同時開啟：MCP 介面關閉時，外部客戶端的呼叫會回錯誤；`get_operation_guide`、`get_wakeups`、`schedule_wakeup`、`cancel_wakeup` 只供內建的 Agent 連線使用，經 MCP 介面呼叫一律回錯誤，Agent 連線關閉時也會回錯誤。提線木偶模式（`PuppetMode`）由兩者共用，經 MCP 介面開啟時會顯示「開啟提線木偶模式」的確認；另一邊也開著時，確認視窗會註明兩邊共用。提線木偶模式已經開著時再開啟 Agent 連線，會再請使用者確認讓 Agent 接管日常關心與動作。關閉 Agent 連線會清除該 Harness 的關心預約，即使 MCP 介面仍維持提線木偶模式。
 
-雙擊輸入**只交給一方**：使用者開啟「雙擊輸入交給 MCP 介面（Hermes 橋接程式）」（`McpChatEnabled`），而且 MCP 介面至少有一個完成初始化的客戶端時，雙擊魚魚會打開輸入框，送出的文字與附件只以 `user_message` 交給 MCP 介面的客戶端，內建的 Agent 連線收不到；否則輸入只交給內建的 Agent 連線，MCP 介面的客戶端收不到 `user_message`。點選、拖曳等其他事件兩邊都會收到。
+雙擊輸入**只交給一方**：使用者開啟「雙擊輸入交給 MCP 介面（Hermes 橋接程式）」（`McpChatEnabled`），而且 MCP 介面至少有一個接收互動事件的客戶端時（呼叫過 `logging/setLevel` 設為 `debug` 或 `info`，或訂閱了 `bigbluefish://interactions`，例如 Hermes 橋接程式；只呼叫工具的客戶端不算），雙擊魚魚會打開輸入框，送出的文字與附件只以 `user_message` 交給 MCP 介面的客戶端，內建的 Agent 連線收不到；否則輸入只交給內建的 Agent 連線，MCP 介面的客戶端收不到 `user_message`。點選、拖曳等其他事件兩邊都會收到。
 
 ## 通訊協定與結果
 
@@ -52,7 +52,7 @@ macOS、Windows 與 Linux 使用同一份工具清單與事件；平台之間的
 | AgentDailySpeech | bool | 日常關心要說的話交給內建 Agent |
 | AgentRespondToClick | bool | 點選事件是否主動發起 ACP 輪次，預設關閉 |
 | AgentRespondToDrag | bool | 拖曳結束是否主動發起 ACP 輪次，預設關閉 |
-| McpChatEnabled | bool | 設定頁的「雙擊輸入交給 MCP 介面（Hermes 橋接程式）」：MCP 介面有完成初始化的客戶端時，雙擊輸入只交給 MCP 介面，否則只交給內建 Agent 連線 |
+| McpChatEnabled | bool | 設定頁的「雙擊輸入交給 MCP 介面（Hermes 橋接程式）」：MCP 介面有接收互動事件的客戶端時，雙擊輸入只交給 MCP 介面，否則只交給內建 Agent 連線 |
 | SitReminderMinutes | 0、30、45、60、90、120 之一 | 魚魚自己的久坐提醒，0 為關閉，預設 60 |
 | MealReminder | bool | 用餐提醒，時間沿用三餐的小時 |
 | LateReminder / LateReminderHour | bool；22、23、0、1、2 之一 | 深夜提醒的開關與開始的整點，預設凌晨 0 點 |

@@ -19,6 +19,10 @@ public sealed class ControlServer : IDisposable
     private long nextSession, sequence;
     public string? LastConnectionError { get; private set; }
     public int Connections => sessions.Values.Count(s => s.Initialized && !s.Closed);
+    // Clients that asked for the interaction events (logging/setLevel at info or below, or a subscription to
+    // bigbluefish://interactions), as the Hermes bridge does. A client that only calls tools, such as an Agent's own MCP
+    // session, never hears user_message, so typed input must not be handed to it.
+    public int Listeners => sessions.Values.Count(s => s.Initialized && !s.Closed && s.Listening);
     public ControlServer(Func<string, JsonElement, CancellationToken, Task<object>> execute, string? pipeName = null)
     { this.execute = execute; pipe = pipeName ?? ControlTools.PipeName; _ = Task.Run(Accept); }
     private async Task Accept()
@@ -69,8 +73,13 @@ public sealed class ControlServer : IDisposable
         private readonly ConcurrentDictionary<string, CancellationTokenSource> requests = new();
         public volatile bool Initialized;
         private int disposed;
-        private bool negotiated, subscribed;
+        private bool negotiated;
+        private volatile bool subscribed;
         private int logLevel = 1;
+        // Set only by the client's own request: the default info level delivers the events too, but says nothing about
+        // whether anyone acts on them.
+        private volatile bool levelChosen;
+        public bool Listening => levelChosen && logLevel <= 1 || subscribed;
         public bool Closed => stop.IsCancellationRequested;
         public Session(ControlServer owner, Stream stream, CancellationToken token) { this.owner = owner; this.stream = stream; stop = CancellationTokenSource.CreateLinkedTokenSource(token); }
         private void Send(object value)
@@ -159,7 +168,7 @@ public sealed class ControlServer : IDisposable
                     instructions = "藍色大肥魚的控制工具，內建Agent連線與外部MCP客戶端共用。內建Agent使用big-blue-fish技能，完整指南可呼叫get_operation_guide；get_operation_guide、get_wakeups、schedule_wakeup與cancel_wakeup只供內建Agent連線使用。"
                         + "讓魚魚說話使用say或say_next，普通Agent文字不會進入氣泡；say/say_next顯示你提供的原文（台灣版會把其中的簡體字轉成繁體），請使用台灣繁體中文與台灣用語。工具成功表示提交操作，不能當作主人已讀或動畫播放完成。"
                         + "先讀get_settings與工具schema，動作名稱取自list_actions；AnimationIntervalSeconds只接受30–300整數秒，SpeechMinMinutes是列舉檔位；要知道使用者此刻的狀況（時間、閒置、前景程式、電源、天氣）時讀get_context。預約喚醒由魚魚計時執行。"
-                        + "點選、拖曳及雙擊輸入的user_message（detail.text為原文，可為空字串；使用者附加檔案時另有detail.attachments，最多10項，每項含path本機絕對路徑、name、kind為image/video/file、mimeType、size位元組與source，只有路徑不含檔案內容，需要時以與使用者相同的權限讀取該路徑；貼上的截圖已先存成PNG；沒有附件時省略此欄位；路徑也會交給所有收到這則事件的客戶端；雙擊輸入只交給一方：使用者開啟「雙擊輸入交給 MCP 介面」且MCP介面有客戶端連線時只交給MCP介面，內建Agent收不到，否則只交給內建Agent連線，MCP介面收不到user_message）透過notifications/message推送，logger為bigbluefish.interaction、level為info（另有user_returned：使用者離開5分鐘以上後回到電腦前，detail含breakMinutes、since、at與watching（離開期間大多開著全螢幕程式，例如看影片或用手把玩遊戲，可能只是在看，不是離開））；需接收info記錄，或訂閱並讀取bigbluefish://interactions。"
+                        + "點選、拖曳及雙擊輸入的user_message（detail.text為原文，可為空字串；使用者附加檔案時另有detail.attachments，最多10項，每項含path本機絕對路徑、name、kind為image/video/file、mimeType、size位元組與source，只有路徑不含檔案內容，需要時以與使用者相同的權限讀取該路徑；貼上的截圖已先存成PNG；沒有附件時省略此欄位；路徑也會交給所有收到這則事件的客戶端；雙擊輸入只交給一方：使用者開啟「雙擊輸入交給 MCP 介面」且MCP介面有接收事件的客戶端（呼叫logging/setLevel設為debug或info，或訂閱bigbluefish://interactions；只呼叫工具的客戶端不算）時只交給MCP介面，內建Agent收不到，否則只交給內建Agent連線，MCP介面收不到user_message）透過notifications/message推送，logger為bigbluefish.interaction、level為info（另有user_returned：使用者離開5分鐘以上後回到電腦前，detail含breakMinutes、since、at與watching（離開期間大多開著全螢幕程式，例如看影片或用手把玩遊戲，可能只是在看，不是離開））；需接收info記錄，或訂閱並讀取bigbluefish://interactions。"
                         + "輸入交給內建Agent時，它另外經ACP收到同一則輸入與它負責回應的事件，不必再處理通知；外部客戶端自行安排收到事件後的模型呼叫，本服務不會自動啟動你的Agent輪次。資源只在記憶體中保留最近128筆事件，依sequence去除重複，斷線後不保證補齊。"
                         + "截圖會把螢幕內容交給目前客戶端；ForegroundEnabled僅控制內建模型讀取螢幕，不限制MCP截圖。" + ControlTools.ScreenInstructions
                         + "開啟PuppetMode（提線木偶模式）需真實使用者確認，等待期間其他控制與拖曳可繼續；中斷連線後模式仍會保持，需明確關閉才能恢復自主功能。修改設定不會開啟或啟用設定視窗。多個客戶端共享狀態和佇列，沒有獨佔鎖。" });
@@ -182,7 +191,7 @@ public sealed class ControlServer : IDisposable
                 case "logging/setLevel":
                     string[] levels = ["debug", "info", "notice", "warning", "error", "critical", "alert", "emergency"];
                     var level = args.TryGetProperty("level", out var l) ? Array.IndexOf(levels, l.GetString()) : -1;
-                    if (level < 0) Error(id, -32602, "未知的記錄層級。"); else { logLevel = level; Result(id, new { }); }
+                    if (level < 0) Error(id, -32602, "未知的記錄層級。"); else { logLevel = level; levelChosen = true; Result(id, new { }); }
                     break;
                 case "tools/call":
                     _ = Call(id.Clone(), args.Clone()); break;

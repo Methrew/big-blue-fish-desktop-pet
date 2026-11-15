@@ -326,8 +326,10 @@ internal sealed partial class LinuxPetWindow
             send.IsEnabled = CanSend();
             // Nothing can take a message: say why, keeping the draft and its attachments for later.
             bool connected = agent?.Connected == true;
+            // A failed connection names its reason (a CLI not installed, a login needed) after the state.
             string? state = McpChatAvailable ? null : connected ? (agent!.Busy ? "Agent 正在處理…" : null)
-                : Preferences.AgentEnabled ? agent?.Status ?? "Agent 尚未連線" : "MCP 介面目前沒有客戶端連線";
+                : Preferences.AgentEnabled ? (agent?.Status ?? "Agent 尚未連線") + (agent?.Detail is { Length: > 0 } detail ? "：" + detail : "")
+                : "MCP 介面目前沒有接收輸入的客戶端（例如 Hermes 橋接程式）";
             bool blocked = !connected && !McpChatAvailable;
             if (state != null && (blocked || status.Text == shown || status.Text == ready)) { status.Text = state; shown = state; }
             else if (state == null && shown != null) { if (status.Text == shown) status.Text = ready; shown = null; }

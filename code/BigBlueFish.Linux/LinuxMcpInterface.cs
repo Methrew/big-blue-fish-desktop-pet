@@ -29,9 +29,10 @@ internal sealed partial class LinuxPetWindow
     // agentChannel: a call through the Agent connection's private pipe rather than the MCP interface.
     bool McpChannelOpen(bool agentChannel) => agentChannel ? Preferences.AgentEnabled : Preferences.McpEnabled;
     bool McpChatOn => Preferences.McpEnabled && Preferences.McpChatEnabled;
-    // Typed text goes to the MCP interface while the user hands the input to it and a real client has initialized there;
-    // otherwise to the Agent connection.
-    bool McpChatAvailable => McpChatOn && (mcpInterface?.Connections ?? 0) > 0;
+    // Typed text goes to the MCP interface while the user hands the input to it and a client there listens for the events
+    // (the Hermes bridge); otherwise to the Agent connection. A client that only calls tools, such as Hermes' own
+    // big_blue_fish MCP session, still connected after the bridge stopped, never takes the input.
+    bool McpChatAvailable => McpChatOn && (mcpInterface?.Listeners ?? 0) > 0;
     bool McpInputEnabled => Preferences.AgentEnabled || McpChatOn;
     int McpConnections => (mcpServer?.Connections ?? 0) + (mcpInterface?.Connections ?? 0);
 

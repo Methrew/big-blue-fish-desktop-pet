@@ -39,6 +39,8 @@ Check(instructions.Contains("attachments") && instructions.Contains("space=captu
 await process.StandardInput.WriteLineAsync("{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}");
 response = await Request(2, "tools/list");
 var tools = response.GetProperty("result").GetProperty("tools").EnumerateArray().ToArray();
+// Typed input goes only to a client that listens for the events, never to one that only calls tools (Hermes' own MCP session).
+Check(server.Connections == 1 && server.Listeners == 0, "A client that has only initialized does not take typed input");
 Check(tools.Length == (screenTools ? 17 : 15), "Seventeen tools: the fourteen of the Agent connection plus get_context, walk_to and find_on_screen (Linux without the last two)");
 foreach (var tool in tools) Check(tool.GetProperty("inputSchema").GetProperty("type").GetString() == "object", "Object schema");
 var toolNames = tools.Select(t => t.GetProperty("name").GetString()).ToList();
@@ -127,6 +129,7 @@ foreach (var name in new[]{"Left","Top","LastBrushDate"}) Check(settingPropertie
 response = await Request(3, "tools/call", new { name = "say", arguments = new { text = "主人好~原文含有英文、換行\n和標點。" } });
 Check(response.GetProperty("result").GetProperty("content")[0].GetProperty("text").GetString()!.Contains("say"), "Tool result structure");
 await Request(4, "resources/subscribe", new { uri = "bigbluefish://interactions" });
+Check(server.Listeners == 1, "Subscribing to the interactions makes a listener");
 server.Publish("click", new { button = "left", x = 20, y = 30 });
 response = await Request(5, "resources/read", new { uri = "bigbluefish://interactions" });
 Check(response.GetProperty("result").GetProperty("contents")[0].GetProperty("text").GetString()!.Contains("click"), "Readable interaction history");
@@ -156,6 +159,10 @@ var records=JsonDocument.Parse(response.GetProperty("result").GetProperty("conte
 Check(records[records.GetArrayLength()-1].GetProperty("detail").GetProperty("text").GetString()=="原文\n第二行<> &","Input resource contains literal submitted text");
 Check(!notices.Skip(beforeNotices).Any(n=>n.TryGetProperty("method",out var m)&&m.GetString()=="notifications/message"),"Warning log level filters info interaction notifications");
 Check(notices.Skip(beforeNotices).Any(n=>n.TryGetProperty("method",out var m)&&m.GetString()=="notifications/resources/updated"),"Resource subscription still works with info logs filtered");
+await Request(1001, "resources/unsubscribe", new { uri = "bigbluefish://interactions" });
+Check(server.Listeners == 0 && server.Connections == 1, "Unsubscribed with warning logs: no longer a listener");
+await Request(1002, "logging/setLevel", new { level = "info" });
+Check(server.Listeners == 1, "logging/setLevel info makes a listener, as the Hermes bridge does");
 // Attachments travel as local paths and metadata only, so the event line stays small however large the files are.
 var attachments=new[]{
     new{path=@"C:\Users\主人\AppData\Local\BigBlueFish\attachments\paste-20261026-101500-123-0a1b.png",name="paste-20261026-101500-123-0a1b.png",kind="image",mimeType="image/png",size=8_294_400L,source="clipboard"},

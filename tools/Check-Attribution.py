@@ -1,4 +1,3 @@
-# Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 """Check commit identities and attribution trailers without filtering product documentation."""
 import argparse
 import re
@@ -6,9 +5,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-# The assistant's name is matched through a character class, so this file never spells it out.
-FORBIDDEN = re.compile(r'\bcl[a]ude\b|@anthropic\.com\b', re.I)
-ASSISTANT = 'Cl' + 'aude'
+FORBIDDEN = re.compile(r'\bclaude\b|@anthropic\.com\b', re.I)
 TRAILER = re.compile(r'^\s*(?:co-authored-by|signed-off-by|author|committer)\s*:', re.I)
 
 def message_errors(message):
@@ -27,9 +24,9 @@ def main():
     parser.add_argument('revisions', nargs='*')
     args = parser.parse_args()
     if args.self_test:
-        for text in ['Co-Authored-By: ' + ASSISTANT + ' <noreply@anthropic.com>', 'co-authored-by: ' + ASSISTANT.upper() + ' <someone@example.org>', 'Signed-off-by: Assistant <noreply@anthropic.com>']:
+        for text in ['Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>', 'co-authored-by: CLAUDE <someone@example.org>', 'Signed-off-by: Assistant <noreply@anthropic.com>']:
             assert message_errors(text)
-        for text in ['Co-authored-by: Shundong Li <sli19@wpi.edu>', 'Add support for ' + ASSISTANT + ' Code through ACP', 'Fix documentation mentioning Anthropic']:
+        for text in ['Co-authored-by: Shundong Li <sli19@wpi.edu>', 'Add support for Claude Code through ACP', 'Fix documentation mentioning Anthropic']:
             assert not message_errors(text)
         print('PASS attribution guard self-test'); return 0
     if args.message:
@@ -46,7 +43,7 @@ def main():
             if check_commit(commit):
                 print('Forbidden AI attribution in commit ' + commit, file=sys.stderr); bad = True
     if bad:
-        print('Rejected: remove AI assistant author or coauthor attribution; retain the real human contributor.', file=sys.stderr)
+        print('Rejected: remove Claude/Anthropic author or coauthor attribution; retain the real human contributor.', file=sys.stderr)
         return 1
     print('PASS attribution check (' + str(len(commits)) + ' commits)'); return 0
 

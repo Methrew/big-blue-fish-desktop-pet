@@ -43,7 +43,7 @@ public static class DiagnosticLog
         + "Standard Safe OCR Vision Windows Linux Preview timeout first_content hardware_fallback notice manual busy power model_missing puppet "
         + "get_settings get_context update_settings list_actions capture_foreground capture_screen play_action interrupt_action walk_to find_on_screen say say_next request_local_speech "
         + "get_operation_guide get_wakeups schedule_wakeup cancel_wakeup terminal oauth restored created "
-        + "codex gemini dsh kimi qwen antigravity copilot cursor opencode cline codebuddy qoder trae kiro pi devin grok hermes openclaw minimax").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+        + "claude codex gemini dsh kimi qwen antigravity copilot cursor opencode cline codebuddy qoder trae kiro pi devin grok hermes openclaw minimax").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
     static readonly HashSet<string> actions = LoadActions();
     static readonly Dictionary<string, string> previousSettings = new();
     static readonly HashSet<string> settingNames = new(("ModelEnabled GpuEnabled PublicInfo ForegroundEnabled StopModelOnBattery HideOnFullscreen CheckUpdatesOnStartup "

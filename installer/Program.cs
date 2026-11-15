@@ -63,13 +63,14 @@ internal sealed class InstallerForm : ModernWindow
         updating = args.Length >= 2 && args[0] == "--update";
         int waitIndex = Array.IndexOf(args, "--wait-pid");
         if (waitIndex >= 0 && waitIndex + 1 < args.Length) int.TryParse(args[waitIndex + 1], out waitPid);
-        destination.Text = updating ? Path.GetFullPath(args[1]) : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "蓝色大肥鱼");
+        // Its own folder and shortcuts, apart from the original's 蓝色大肥鱼, so both can be installed.
+        destination.Text = updating ? Path.GetFullPath(args[1]) : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), BigBlueFish.Windows.CompanionEdition.DisplayName);
         destination.IsReadOnly = updating;
         Body.Children.Add(ModernUI.Text("安装位置")); Body.Children.Add(destination);
         var browse = ModernUI.Button("选择文件夹", () =>
         {
             var picker = new OpenFolderDialog { Title = "选择安装位置", InitialDirectory = Path.GetDirectoryName(destination.Text) };
-            if (picker.ShowDialog(this) == true) destination.Text = Path.Combine(picker.FolderName, "蓝色大肥鱼");
+            if (picker.ShowDialog(this) == true) destination.Text = Path.Combine(picker.FolderName, BigBlueFish.Windows.CompanionEdition.DisplayName);
         });
         browse.IsEnabled = !updating; Body.Children.Add(browse);
         Body.Children.Add(progress); Body.Children.Add(status);
@@ -181,12 +182,13 @@ internal sealed class InstallerForm : ModernWindow
 
     internal static void FinishInstallation(string target, string installerPath)
     {
-        var desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "蓝色大肥鱼.lnk");
-        var group = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), "蓝色大肥鱼");
-        var startMenu = Path.Combine(group, "蓝色大肥鱼.lnk");
-        var uninstallMenu = Path.Combine(group, "卸载蓝色大肥鱼.lnk");
+        var desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), BigBlueFish.Windows.CompanionEdition.DisplayName + ".lnk");
+        var group = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), BigBlueFish.Windows.CompanionEdition.DisplayName);
+        var startMenu = Path.Combine(group, BigBlueFish.Windows.CompanionEdition.DisplayName + ".lnk");
+        var uninstallMenu = Path.Combine(group, "解除安裝" + BigBlueFish.Windows.CompanionEdition.DisplayName + ".lnk");
         Directory.CreateDirectory(group);
-        var legacyStartMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", "蓝色大肥鱼.lnk");
+        // Under this edition's own name, so the original's old per-user shortcut is never repointed here.
+        var legacyStartMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", BigBlueFish.Windows.CompanionEdition.DisplayName + ".lnk");
         InstallationLifecycle.Register(target, desktop, startMenu, uninstallMenu, legacyStartMenu);
         CreateShortcut(desktop, target);
         CreateShortcut(startMenu, target);

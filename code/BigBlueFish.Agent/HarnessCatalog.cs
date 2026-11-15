@@ -13,6 +13,7 @@ public static class HarnessCatalog
 {
     // Adapter versions are intentionally pinned. A CLI being present does not prove its ACP implementation works.
     public static IReadOnlyList<HarnessDefinition> All { get; } = [
+        new("claude", "Claude Code", ["claude"], [], "https://code.claude.com/docs/en/overview", ".claude/skills", "@agentclientprotocol/claude-agent-acp@0.99.0", "claude-agent-acp"),
         new("codex", "Codex CLI", ["codex"], [], "https://developers.openai.com/codex/cli", ".agents/skills", "@agentclientprotocol/codex-acp@2.5.0", "codex-acp"),
         new("gemini", "Gemini CLI", ["gemini"], ["--acp", "--allowed-tools", "mcp_big-blue-fish_*"], "https://geminicli.com", ".gemini/skills"),
         new("dsh", "DeepSeek Harness", ["dsh"], ["--profile", "acp"], "https://github.com/deepseek-ai/deepseek-harness"),

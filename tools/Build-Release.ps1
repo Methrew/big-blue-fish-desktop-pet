@@ -4,7 +4,7 @@ $root=Split-Path $PSScriptRoot -Parent
 & "$PSScriptRoot/Setup-Media.ps1"
 $Version=& "$PSScriptRoot/Get-ProjectVersion.ps1" -Version $Version
 $modeName=if($InputMode -eq 'Ocr'){'OCR'}else{'Vision'}
-$name="BigBlueFish-v$Version-$modeName-win-x64"
+$name="BigBlueFish-TW-v$Version-$modeName-win-x64"
 $destination=Join-Path $root "release/$name"
 if((Test-Path -LiteralPath $destination) -and (Get-ChildItem -LiteralPath $destination -Force | Select-Object -First 1)){throw "发布目录已存在：$destination。请使用新的版本号或先自行移走该目录。"}
 $sdk=& "$root/code/tools/Resolve-Sdk.ps1" -SdkPath $SdkPath

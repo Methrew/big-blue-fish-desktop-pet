@@ -76,7 +76,7 @@ internal static class UpdateNotesVerification
             {
                 new
                 {
-                    name = "BigBlueFish-v9.9.9-OCR-Setup.exe",
+                    name = "BigBlueFish-TW-v9.9.9-OCR-Setup.exe",
                     browser_download_url = "http://fixture/installer",
                     digest = "sha256:" + new string('a', 64),
                 },

@@ -174,6 +174,10 @@ internal sealed class CompanionPreferences
                 var s = JsonSerializer.Deserialize<CompanionPreferences>(File.ReadAllText(p));
                 if (s != null)
                 {
+#if COMPANION_SAFE && (COMPANION_LINUX || COMPANION_MAC)
+                    // Both editions share one data folder here: Save() writes these back as the Standard edition left them.
+                    s.standardAgent = (s.AgentEnabled, s.PuppetMode, s.AgentDailySpeech);
+#endif
 #if COMPANION_SAFE
                     s.AgentEnabled = false;
                     s.McpEnabled = false;
@@ -217,10 +221,23 @@ internal sealed class CompanionPreferences
         return new();
     }
 
+#if COMPANION_SAFE && (COMPANION_LINUX || COMPANION_MAC)
+    // The Standard edition's own Agent switches, as read; the Safe edition runs with them off but never overwrites them.
+    (bool AgentEnabled, bool PuppetMode, bool AgentDailySpeech) standardAgent;
+#endif
+
     public void Save()
     {
         var t = "preferences.json.tmp";
+#if COMPANION_SAFE && (COMPANION_LINUX || COMPANION_MAC)
+        var node = JsonSerializer.SerializeToNode(this)!.AsObject();
+        node[nameof(AgentEnabled)] = standardAgent.AgentEnabled;
+        node[nameof(PuppetMode)] = standardAgent.PuppetMode;
+        node[nameof(AgentDailySpeech)] = standardAgent.AgentDailySpeech;
+        File.WriteAllText(t, node.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
+#else
         File.WriteAllText(t, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+#endif
         if (File.Exists("preferences.json"))
             File.Replace(t, "preferences.json", "preferences.json.bak");
         else

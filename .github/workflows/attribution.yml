@@ -1,4 +1,3 @@
-# Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 name: Commit attribution
 on:
   push:
@@ -7,7 +6,7 @@ permissions:
   contents: read
 jobs:
   attribution:
-    name: No AI attribution
+    name: No Claude attribution
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

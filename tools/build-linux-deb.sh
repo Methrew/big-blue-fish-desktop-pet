@@ -2,7 +2,8 @@
 set -euo pipefail
 root=$(realpath "$1"); work=$(realpath "$2"); runtime=$(realpath "$3"); output=$(realpath "$4"); version=$5; edition=$6
 [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.-]+)?$ ]]
-deb_version=${version/-/\~}
+# 1.1.3-tw.1 is a Taiwan revision after 1.1.3 (Debian 1.1.3+tw.1); other suffixes are pre-releases that sort before it (~).
+if [[ $version =~ ^([0-9]+\.[0-9]+\.[0-9]+)-tw\.([0-9]+)$ ]]; then deb_version="${BASH_REMATCH[1]}+tw.${BASH_REMATCH[2]}"; else deb_version=${version/-/\~}; fi
 [[ $edition == Standard || $edition == Safe ]]
 payload="$work/payload"
 mkdir -p "$payload/runtime"
@@ -25,22 +26,27 @@ find "$stage/opt/bigbluefish" -type d -exec chmod 755 {} +
 find "$stage/opt/bigbluefish" -type f -exec chmod 644 {} +
 chmod 755 "$stage/opt/bigbluefish/BigBlueFish.Linux" "$stage/opt/bigbluefish/runtime/llama-server" "$stage/opt/bigbluefish/runtime/BigBlueFish.RunnerGuard" "$stage/opt/bigbluefish/runtime/BigBlueFish.PortalCapture"
 if [[ $edition == Standard ]]; then chmod 755 "$stage/opt/bigbluefish/BigBlueFish.Mcp"; fi
-package=bigbluefish; conflict=bigbluefish-safe; suffix=''; title=蓝色大肥鱼
-if [[ $edition == Safe ]]; then package=bigbluefish-safe; conflict=bigbluefish; suffix=-Safe; title=蓝色大肥鱼无MCP版; fi
+# Identity from CompanionEdition.cs. The packages install the same /opt/bigbluefish files as the original's, so each
+# conflicts with and replaces the original's two packages and the other Taiwan edition.
+{ read -r title; read -r safe_title; read -r publisher; read -r homepage; read -r prefix; } < <(python3 "$root/tools/Get-EditionIdentity.py" DisplayName SafeDisplayName Publisher Homepage AssetPrefix)
+package=bigbluefish-tw; conflict=bigbluefish-tw-safe; suffix=''
+if [[ $edition == Safe ]]; then package=bigbluefish-tw-safe; conflict=bigbluefish-tw; suffix=-Safe; title=$safe_title; fi
+conflict="$conflict, bigbluefish, bigbluefish-safe"
 cat > "$stage/DEBIAN/control" <<EOF
 Package: $package
 Version: $deb_version
 Section: games
 Priority: optional
 Architecture: amd64
-Maintainer: Bai-Cute <Bai-Cute@users.noreply.github.com>
+Maintainer: $publisher <$publisher@users.noreply.github.com>
 Depends: libc6 (>= 2.35), libstdc++6, libgcc-s1, libgomp1, libssl3, libicu74 | libicu72 | libicu76 | libicu78, libfontconfig1, libfreetype6, libx11-6, libxcomposite1, libxext6, libxss1, libxi6, libxcursor1, libxrandr2, libxrender1, libice6, libsm6, libdbus-1-3, libvulkan1, libgstreamer1.0-0, libgstreamer-plugins-base1.0-0, gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, gstreamer1.0-plugins-bad, ffmpeg, tesseract-ocr, tesseract-ocr-chi-sim, tesseract-ocr-eng, fonts-noto-cjk, xdg-utils, pkexec | policykit-1
 Recommends: xdg-desktop-portal, xdg-desktop-portal-gtk, gstreamer1.0-vaapi
 Conflicts: $conflict
 Replaces: $conflict
-Homepage: https://github.com/Bai-Cute/big-blue-fish-desktop-pet
-Description: Big Blue Fish desktop companion
+Homepage: $homepage
+Description: Big Blue Fish desktop companion (Taiwan Traditional Chinese edition)
  Animated local-model desktop companion with OCR and seasonal actions.
+ Unofficial Taiwan edition of Bai-Cute/big-blue-fish-desktop-pet.
 EOF
 cat > "$stage/usr/bin/bigbluefish" <<'EOF'
 #!/bin/sh
@@ -57,7 +63,7 @@ Terminal=false
 Categories=Game;Utility;
 EOF
 ffmpeg -v error -i "$root/code/BigBlueFish.Windows/BigBlueFish.ico" -frames:v 1 -vf scale=256:256 "$stage/usr/share/icons/hicolor/256x256/apps/bigbluefish.png"
-name="BigBlueFish-v${version}${suffix}-Linux-x64.deb"
+name="${prefix}-v${version}${suffix}-Linux-x64.deb"
 test ! -e "$output/$name"
 dpkg-deb --root-owner-group -Zxz --build "$stage" "$output/$name"
 (cd "$output"; sha256sum "$name" > "$name.sha256")

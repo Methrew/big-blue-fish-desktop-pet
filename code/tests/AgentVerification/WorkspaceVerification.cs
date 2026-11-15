@@ -9,10 +9,10 @@ static class WorkspaceVerification
         string data = Path.Combine(root, "control"), first = Path.Combine(root, "files");
         var store = new AgentWorkspaceStore(data, first); store.EnsureCurrent(); store.Open(first);
         check(new AgentWorkspaceStore(data, Path.Combine(root, "ignored")).Current == first, "current workspace survives host reconstruction");
-        var gemini = new AgentSkillStore(data, HarnessCatalog.Get("gemini"), store.Current);
-        var codex = new AgentSkillStore(data, HarnessCatalog.Get("codex"), store.Current); gemini.Install(); codex.Install();
-        check(gemini.Workspace == codex.Workspace && gemini.DirectoryPath != codex.DirectoryPath, "harnesses share user files with native skill discovery directories");
-        check(store.SessionPath("gemini") != store.SessionPath("codex"), "conversation bindings isolated by harness");
+        var claude = new AgentSkillStore(data, HarnessCatalog.Get("claude"), store.Current);
+        var codex = new AgentSkillStore(data, HarnessCatalog.Get("codex"), store.Current); claude.Install(); codex.Install();
+        check(claude.Workspace == codex.Workspace && claude.DirectoryPath != codex.DirectoryPath, "harnesses share user files with native skill discovery directories");
+        check(store.SessionPath("claude") != store.SessionPath("codex"), "conversation bindings isolated by harness");
         string firstBinding = store.SessionPath("codex"); store.Create(root, "另一个工作区");
         check(store.Current != first && store.SessionPath("codex") != firstBinding, "new workspace creates independent conversation namespace");
         File.WriteAllText(Path.Combine(store.Current, "项目.txt"), "user work"); store.Open(first);

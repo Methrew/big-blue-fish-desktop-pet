@@ -34,18 +34,18 @@ async Task Until(Func<bool> predicate, string label, int seconds = 15)
 string root = Path.GetFullPath(args.FirstOrDefault(a => !a.StartsWith("--")) ?? Path.Combine(".work", "agent-verification-" + Guid.NewGuid().ToString("N")));
 Directory.CreateDirectory(root);
 WorkspaceVerification.Run(Path.Combine(root, "workspace-rules"), Check);
-Check(HarnessCatalog.All.Count == 20 && HarnessCatalog.All.Select(x => x.Id).Distinct().Count() == 20, "20 distinct selected harnesses");
+Check(HarnessCatalog.All.Count == 21 && HarnessCatalog.All.Select(x => x.Id).Distinct().Count() == 21, "21 distinct selected harnesses");
 Check(HarnessCatalog.Get("kimi").Arguments.SequenceEqual(["acp"]), "Kimi native ACP launch");
-Check(HarnessCatalog.Get("codex").AdapterPackage != null && HarnessCatalog.Get("pi").AdapterPackage != null && HarnessCatalog.All.Count(x => x.AdapterPackage != null) == 2, "two explicit ACP adapters");
+Check(HarnessCatalog.Get("codex").AdapterPackage != null && HarnessCatalog.Get("claude").AdapterPackage != null && HarnessCatalog.Get("pi").AdapterPackage != null, "three explicit ACP adapters");
 Check(HarnessCatalog.FindExecutable("fish-no-such-cli", root) == null, "missing CLI is not invented");
 var legacyAuth = AgentAuthenticationMethod.Parse(JsonSerializer.SerializeToElement(new {authMethods = new[] {new {id="login",name="Kimi login",_meta=new Dictionary<string,object>{["terminal-auth"]=new {command="untrusted-command",args=new[]{"login"},env=new Dictionary<string,string>(),type="terminal"}}}}}), true);
 Check(legacyAuth.Length == 1 && legacyAuth[0].Type == "terminal" && legacyAuth[0].ReplaceArguments && legacyAuth[0].Arguments.SequenceEqual(["login"]), "Kimi legacy terminal-auth normalized without adopting server command");
 Check(AgentAuthenticationMethod.Parse(JsonSerializer.SerializeToElement(new {authMethods = new[] {new {id="login",type="terminal"}}}), false).Length == 0, "terminal authentication omitted where interactive terminal cannot be provided");
 Check(new AcpException(JsonSerializer.SerializeToElement(new {code=-32603,message="Session expired",data=new {errorKind="authentication_failed"}})).AuthenticationRequired
     && !new AcpException(JsonSerializer.SerializeToElement(new {code=-32603,message="Session expired",data=new {errorKind="authentication_failed"}})).SessionMissing, "structured expired authentication never mistaken for a missing conversation");
-var skills = new AgentSkillStore(Path.Combine(root, "skill-test"), HarnessCatalog.Get("gemini")); skills.Install();
+var skills = new AgentSkillStore(Path.Combine(root, "skill-test"), HarnessCatalog.Get("claude")); skills.Install();
 Check(File.Exists(skills.SkillPath) && File.ReadAllText(skills.SkillPath).Contains("name: big-blue-fish"), "actual workspace skill installed");
-Check(skills.DirectoryPath.Contains(".gemini"), "Gemini skill uses project discovery directory");
+Check(skills.DirectoryPath.Contains(".claude"), "Claude skill uses project discovery directory");
 AtomicText.Write(skills.PersonaPath, "user persona"); skills.Install();
 Check(File.ReadAllText(skills.PersonaPath) == "user persona", "user persona preserved on repeated install");
 var jobsRoot = Path.Combine(root, "jobs"); var jobs = new AgentWakeups(jobsRoot);

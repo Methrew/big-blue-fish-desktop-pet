@@ -20,9 +20,9 @@
     <ApplicationIcon>BigBlueFish.ico</ApplicationIcon>
     <Platforms>x64</Platforms>
     <PlatformTarget>x64</PlatformTarget>
-    <AssemblyTitle>蓝色大肥鱼</AssemblyTitle>
-    <Description>蓝色大肥鱼桌面宠物</Description>
-    <Product>蓝色大肥鱼</Product>
+    <AssemblyTitle>藍色大肥魚</AssemblyTitle>
+    <Description>藍色大肥魚桌面寵物</Description>
+    <Product>藍色大肥魚</Product>
     <StartupObject>BigBlueFish.Windows.App</StartupObject>
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>

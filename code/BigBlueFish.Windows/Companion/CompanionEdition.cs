@@ -13,7 +13,12 @@ internal static class CompanionEdition
     internal const string LatestReleaseApi = "https://api.github.com/repos/" + ReleaseRepository + "/releases/latest";
     internal const string OriginalRepository = "Bai-Cute/big-blue-fish-desktop-pet";
     internal const string TaiwanEditionRepository = "acer1204/big-blue-fish-desktop-pet";
-    // macOS bundle identifiers; the keychain service and LaunchAgent label use the Standard identifier.
+    // Publisher shown by the Windows installer and the Linux package; release assets start with AssetPrefix
+    // (BigBlueFish-TW-v1.1.3-tw.1-macOS-arm64.dmg), so a release of the original never matches an update check here.
+    internal const string Publisher = "Methrew";
+    internal const string AssetPrefix = "BigBlueFish-TW";
+    // macOS bundle identifiers. Each edition's LaunchAgent label is its own bundle identifier; the keychain service
+    // is the Standard identifier for both editions, which share one data folder.
     internal const string MacBundleId = "io.github.methrew.bigbluefish.tw";
     internal const string MacSafeBundleId = MacBundleId + ".safe";
     internal const string KeychainService = MacBundleId;

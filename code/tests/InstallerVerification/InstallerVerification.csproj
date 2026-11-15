@@ -17,6 +17,7 @@
     <Compile Include="../../../installer/InstallationLifecycle.cs" Link="InstallationLifecycle.cs" />
     <Compile Include="../../../installer/UpdateTransaction.cs" Link="UpdateTransaction.cs" />
     <Compile Include="../../../uninstaller/UninstallApplication.cs" Link="UninstallApplication.cs" />
+    <Compile Include="../../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="CompanionEdition.cs" />
     <EmbeddedResource Include="../../../Version.props" Link="Version.props" />
   </ItemGroup>
 </Project>

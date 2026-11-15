@@ -83,15 +83,15 @@ internal static class InstallationLifecycle
         using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
         using var key = machine.CreateSubKey(UninstallRoot + "\\" + RegistrationName(target));
 #if COMPANION_SAFE
-        key.SetValue("DisplayName", "蓝色大肥鱼无MCP版");
+        key.SetValue("DisplayName", BigBlueFish.Windows.CompanionEdition.SafeDisplayName);
 #else
-        key.SetValue("DisplayName", "蓝色大肥鱼");
+        key.SetValue("DisplayName", BigBlueFish.Windows.CompanionEdition.DisplayName);
 #endif
         key.SetValue("DisplayVersion", FileVersionInfo.GetVersionInfo(Path.Combine(target, ApplicationName)).ProductVersion ?? typeof(InstallationLifecycle).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion);
-        key.SetValue("Publisher", "Bai-Cute");
+        key.SetValue("Publisher", BigBlueFish.Windows.CompanionEdition.Publisher);
         key.SetValue("InstallLocation", target);
         key.SetValue("DisplayIcon", Path.Combine(target, "BigBlueFish.ico"));
-        key.SetValue("URLInfoAbout", "https://github.com/Bai-Cute/big-blue-fish-desktop-pet");
+        key.SetValue("URLInfoAbout", BigBlueFish.Windows.CompanionEdition.Homepage);
         key.SetValue("UninstallString", $"\"{Path.Combine(target, UninstallerName)}\" --uninstall \"{target}\"");
         key.SetValue("NoModify", 1, RegistryValueKind.DWord);
         key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
@@ -166,7 +166,7 @@ internal static class InstallationLifecycle
             RemoveShortcut(shortcut, executable);
             RemoveShortcut(shortcut, Path.Combine(target, LegacyApplicationName));
         }
-        var menuGroup = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), "蓝色大肥鱼");
+        var menuGroup = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), BigBlueFish.Windows.CompanionEdition.DisplayName);
         if (Directory.Exists(menuGroup) && !Directory.EnumerateFileSystemEntries(menuGroup).Any()) Directory.Delete(menuGroup);
         foreach (var sid in Registry.Users.GetSubKeyNames().Where(s => s.StartsWith("S-1-5-21-") && !s.EndsWith("_Classes")))
         {

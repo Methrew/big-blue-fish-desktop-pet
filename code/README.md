@@ -45,7 +45,8 @@ $DOTNET build code/BigBlueFish.Mac/BigBlueFish.Mac.csproj -c Release -r osx-arm6
 - 不同目標的建置會共用 `bin/` 資料夾，建置不同版本或平台時請用 `-o` 指定各自的輸出資料夾，或加上 `--no-incremental`。
 - 鎖定檔：Mac 專案的標準版用 `packages.lock.json`，無MCP版用 `packages.safe.lock.json`；`BigBlueFish.Control`、`BigBlueFish.Mcp`、`BigBlueFish.Agent`、`BigBlueFish.Diagnostics` 與 `BigBlueFish.HermesBridge` 依 RID 分開，使用 `obj/<rid>/` 與 `packages.<rid>.lock.json`。
 - 橋接程式在 Mac 上要用 `-f net10.0 -r osx-arm64` 編譯，否則產生的 dll 無法在 Apple Silicon 的 dotnet 上載入。
-- `--test-mode` 的魚魚會讀取資料夾裡的 `test-command.txt` 並寫出 `test-status.json` 等狀態檔，可用的指令分散在 `BigBlueFish.Linux/` 的 `LinuxTestCommands.cs`、`LinuxBubbleText.cs`、`LinuxProactive.cs` 與 `LinuxWalk.cs`（例如 `bubble <文字>`、`stream <文字>`、`walk:x,y`、`find:查詢文字`、`reminder-clock:…`、`open-input`、`attach <路徑>`）。用測試模式時請搭配 `BIGBLUEFISH_DATA` 指定暫存資料夾；魚魚同一時間只能執行一隻（原版也算），測試前請先關閉正在執行的魚魚。
+- `--test-mode` 的魚魚會讀取資料夾裡的 `test-command.txt`（一次一個指令，執行完寫出內容相同的 `test-done.txt`，出錯時另外寫出 `test-error.txt`）並寫出 `test-status.json` 等狀態檔，可用的指令分散在 `BigBlueFish.Linux/` 的 `LinuxTestCommands.cs`、`LinuxBubbleText.cs`、`LinuxProactive.cs` 與 `LinuxWalk.cs`（例如 `bubble <文字>`、`stream <文字>`、`walk:x,y`、`find:查詢文字`、`reminder-clock:…`、`open-input`、`attach <路徑>`）。用測試模式時請搭配 `BIGBLUEFISH_DATA` 指定暫存資料夾；魚魚同一時間只能執行一隻（原版也算），測試前請先關閉正在執行的魚魚。
+  - 檢查畫面用的指令（`LinuxTestCommands.cs`）：`settings-page <導覽按鈕文字>`、`settings-size <寬>x<高>`、`settings-scroll <位置|end>`、`render-settings-full [檔名.png]`（目前設定頁從頭到尾，不受捲動範圍限制）、`list-windows`（寫出 `windows.json`）、`render-window <標題的一部分> <檔名.png>`、`texts <標題的一部分> <檔名.json>`（視窗顯示的文字，不必 OCR）、`close-window <標題的一部分>`、`render-bubble`、`open-menu` 與 `render-menu`、`click <按鈕或核取方塊的文字>`、`select <目前顯示的選項>=<新選項>`、`type <提示文字>=<內容>`、`install-model`、`check-updates [網址]`（網址代替 GitHub 的最新版本 API，可以測試發現新版本的對話框）。圖片以兩倍解析度存在資料夾裡，`render`、`render-settings` 等也可以在後面指定檔名；開啟對話框的指令不會等對話框關閉，接著可以用 `render-window` 或 `click` 處理它。`type` 只能填測試用的值：在設定頁儲存的授權碼和 API Key 會寫進這台 Mac 真正的鑰匙圈。
 
 ### 在 Mac 上執行主控台測試
 

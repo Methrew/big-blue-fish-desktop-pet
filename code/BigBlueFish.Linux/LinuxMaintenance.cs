@@ -152,7 +152,8 @@ internal sealed partial class LinuxPetWindow
     }
     // Updates come only from this edition's own releases (CompanionEdition), never from the original's, and compare
     // (x.y.z, -tw.N). With no release published yet (404) an automatic check stays silent and a manual one says so.
-    async Task CheckUpdates(bool manual)
+    // latestApi: --test-mode only (check-updates <url>), a stand-in for GitHub to reach the dialogs of a newer release.
+    async Task CheckUpdates(bool manual, string? latestApi = null)
     {
         if (updateChecking) return; updateChecking = true;
         try {
@@ -161,7 +162,7 @@ internal sealed partial class LinuxPetWindow
             client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
             async Task<HttpResponseMessage> Latest()
             {
-                try { return await client.GetAsync(CompanionEdition.LatestReleaseApi); }
+                try { return await client.GetAsync(latestApi ?? CompanionEdition.LatestReleaseApi); }
                 catch (Exception error) when (error is HttpRequestException or TaskCanceledException) { throw new IOException("無法連線到 GitHub，請確認網路連線後再試一次。", error); }
             }
             using var response = await Latest();

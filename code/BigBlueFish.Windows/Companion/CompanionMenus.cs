@@ -206,6 +206,9 @@ public partial class MainWindow
         cwa.Children.Add(new TextBlock { Text = "填入授權碼後，臺灣地點使用中央氣象署的鄉鎮天氣預報；沒有授權碼時，改用 Open-Meteo 估計鄉鎮市區中心附近的天氣，只是概略的參考。授權碼可在氣象資料開放平臺免費申請。", FontSize = 11,
             Foreground = System.Windows.Media.Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0) });
         var source = new TextBlock { FontSize = 11, Foreground = System.Windows.Media.Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 4) };
+        // The same note as the macOS and Linux settings, under 中國 › 臺灣省.
+        var province = new TextBlock { Text = "中國清單裡的臺灣省沿用原版資料：天氣以縣市為單位估算，時間為北京時間。要看鄉鎮的天氣，請在國家選「臺灣 Taiwan」。", FontSize = 11,
+            Foreground = System.Windows.Media.Brushes.SlateGray, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 5, 0, 0), Visibility = Visibility.Collapsed };
         bool changing = false;
         CompanionCountry current = CompanionRegions.China;
         void Configure(CompanionCountry target)
@@ -223,7 +226,7 @@ public partial class MainWindow
             bool taiwan = target == CompanionRegions.Taiwan;
             cwa.Visibility = taiwan ? Visibility.Visible : Visibility.Collapsed;
             source.Text = taiwan
-                ? $"天氣資料：中央氣象署 {DateTime.Now.Year} 鄉鎮天氣預報（F-D0047）。此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license 。"
+                ? $"天氣資料：中央氣象署 {DateTime.Now.Year} 年鄉鎮天氣預報（F-D0047）。此開放資料依政府資料開放授權條款 (Open Government Data License) 進行公眾釋出，使用者於遵守本條款各項規定之前提下，得利用之。政府資料開放授權條款：https://data.gov.tw/license 。"
                     + "沒有授權碼時的估計值來自 Open-Meteo（Weather data by Open-Meteo.com），鄉鎮市區中心依內政部國土測繪中心 2025 鄉(鎮、市、區)界線（政府資料開放授權條款）計算。"
                 : OpenMeteoWeatherSource;
         }
@@ -241,6 +244,7 @@ public partial class MainWindow
                 parentCode = chosen.Code;
             }
             for (int i = current.LeafLevel + 1; i < levels.Length; i++) levels[i].Combo.ItemsSource = Array.Empty<CompanionRegion>();
+            province.Visibility = current == CompanionRegions.China && levels[0].Combo.SelectedItem is CompanionRegion { Code: "71" } ? Visibility.Visible : Visibility.Collapsed;
         }
         void SaveRegion()
         {
@@ -279,6 +283,7 @@ public partial class MainWindow
             };
         }
         panel.Children.Add(grid);
+        panel.Children.Add(province);
         panel.Children.Add(cwa);
         panel.Children.Add(source);
     }

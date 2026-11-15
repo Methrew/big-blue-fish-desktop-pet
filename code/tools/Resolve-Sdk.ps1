@@ -13,4 +13,4 @@ foreach($candidate in $candidates){
         return (Resolve-Path -LiteralPath $candidate).Path
     }
 }
-throw '需要 .NET 10 SDK。安装后重试，或用 -SdkPath 指定 dotnet.exe。'
+throw '需要 .NET 10 SDK。請安裝後重試，或用 -SdkPath 指定 dotnet.exe。'

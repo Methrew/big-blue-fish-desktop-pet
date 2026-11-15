@@ -31,3 +31,18 @@ code/run-hermes-bridge.sh	蓝色大肥鱼.app	the original edition's app, search
 
 # Test input.
 tools/Verify-MacPackage.py	主人，我们一起干杯吧！	Simplified bubble text proving the packaged app shows it in Taiwan Traditional
+
+# l5-docs
+*.md	蓝色大肥鱼工作区	the original edition's default workspace folder, which existing installs keep using
+docs/MACOS.md	蓝色大肥鱼.app	the original edition's app name, so users can tell the two apps apart
+README.md	乐米小奶泡体	name of the original edition's bubble font, which this edition no longer ships
+*.md	Dock 項目	macOS term for Dock items
+*.md	登入項目	macOS System Settings name for Login Items
+*.md	鑰匙圈項目	macOS Keychain Access term for keychain items
+*.md	清單項目	list item, Taiwan usage
+*.md	桌面項目	macOS term for desktop items (Finder, Stage Manager)
+*.md	最近項目	Finder sidebar name for Recents
+*.md	幕前調度	macOS name of Stage Manager
+docs/MACOS.md	點擊回應-元氣揮手	a character-by-character Traditional spelling of an action name, shown as accepted input
+*.md	地點代碼	region code of a weather location, Taiwan usage (like 鄉鎮代碼)
+docs/MCP.md	代碼	region codes in the WeatherRegionCode rules (區縣代碼, 鄉鎮市區代碼, 國家代碼), Taiwan usage

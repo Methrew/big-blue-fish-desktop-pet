@@ -341,6 +341,21 @@ internal sealed class CompanionBrain : IDisposable
         catch (OperationCanceledException) when (!token.IsCancellationRequested) { return false; }
     }
 
+    // HttpRequestException.Message is the operating system's English text; the settings get the kind of failure in Chinese.
+    private string RemoteFailure(HttpRequestException error)
+    {
+        string where = Uri.TryCreate(remoteUrl, UriKind.Absolute, out var url) ? url.Authority : "";
+        return error.HttpRequestError switch
+        {
+            HttpRequestError.ConnectionError when error.InnerException is System.Net.Sockets.SocketException { SocketErrorCode: System.Net.Sockets.SocketError.ConnectionRefused }
+                => $"無法連線遠端模型：伺服器拒絕連線（{where}），請確認伺服器正在執行，並檢查網址和連接埠。",
+            HttpRequestError.ConnectionError => $"無法連線遠端模型：連不上伺服器（{where}），請確認網路連線、網址和連接埠。",
+            HttpRequestError.NameResolutionError => "無法連線遠端模型：找不到這個伺服器名稱，請檢查網址。",
+            HttpRequestError.SecureConnectionError => "無法連線遠端模型：無法建立 https 安全連線（憑證可能不受信任）。",
+            _ => $"無法連線遠端模型（錯誤類型 {error.HttpRequestError}）。"
+        };
+    }
+
     // Reads the served model and whether it accepts images; no local process is started.
     private async Task EnsureRemote(CancellationToken token)
     {
@@ -355,7 +370,7 @@ internal sealed class CompanionBrain : IDisposable
             using var request = RemoteRequest(HttpMethod.Get, "/v1/models");
             response = await remote.SendAsync(request, limit.Token);
         }
-        catch (HttpRequestException error) { throw new IOException("無法連線遠端模型：" + error.Message); }
+        catch (HttpRequestException error) { throw new IOException(RemoteFailure(error)); }
         catch (OperationCanceledException) when (!token.IsCancellationRequested) { throw new IOException("連線遠端模型逾時"); }
         using (response)
         {

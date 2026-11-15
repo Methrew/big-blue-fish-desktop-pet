@@ -99,7 +99,8 @@ internal sealed partial class LinuxPetWindow
             "填好後按「儲存並測試連線」。");
         var state = Paragraph("");
         var clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        void UpdateState() => state.Text = "模型狀態：" + (brain.UseRemote ? brain.Status : Preferences.ModelSource == "Remote" ? "網址無效，目前使用本機模型" : "使用本機模型");
+        void UpdateState() => state.Text = "模型狀態：" + (brain.UseRemote ? brain.Status : Preferences.ModelSource != "Remote" ? "使用本機模型"
+            : Preferences.RemoteUrl.Trim().Length == 0 ? "尚未填寫伺服器網址，目前使用本機模型" : "網址無效，目前使用本機模型");
         clock.Tick += (_, _) => UpdateState();
         state.AttachedToVisualTree += (_, _) => { UpdateState(); clock.Start(); };
         state.DetachedFromVisualTree += (_, _) => clock.Stop();
@@ -139,12 +140,15 @@ internal sealed partial class LinuxPetWindow
                     Preferences.RemoteApiKey = keyText;
 #endif
                 }
+                bool wasRemote = brain.UseRemote;
                 Preferences.ModelSource = source.SelectedIndex == 1 ? "Remote" : "Local";
                 Preferences.RemoteUrl = url.Text?.Trim() ?? "";
                 Preferences.RemoteModel = model.Text?.Trim() ?? "";
                 Preferences.ScreenImages = images.IsChecked == true;
                 remoteUrlDraft = remoteKeyDraft = remoteModelDraft = null;
-                // A reply in progress is dropped, as with every other switch of the model.
+                // Still the local model, as before (the remote source picked without a valid address yet): the resident
+                // local model stays loaded. Any other switch drops a reply in progress, as with every other switch of the model.
+                if (!wasRemote && !Preferences.UseRemoteModel && !writeKey) { brain.ScreenImages = Preferences.ScreenImages; Save(); UpdateState(); return true; }
                 speechVersion++; loading.IsVisible = false;
                 ApplyModelSource(); Save();
                 foreach (var option in localModelOptions) option.IsEnabled = !brain.UseRemote;

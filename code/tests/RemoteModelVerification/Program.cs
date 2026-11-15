@@ -137,7 +137,8 @@ using (var brain = NewBrain())
     using var closed = new TcpListener(IPAddress.Loopback, 0);
     closed.Start(); int unused = ((IPEndPoint)closed.LocalEndpoint).Port; closed.Stop();
     brain.UseRemoteModel($"http://127.0.0.1:{unused}", Key, "");
-    Check((await brain.TestRemote()).StartsWith("無法連線遠端模型"), "an unreachable server is reported in Traditional Chinese");
+    var refused = await brain.TestRemote();
+    Check(refused == $"無法連線遠端模型：伺服器拒絕連線（127.0.0.1:{unused}），請確認伺服器正在執行，並檢查網址和連接埠。", "a refused connection is reported in Traditional Chinese, without the system's English text: " + refused);
 }
 
 // --- Speech turns: what reaches the server from the screen.

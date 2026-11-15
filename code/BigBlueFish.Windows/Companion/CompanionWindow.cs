@@ -699,7 +699,8 @@ public partial class MainWindow
                 InvalidateSpeechRequests(true);
             ClearCompanionModelReply();
         }
-        else if (!AgentDailyActive && modelInstaller == null && preferences.ModelEnabled && brain.ModelAvailable && !speechRequestPending && !brain.Busy && brain.RunnerPid == null && now >= nextWarmup)
+        // Keeps the local model loaded; a remote server is reached when the fish speaks.
+        else if (!AgentDailyActive && modelInstaller == null && !brain.UseRemote && preferences.ModelEnabled && brain.ModelAvailable && !speechRequestPending && !brain.Busy && brain.RunnerPid == null && now >= nextWarmup)
         {
             nextWarmup = now.AddMinutes(2);
             _ = brain.WarmUp();

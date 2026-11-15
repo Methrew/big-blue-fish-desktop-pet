@@ -195,7 +195,13 @@ internal sealed class CompanionBrain : IDisposable
             var output = probe.StandardOutput.ReadToEndAsync();
             var errors = probe.StandardError.ReadToEndAsync();
             using var limit = CancellationTokenSource.CreateLinkedTokenSource(token);
+#if COMPANION_MAC
+            // The first run of a newly installed llama-server waits for the system's security scan (20-24 s measured on
+            // an M4); a timed-out probe would leave the whole session on the CPU.
+            limit.CancelAfter(TimeSpan.FromSeconds(60));
+#else
             limit.CancelAfter(TimeSpan.FromSeconds(10));
+#endif
             await probe.WaitForExitAsync(limit.Token);
             return probe.ExitCode == 0 ? await output + "\n" + await errors : "";
         }

@@ -31,6 +31,16 @@ internal static class InferenceDeviceVerification
         integrated.Observe("llama_prepare_model_devices: using device Vulkan0 (Intel(R) Arc(TM) 140V GPU (16GB)) (unknown id) - 17641 MiB free");
         integrated.Observe("load_tensors: Vulkan0 model buffer size = 2572.86 MiB");
         Check(integrated.Describe(true).Contains("Intel(R) Arc(TM) 140V GPU (16GB)"), "integrated GPU and nested parentheses are preserved");
+        // Real llama.cpp b10809 lines: CPU fallback also repacks weights into CPU_REPACK, and Metal maps the model into MTL0_Mapped.
+        var repacked = new CompanionInferenceDevices();
+        repacked.Observe("0.00.794.738 I load_tensors:   CPU_Mapped model buffer size =   497.31 MiB");
+        repacked.Observe("0.00.794.739 I load_tensors:   CPU_REPACK model buffer size =  2569.19 MiB");
+        Check(repacked.Describe(true) == "CPU", "repacked CPU weights are CPU, not a GPU");
+        var metal = new CompanionInferenceDevices();
+        metal.Observe("0.00.338.214 I llama_prepare_model_devices: using device MTL0 (Apple M4) (unknown id) - 12123 MiB free");
+        metal.Observe("0.00.794.738 I load_tensors:   CPU_Mapped model buffer size =   497.31 MiB");
+        metal.Observe("0.00.794.739 I load_tensors:  MTL0_Mapped model buffer size =  2572.86 MiB");
+        Check(metal.Describe(true) == "GPU：Apple M4（MTL0）", "a mapped Metal buffer is named after its device");
         Console.WriteLine($"RESULT {count} inference device reporting checks passed");
     }
 

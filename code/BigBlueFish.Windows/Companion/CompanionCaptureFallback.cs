@@ -9,7 +9,12 @@ internal readonly record struct CompanionCaptureResult<T>(T? Image, bool FullScr
 
 internal static class CompanionCaptureFallback
 {
+#if COMPANION_MAC
+    // screencapture with one output file takes the main display only (MacCapture.cs).
+    internal const string ScreenIdentity = "本輪畫面是主螢幕的全螢幕截圖（不含其他顯示器），可能同時包含前景程式、背景視窗和桌面。";
+#else
     internal const string ScreenIdentity = "本輪畫面是所有螢幕的全螢幕截圖，可能同時包含前景程式、背景視窗和桌面。";
+#endif
 
     internal static async Task<CompanionCaptureResult<T>> ReadAsync<T>(Func<Task<T?>> foreground,
         Func<Task<T?>> screen, CancellationToken token) where T : class

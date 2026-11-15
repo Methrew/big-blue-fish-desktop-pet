@@ -155,7 +155,9 @@ internal sealed partial class LinuxPetWindow
                 case "list_actions": return ControlTools.Text(policy.Rules.Select(r => new { action = r.Id, pool = r.Pool, weight = r.Weight, duration_seconds = r.Pool == "Greeting" ? 10 / 1.5 : 10 }));
                 case "capture_foreground": case "capture_screen":
                     var handle = CompanionNative.ResolveForeground(CompanionNative.GetForegroundWindow(), lastForeground);
-                    var identity = name == "capture_foreground" ? CompanionNative.ForegroundIdentity(handle) : "全部顯示器組成的完整桌面";
+                    // macOS screencapture with one output file takes the main display only.
+                    var identity = name == "capture_foreground" ? CompanionNative.ForegroundIdentity(handle)
+                        : OperatingSystem.IsMacOS() ? "主螢幕的完整畫面（macOS 只截主螢幕，不含其他顯示器）" : "全部顯示器組成的完整桌面";
                     var limit = ControlTools.ImageLimit(args, name == "capture_foreground" ? 2560 : 4096);
                     var image = await LinuxCapture.CaptureAsync(handle, limit, name == "capture_screen", token);
                     token.ThrowIfCancellationRequested();

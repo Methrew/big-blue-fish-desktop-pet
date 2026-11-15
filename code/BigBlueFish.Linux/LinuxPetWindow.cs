@@ -76,11 +76,18 @@ internal sealed partial class LinuxPetWindow : Window
         Rescale();
         var screen = Screens.Primary?.WorkingArea ?? new PixelRect(0, 0, 1280, 720);
         Position = new((int)(Preferences.Left ?? screen.Right - Width * DesktopScaling), (int)(Preferences.Top ?? screen.Bottom - Height * DesktopScaling)); Clamp();
+        bool started = false; // Avalonia raises Opened again on every Show after Hide: the startup work below runs once
         Opened += async (_, _) => {
             if (OperatingSystem.IsMacOS()) { Rescale(); Clamp(); } // Avalonia's macOS backend opens a borderless window at 0×0, ignoring the size set before Show
+            if (started) return; started = true;
             if (Puppet) Play(policy.Find("待机呼吸休闲"), "PuppetIdle");
             else { Play(policy.Find("女仆屈膝礼仪"), "Startup"); Welcome(); }
+#if COMPANION_MAC && !COMPANION_SAFE
+            // The Agent CLIs are found on the login shell's PATH, read in the background (MacLoginPath); nothing else waits for it.
+            InitializeTray(); timer.Start(); await MacLoginPath.Ready; if (closed) return; InitializeMcp();
+#else
             InitializeMcp(); InitializeTray(); timer.Start();
+#endif
             if (!File.Exists("model-selection.json") && !brain.ModelAvailable && !App.Args.Contains("--test-mode")) await InstallModel();
             if (Preferences.CheckUpdatesOnStartup && !App.Args.Contains("--test-mode")) _ = CheckUpdates(false);
         };

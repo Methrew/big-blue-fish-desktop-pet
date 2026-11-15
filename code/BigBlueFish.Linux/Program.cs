@@ -20,17 +20,12 @@ internal static class Program
         Build().StartWithClassicDesktopLifetime(args);
     }
     // Finder starts apps with only the system PATH; Agent CLIs installed by npm or Homebrew are on the login shell's PATH.
+    // macOS reads it in the background with a hard time limit (MacLoginPath); only the Agent connection waits for it.
     static void ImportLoginPath()
     {
-        try {
-            var start = new System.Diagnostics.ProcessStartInfo(Environment.GetEnvironmentVariable("SHELL") ?? "/bin/zsh") { UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true };
-            foreach (var item in new[] { "-ilc", "printf '\\n<bbf-path>%s</bbf-path>' \"$PATH\"" }) start.ArgumentList.Add(item);
-            using var shell = System.Diagnostics.Process.Start(start)!; shell.StandardInput.Close(); _ = shell.StandardError.ReadToEndAsync();
-            var output = shell.StandardOutput.ReadToEndAsync();
-            if (!shell.WaitForExit(5000)) { shell.Kill(true); return; }
-            var match = System.Text.RegularExpressions.Regex.Match(output.Result, "<bbf-path>(.+)</bbf-path>");
-            if (match.Success) Environment.SetEnvironmentVariable("PATH", match.Groups[1].Value);
-        } catch (Exception) { }
+#if COMPANION_MAC && !COMPANION_SAFE
+        MacLoginPath.Start(state => DiagnosticLog.Write(DiagnosticEvent.AgentFailed, kind: "terminal", state: state));
+#endif
     }
     public static AppBuilder Build() => AppBuilder.Configure<App>().UsePlatformDetect()
         .With(new X11PlatformOptions { RenderingMode = [X11RenderingMode.Software] });

@@ -64,7 +64,11 @@ internal sealed partial class LinuxPetWindow
         }
         select.SelectionChanged += (_, _) => { if (!refreshing && select.SelectedItem is ComboBoxItem { Tag: string id }) { Preferences.AgentHarnessId = id; ConfigureAgent(); Save(); } };
         daily.Click += (_, _) => { Preferences.AgentDailySpeech = daily.IsChecked == true; ApplySettings(); Refresh(); };
-        puppet.Click += async (_, _) => { bool on = puppet.IsChecked == true; if (on && !await Confirm(ControlTools.BehaviorControlTitle, ControlTools.PuppetWarning, "瞭解並開啟")) { puppet.IsChecked = false; return; } SetPuppet(on); Save(); Refresh(); };
+        puppet.Click += async (_, _) => {
+            bool on = puppet.IsChecked == true;
+            if (on && !await Confirm(ControlTools.BehaviorControlTitle, ControlTools.PuppetWarning + (Preferences.McpEnabled ? "\n\n" + PuppetSharedWithMcp : ""), "瞭解並開啟")) { puppet.IsChecked = false; return; }
+            SetPuppet(on); Save(); Refresh();
+        };
         enabled.Click += async (_, _) => {
             enabled.IsEnabled = false;
             try
@@ -146,6 +150,7 @@ internal sealed partial class LinuxPetWindow
     // What the MCP interface means beyond the consent shared with Windows: Hermes runs commands without asking.
     const string McpInterfaceRisk = "連線的程式可以擷取螢幕畫面、修改魚魚的設定，並收到你在魚魚輸入框打的字。Hermes 橋接程式會把這些文字交給 Hermes，而 Hermes 可能不經詢問就以你的身分執行終端機指令、修改檔案。只在自己的電腦上開啟，並只連線你信任的程式。";
     const string PuppetSharedWithAgent = "內建的 Agent 連線也開著：提線木偶模式和上面 Agent 連線的接管是同一個開關，開啟後內建的 Agent 也會安排日常關心與動作。";
+    const string PuppetSharedWithMcp = "MCP 介面也開著：這個開關和「連線 Agent」頁下方 MCP 介面的「提線木偶模式」是同一個，開啟後 MCP 介面的外部 Agent 也能接管魚魚。";
 
     async Task<string?> RequestAgentPermission(AgentPermission request, CancellationToken token)
     {

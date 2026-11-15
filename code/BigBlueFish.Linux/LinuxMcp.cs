@@ -231,7 +231,9 @@ internal sealed partial class LinuxPetWindow
         // One switch, named as each side names it: the Agent connection hands the care and actions to the Agent, the MCP interface
         // calls it 提線木偶模式.
         if (values.TryGetValue("PuppetMode", out var puppet) && puppet is true && !Preferences.PuppetMode
-            && !await Confirm(agentChannel ? ControlTools.BehaviorControlTitle : ControlTools.McpPuppetTitle, agentChannel ? ControlTools.PuppetWarning : ControlTools.McpPuppetWarning, "瞭解並開啟", token))
+            && !await Confirm(agentChannel ? ControlTools.BehaviorControlTitle : ControlTools.McpPuppetTitle,
+                agentChannel ? ControlTools.PuppetWarning + (Preferences.McpEnabled ? "\n\n" + PuppetSharedWithMcp : "")
+                    : ControlTools.McpPuppetWarning + (Preferences.AgentEnabled ? "\n\n" + PuppetSharedWithAgent : ""), "瞭解並開啟", token))
             throw new OperationCanceledException(agentChannel ? "使用者取消讓 Agent 安排日常關心與動作。" : "使用者取消開啟提線木偶模式。");
         token.ThrowIfCancellationRequested(); if (!McpChannelOpen(agentChannel)) throw new OperationCanceledException();
         foreach (var item in values)

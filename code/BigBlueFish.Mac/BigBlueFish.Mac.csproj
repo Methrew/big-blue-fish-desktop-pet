@@ -11,6 +11,7 @@
     <Compile Include="../BigBlueFish.Linux/LinuxTray.cs" Link="Linux/LinuxTray.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxProcesses.cs" Link="Linux/LinuxProcesses.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMcp.cs" Link="Linux/LinuxMcp.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxMcpInterface.cs" Link="Linux/LinuxMcpInterface.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxSettings.cs" Link="Linux/LinuxSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMaintenance.cs" Link="Linux/LinuxMaintenance.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxTestCommands.cs" Link="Linux/LinuxTestCommands.cs" />

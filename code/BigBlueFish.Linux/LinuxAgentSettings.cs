@@ -71,7 +71,8 @@ internal sealed partial class LinuxPetWindow
             {
                 bool on = enabled.IsChecked == true;
                 if (on && !await Confirm("连接本机 Agent", ControlTools.PrivacyWarning, "了解并开启")) { enabled.IsChecked = false; return; }
-                if (!on) SetPuppet(false); Preferences.AgentEnabled = on;
+                // Puppet mode is shared with the MCP interface and ends here only when that is off too.
+                if (!on && !Preferences.McpEnabled) SetPuppet(false); Preferences.AgentEnabled = on;
                 if (on) InitializeMcp(); else StopMcp();
                 extra.IsVisible = on; puppet.IsChecked = Preferences.PuppetMode; Save(); Refresh();
             }
@@ -79,7 +80,72 @@ internal sealed partial class LinuxPetWindow
         };
         var clock = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
         clock.Tick += (_, _) => Refresh(); extra.DetachedFromVisualTree += (_, _) => clock.Stop(); Refresh(); clock.Start();
+        BuildMcpInterfaceSettings(body);
     }
+
+    // The MCP interface for programs outside the fish, such as the Hermes bridge (LinuxMcpInterface.cs), under the Agent connection.
+    void BuildMcpInterfaceSettings(StackPanel body)
+    {
+        body.Children.Add(new TextBlock { Text = "MCP 介面（外部 Agent，例如 Hermes 橋接程式）", FontSize = 18, FontWeight = Avalonia.Media.FontWeight.SemiBold, Margin = new Avalonia.Thickness(0, 28, 0, 4) });
+        var enabled = new CheckBox { Content = "開啟 MCP 介面", IsChecked = Preferences.McpEnabled };
+        body.Children.Add(enabled);
+        body.Children.Add(Paragraph("開啟後，這台電腦上以你的帳號執行的其他程式（例如 Hermes 橋接程式）可以透過 BigBlueFish.Mcp 控制魚魚。上面的 Agent 連線不需要開啟這裡。"));
+        var extra = new StackPanel { IsVisible = Preferences.McpEnabled, Spacing = 8 }; body.Children.Add(extra);
+        var puppet = new CheckBox { Content = "提線木偶模式", IsChecked = Preferences.PuppetMode }; extra.Children.Add(puppet);
+        extra.Children.Add(Paragraph("關閉魚魚自己的吐字和動作切換，完全交給外部 Agent。這和上面 Agent 連線的「" + ControlTools.BehaviorControlLabel + "」是同一個開關。"));
+        var chat = new CheckBox { Content = "雙擊輸入交給 MCP 介面（Hermes 橋接程式）", IsChecked = Preferences.McpChatEnabled }; extra.Children.Add(chat);
+        extra.Children.Add(Paragraph("開啟且 MCP 介面有客戶端連線時，雙擊魚魚輸入的文字只會傳給 MCP 介面，不會再送給上面的 Agent 連線，避免兩邊各回答一次；沒有客戶端連線時，仍交給 Agent 連線。"));
+        var briefing = new CheckBox { Content = "每天第一次坐下時講今日簡報", IsChecked = Preferences.DailyBriefing }; extra.Children.Add(briefing);
+        string Away(int minutes) => minutes == 0 ? "關閉" : minutes < 60 ? $"離開 {minutes} 分鐘以上" : $"離開 {minutes / 60} 小時以上";
+        string Ahead(int minutes) => minutes == 0 ? "不提醒" : $"開始前 {minutes} 分鐘";
+        extra.Children.Add(new TextBlock { Text = "離開很久回來時說期間發生的事" });
+        var welcome = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = CompanionPreferences.WelcomeBackChoices.Select(Away).ToArray(),
+            SelectedIndex = Math.Max(0, Array.IndexOf(CompanionPreferences.WelcomeBackChoices, Preferences.WelcomeBackMinutes)) };
+        extra.Children.Add(welcome);
+        extra.Children.Add(new TextBlock { Text = "Google 日曆行程開始前提醒" });
+        var ahead = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch, ItemsSource = CompanionPreferences.EventReminderChoices.Select(Ahead).ToArray(),
+            SelectedIndex = Math.Max(0, Array.IndexOf(CompanionPreferences.EventReminderChoices, Preferences.EventReminderMinutes)) };
+        extra.Children.Add(ahead);
+        extra.Children.Add(Paragraph("簡報、回來時的摘要和行程提醒都由 Hermes 橋接程式說，沒有執行橋接程式時不會說；行程提醒需要先替 Hermes 設定好 Google 日曆。"));
+        var copy = ActionButton("複製 Hermes 的 MCP 設定", () => { });
+        copy.Click += async (_, _) => {
+            if (TopLevel.GetTopLevel(copy)?.Clipboard is not { } clipboard) return;
+            await Avalonia.Input.Platform.ClipboardExtensions.SetTextAsync(clipboard, HermesMcpConfig());
+            copy.Content = "已複製，請貼到 ~/.hermes/config.yaml";
+        };
+        extra.Children.Add(copy);
+        extra.Children.Add(Paragraph("在 Hermes 設定檔的 mcp_servers 底下加入這段；名稱必須是 big_blue_fish，橋接程式才叫得到魚魚的工具。"));
+        var state = Paragraph(""); extra.Children.Add(state);
+        void Refresh() => state.Text = Preferences.McpEnabled ? $"已連線 {mcpInterface?.Connections ?? 0} 個 MCP 客戶端" + (McpChatAvailable ? "，雙擊輸入目前交給 MCP 介面。" : Preferences.AgentEnabled ? "，雙擊輸入目前交給 Agent 連線。" : "。") : "";
+        enabled.Click += async (_, _) => {
+            enabled.IsEnabled = false;
+            try
+            {
+                bool on = enabled.IsChecked == true;
+                if (on && !await Confirm("開啟 MCP 介面", ControlTools.McpPrivacyWarning + "\n\n" + McpInterfaceRisk, "瞭解並開啟")) { enabled.IsChecked = false; return; }
+                // Puppet mode is shared with the Agent connection and ends here only when that is off too.
+                if (!on && !Preferences.AgentEnabled) SetPuppet(false);
+                Preferences.McpEnabled = on;
+                if (on) InitializeMcp(); else StopMcp();
+                extra.IsVisible = on; Save(); refreshLinuxSettings?.Invoke();
+            }
+            finally { enabled.IsEnabled = true; }
+        };
+        puppet.Click += async (_, _) => {
+            bool on = puppet.IsChecked == true;
+            if (on && !await Confirm(ControlTools.McpPuppetTitle, ControlTools.McpPuppetWarning + (Preferences.AgentEnabled ? "\n\n" + PuppetSharedWithAgent : ""), "瞭解並開啟")) { puppet.IsChecked = false; return; }
+            SetPuppet(on); Save(); refreshLinuxSettings?.Invoke();
+        };
+        chat.Click += (_, _) => { Preferences.McpChatEnabled = chat.IsChecked == true; if (!McpInputEnabled) mcpInput?.Close(); Save(); Refresh(); };
+        briefing.Click += (_, _) => { Preferences.DailyBriefing = briefing.IsChecked == true; Save(); };
+        welcome.SelectionChanged += (_, _) => { if (welcome.SelectedIndex >= 0) { Preferences.WelcomeBackMinutes = CompanionPreferences.WelcomeBackChoices[welcome.SelectedIndex]; Save(); } };
+        ahead.SelectionChanged += (_, _) => { if (ahead.SelectedIndex >= 0) { Preferences.EventReminderMinutes = CompanionPreferences.EventReminderChoices[ahead.SelectedIndex]; Save(); } };
+        var clock = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        clock.Tick += (_, _) => Refresh(); state.DetachedFromVisualTree += (_, _) => clock.Stop(); Refresh(); clock.Start();
+    }
+    // What the MCP interface means beyond the consent shared with Windows: Hermes runs commands without asking.
+    const string McpInterfaceRisk = "連線的程式可以截取螢幕畫面、修改魚魚的設定，並收到你在魚魚輸入框打的字。Hermes 橋接程式會把這些文字交給 Hermes，而 Hermes 可能不經詢問就以你的身分執行終端機指令、修改檔案。只在自己的電腦上開啟，並只連線你信任的程式。";
+    const string PuppetSharedWithAgent = "內建的 Agent 連線也開著：提線木偶模式和上面 Agent 連線的接管是同一個開關，開啟後內建的 Agent 也會安排日常關心與動作。";
 
     async Task<string?> RequestAgentPermission(AgentPermission request, CancellationToken token)
     {

@@ -26,26 +26,18 @@ internal sealed class CompanionPreferences
     public bool AgentRespondToClick { get; set; }
     public bool AgentRespondToDrag { get; set; }
     public bool ChatLogShowAll { get; set; }
-#if COMPANION_LINUX || COMPANION_MAC
-    // Old UI/animation helpers use this internal alias. Legacy MCP settings do not turn on a new CLI connection.
-    [JsonIgnore] public bool McpEnabled { get => AgentEnabled; set => AgentEnabled = value; }
-#else
-    // The Windows MCP interface for external clients (BigBlueFish.Mcp on the fixed pipe, such as the Hermes bridge).
-    // It is switched apart from the ACP connection above and never turns that connection on; MCP can only read it.
+    // The MCP interface for external clients (BigBlueFish.Mcp on the fixed pipe, such as the Hermes bridge), on every
+    // platform. It is switched apart from the ACP connection above and never turns that connection on; MCP can only read it.
     public bool McpEnabled { get; set; }
-#endif
     public bool PuppetMode { get; set; }
-#if COMPANION_LINUX || COMPANION_MAC
-    [JsonIgnore] public bool McpChatEnabled { get => AgentEnabled; set { } }
-#else
-    // Double-click input for the external MCP clients; with the ACP connection on, the input is always offered.
+    // Double-click input goes to the clients of the MCP interface (only there) while one is connected; otherwise to the
+    // ACP connection.
     public bool McpChatEnabled { get; set; }
-#endif
     [JsonIgnore] public bool McpWakeEnabled { get => false; set { } }
     [JsonIgnore] public bool McpWakeOnText { get => true; set { } }
     [JsonIgnore] public bool McpWakeOnClick { get => AgentRespondToClick; set => AgentRespondToClick = value; }
     [JsonIgnore] public bool McpWakeOnDrag { get => AgentRespondToDrag; set => AgentRespondToDrag = value; }
-    // Either way of handing the fish to an agent: the ACP connection or (Windows) the external MCP interface.
+    // Either way of handing the fish to an agent: the ACP connection or the external MCP interface.
     internal bool AnyAgentControl => AgentEnabled || McpEnabled;
     public string WeatherRegionCode { get; set; } = CompanionRegions.DefaultCode;
     public double Scale { get; set; } = 1;

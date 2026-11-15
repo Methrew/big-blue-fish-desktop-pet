@@ -84,11 +84,13 @@ internal sealed partial class LinuxPetWindow
         nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); agent?.DailyCare(); return true;
     }
     Window? mcpInput;
-    bool McpInputAvailable => Preferences.AgentEnabled;
+    bool McpInputAvailable => Preferences.AgentEnabled || McpChatAvailable;
+    // Starts whatever is switched on and is not running yet: the MCP interface and the Agent connection each by its own switch.
     void InitializeMcp()
     {
+        RefreshMcpInterface();
         if (!Preferences.AgentEnabled) return;
-        mcpServer ??= new ControlServer(ExecuteMcp, agentPipe);
+        mcpServer ??= new ControlServer((name, args, token) => ExecuteMcp(name, args, token, true), agentPipe);
         agent ??= new AgentCoordinator(Path.Combine(Environment.CurrentDirectory, "agent"), Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp"), agentPipe, RequestAgentPermission,
             App.Args.Contains("--test-mode") ? Path.Combine(Environment.CurrentDirectory, "agent-test-workspace") : null);
         if (!HarnessCatalog.All.Any(x => x.Id == Preferences.AgentHarnessId)) Preferences.AgentHarnessId = "codex";
@@ -97,11 +99,21 @@ internal sealed partial class LinuxPetWindow
         ConfigureAgent();
         if (AgentDailyActive) brain.Stop();
     }
-    void StopMcp() { consentWindow?.Close(); mcpInput?.Close(); agent?.Dispose(); agent = null; mcpServer?.Dispose(); mcpServer = null; externalActions.Clear(); nextExternalText = null; }
+    // Stops whatever has been switched off, and everything when both are off or the fish is closing.
+    void StopMcp()
+    {
+        bool everything = closed || !Preferences.AgentEnabled && !Preferences.McpEnabled;
+        consentWindow?.Close();
+        if (everything || !Preferences.AgentEnabled) { agent?.Dispose(); agent = null; mcpServer?.Dispose(); mcpServer = null; }
+        if (everything || !Preferences.McpEnabled) { mcpInterface?.Dispose(); mcpInterface = null; }
+        if (everything) { mcpInput?.Close(); externalActions.Clear(); nextExternalText = null; }
+        else if (!McpInputEnabled) mcpInput?.Close();
+    }
     void PublishInteraction(string kind, object detail)
     {
+        if (kind == "user_message") { PublishUserMessage(detail, McpChatAvailable); return; }
         DiagnosticLog.Write(DiagnosticEvent.Interaction, kind: kind);
-        mcpServer?.Publish(kind, detail);
+        mcpServer?.Publish(kind, detail); mcpInterface?.Publish(kind, detail);
         if (kind == "click" && Preferences.AgentRespondToClick || kind == "drag_end" && Preferences.AgentRespondToDrag) agent?.Interaction(kind, detail);
     }
     void SetPuppet(bool enabled)
@@ -128,15 +140,15 @@ internal sealed partial class LinuxPetWindow
             .ToDictionary(p => p.Name, p => p.GetValue(Preferences));
         result["StartupEnabled"] = StartupEnabled; return result;
     }
-    async Task<object> ExecuteMcp(string name, JsonElement args, CancellationToken token)
+    async Task<object> ExecuteMcp(string name, JsonElement args, CancellationToken token, bool agentChannel)
     {
         return await Dispatcher.UIThread.InvokeAsync(async () => {
             token.ThrowIfCancellationRequested();
-            if (closed || phase == "Exit" || !Preferences.McpEnabled) throw new InvalidOperationException("MCP 接口已关闭或桌宠正在退出。");
+            if (closed || phase == "Exit" || !McpChannelOpen(agentChannel)) throw new InvalidOperationException(agentChannel ? "Agent 連線已關閉或桌寵正在退出。" : "MCP 介面已關閉或桌寵正在退出。");
             switch (name)
             {
-                case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = mcpServer?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status } });
-                case "update_settings": await UpdateSettings(args, token); return ControlTools.Text(new { settings = CurrentSettings() });
+                case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = McpConnections, mcpClients = mcpInterface?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, bubbleVisible = bubbleWindow.IsVisible, externalBubble = externalSpeech, speechPending = generating || agentWeatherPending, walkBubble = false, fullscreen = CompanionNative.IsFullscreen(), idleSeconds = Math.Round(CompanionNative.IdleSeconds), platform = OperatingSystem.IsMacOS() ? "macos" : "linux", modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status } });
+                case "update_settings": await UpdateSettings(args, token, agentChannel); return ControlTools.Text(new { settings = CurrentSettings() });
                 case "request_local_speech": await RequestAgentLocalSpeech(token); return ControlTools.Text(new { generated = modelReply && bubbleWindow.IsVisible });
                 case "list_actions": return ControlTools.Text(policy.Rules.Select(r => new { action = r.Id, pool = r.Pool, weight = r.Weight, duration_seconds = r.Pool == "Greeting" ? 10 / 1.5 : 10 }));
                 case "capture_foreground": case "capture_screen":
@@ -145,7 +157,7 @@ internal sealed partial class LinuxPetWindow
                     var limit = ControlTools.ImageLimit(args, name == "capture_foreground" ? 2560 : 4096);
                     var image = await LinuxCapture.CaptureAsync(handle, limit, name == "capture_screen", token);
                     token.ThrowIfCancellationRequested();
-                    if (!Preferences.McpEnabled) throw new OperationCanceledException();
+                    if (!McpChannelOpen(agentChannel)) throw new OperationCanceledException();
                     return ControlTools.Image(image.DataUrl, new { target = name, identity, image.Width, image.Height, capturedAt = DateTimeOffset.UtcNow });
                 case "play_action": case "interrupt_action":
                     string action = ControlTools.RequiredText(args, "action", 200);
@@ -155,17 +167,19 @@ internal sealed partial class LinuxPetWindow
                     return ControlTools.Text(new { action, started = name == "interrupt_action", queued = externalActions.Count });
                 case "say": case "say_next":
                     string text = ControlTools.RequiredText(args, "text");
-                    agent?.MarkSpoken();
-                    if (name == "say") SayExternal(text); else nextExternalText = text;
+                    bool transient = name == "say" && ControlTools.OptionalBool(args, "transient", false);
+                    if (name == "say") SayFromMcp(text, agentChannel, transient); else { if (agentChannel) agent?.MarkSpoken(); nextExternalText = text; }
                     return ControlTools.Text(new { displayed = name == "say", pending = name == "say_next", text });
                 case "walk_to": case "find_on_screen": case "get_context": throw new NotSupportedException($"Linux 版尚不支援 {name}。"); // The tool list is shared with Windows.
                 case "get_operation_guide": case "get_wakeups": case "schedule_wakeup": case "cancel_wakeup":
+                    // The built-in Agent's skill, persona and care reservations are its own, never the MCP interface's.
+                    if (!agentChannel) throw new InvalidOperationException("這個工具只供內建的 Agent 連線使用。");
                     return ControlTools.Text(agent?.ExecuteTool(name, args) ?? throw new InvalidOperationException("Agent 尚未连接。"));
                 default: throw new ArgumentException("未知 MCP 工具。");
             }
         });
     }
-    async Task UpdateSettings(JsonElement args, CancellationToken token)
+    async Task UpdateSettings(JsonElement args, CancellationToken token, bool agentChannel)
     {
         if (!args.TryGetProperty("settings", out var patch) || patch.ValueKind != JsonValueKind.Object) throw new ArgumentException("settings 必须为对象。");
         var values = new Dictionary<string, object?>();
@@ -192,9 +206,12 @@ internal sealed partial class LinuxPetWindow
                 "Left" or "Top" => item.Value == null || Range(-1000000, 1000000), _ => item.Value is bool };
             if (!valid) throw new ArgumentException("设置值无效：" + item.Key);
         }
+        // One switch, named as each side names it: the Agent connection hands the care and actions to the Agent, the MCP interface
+        // calls it 提線木偶模式.
         if (values.TryGetValue("PuppetMode", out var puppet) && puppet is true && !Preferences.PuppetMode
-            && !await Confirm(ControlTools.BehaviorControlTitle, ControlTools.PuppetWarning, "了解并开启", token)) throw new OperationCanceledException("用户取消让 Agent 安排日常关心与动作。");
-        token.ThrowIfCancellationRequested(); if (!Preferences.McpEnabled) throw new OperationCanceledException();
+            && !await Confirm(agentChannel ? ControlTools.BehaviorControlTitle : ControlTools.McpPuppetTitle, agentChannel ? ControlTools.PuppetWarning : ControlTools.McpPuppetWarning, "瞭解並開啟", token))
+            throw new OperationCanceledException(agentChannel ? "使用者取消讓 Agent 安排日常關心與動作。" : "使用者取消開啟提線木偶模式。");
+        token.ThrowIfCancellationRequested(); if (!McpChannelOpen(agentChannel)) throw new OperationCanceledException();
         foreach (var item in values)
             if (item.Key == "StartupEnabled") SetStartup((bool)item.Value!);
             else if (item.Key != "PuppetMode") typeof(CompanionPreferences).GetProperty(item.Key)!.SetValue(Preferences, item.Value);
@@ -204,7 +221,7 @@ internal sealed partial class LinuxPetWindow
         if (values.TryGetValue("Top", out var top) && top is double y) position = new(position.X, (int)y);
         ApplySettings(position);
         ConfigureAgent();
-        if (!Preferences.McpChatEnabled) mcpInput?.Close();
+        if (!McpInputEnabled) mcpInput?.Close();
         refreshLinuxSettings?.Invoke();
     }
     bool TryOpenMcpInput()
@@ -217,7 +234,8 @@ internal sealed partial class LinuxPetWindow
             Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0), PlaceholderText = hint };
         Avalonia.Automation.AutomationProperties.SetName(text, hint);
         var editor = new Grid(); editor.Children.Add(text);
-        var status = new TextBlock { Text = "Ctrl+Enter 发送", Foreground = Avalonia.Media.Brushes.SlateGray, FontSize = 11,
+        const string ready = "Ctrl+Enter 傳送", sentToAgent = "已傳送給 Agent", sentToInterface = "已傳送給 MCP 介面（Hermes 橋接程式）";
+        var status = new TextBlock { Text = ready, Foreground = Avalonia.Media.Brushes.SlateGray, FontSize = 11,
             VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center, TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Thickness(0, 0, 8, 0) };
         var panel = new StackPanel { Spacing = 4 }; panel.Children.Add(editor);
         var frame = new Border { Background = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.FromRgb(255, 251, 244)),
@@ -229,10 +247,19 @@ internal sealed partial class LinuxPetWindow
             HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right, VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top,
             Foreground = Hair, Background = Avalonia.Media.Brushes.Transparent, BorderThickness = new Thickness(0) };
         Avalonia.Controls.ToolTip.SetTip(close, "收起输入框"); close.Click += (_, _) => dialog.Close(); editor.Children.Add(close);
-        void Send() { if (agent?.Connected != true || string.IsNullOrWhiteSpace(text.Text) || !agent.SendUser(text.Text)) return; PublishInteraction("user_message", new { text = text.Text }); text.Text = ""; status.Text = "已发送给 Agent"; text.Focus(); }
+        // Exactly one side gets the message: the MCP interface while the input is handed to it and a client is there, else the Agent.
+        void Send()
+        {
+            if (string.IsNullOrWhiteSpace(text.Text)) return;
+            bool toInterface = McpChatAvailable;
+            if (!toInterface && (agent?.Connected != true || !agent.SendUser(text.Text))) return;
+            PublishUserMessage(new { text = text.Text }, toInterface);
+            text.Text = ""; status.Text = toInterface ? sentToInterface : sentToAgent; text.Focus();
+        }
+        bool CanSend() => (McpChatAvailable || agent?.Connected == true) && !string.IsNullOrWhiteSpace(text.Text);
         var send = ActionButton("发送", Send); send.MinWidth = 58; send.Padding = new Thickness(12, 5); send.FontSize = 12;
         var actions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto") }; actions.Children.Add(status); actions.Children.Add(send); Grid.SetColumn(send, 1); panel.Children.Add(actions);
-        text.TextChanged += (_,_) => send.IsEnabled = agent?.Connected == true && !string.IsNullOrWhiteSpace(text.Text);
+        text.TextChanged += (_,_) => send.IsEnabled = CanSend();
         dialog.AddHandler(InputElement.KeyDownEvent, (_,e) => {
             if (e.Key == Key.Escape) { e.Handled = true; dialog.Close(); }
             else if(e.Key == Key.Enter && e.KeyModifiers == KeyModifiers.Control) { e.Handled = true; Send(); }
@@ -263,11 +290,12 @@ internal sealed partial class LinuxPetWindow
         PositionChanged += moved; PropertyChanged += changed;
         var clock = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
         clock.Tick += (_,_) => {
-            if (!Preferences.McpEnabled || !Preferences.McpChatEnabled) { dialog.Close(); return; }
+            if (!McpInputEnabled) { dialog.Close(); return; }
             Follow();
-            send.IsEnabled = agent?.Connected == true && !string.IsNullOrWhiteSpace(text.Text);
-            if (agent?.Connected != true) status.Text = agent?.Status ?? "Agent 尚未连接";
-            else if (status.Text != "已发送给 Agent") status.Text = agent.Busy ? "Agent 正在处理…" : "Ctrl+Enter 发送";
+            send.IsEnabled = CanSend();
+            if (McpChatAvailable) { if (status.Text != sentToInterface) status.Text = ready; }
+            else if (agent?.Connected != true) status.Text = Preferences.AgentEnabled ? agent?.Status ?? "Agent 尚未連線" : "MCP 介面目前沒有客戶端連線";
+            else if (status.Text != sentToAgent) status.Text = agent.Busy ? "Agent 正在處理…" : ready;
         };
         mcpInput = dialog; dialog.Closed += (_,_) => { clock.Stop(); PositionChanged -= moved; PropertyChanged -= changed; mcpInput = null; }; dialog.Opened += (_,_) => { text.Focus(); send.IsEnabled = false; };
         clock.Start(); Follow(); dialog.Activate(); return true;

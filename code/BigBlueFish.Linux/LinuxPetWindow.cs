@@ -46,7 +46,7 @@ internal sealed partial class LinuxPetWindow : Window
     bool modelInstalling;
     bool agentWeatherPending;
     static readonly IBrush Hair = new SolidColorBrush(Color.FromRgb(80, 96, 152));
-    internal bool Puppet => McpAvailable && Preferences.McpEnabled && Preferences.PuppetMode;
+    internal bool Puppet => McpAvailable && Preferences.AnyAgentControl && Preferences.PuppetMode;
     double SpriteSize => 280 * Preferences.Scale;
 
     internal LinuxPetWindow()
@@ -261,6 +261,7 @@ internal sealed partial class LinuxPetWindow : Window
             if (count == textBoundaries.Length) { typing = false; ResetDwell(); }
         }
         if (now >= bubbleUntil) bubbleWindow.Hide();
+        if (ExternalSpeechHeld(now)) return;
         if (Puppet || dragging || settings != null || modelInstalling || now < nextSpeech) return;
         if (nextExternalText == null && !AgentDailyActive && (generating || brain.Busy || !Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower)) return;
         if (CompanionNative.IdleSeconds < 8 || CompanionNative.IdleSeconds > 600) { nextSpeech = now.AddSeconds(30); return; }

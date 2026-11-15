@@ -212,14 +212,14 @@ void SafePreferenceChecks(string app, string folder)
     string previous = Environment.CurrentDirectory; Environment.CurrentDirectory = folder;
     try
     {
-        File.WriteAllText("preferences.json", "{\"AgentEnabled\":true,\"PuppetMode\":true,\"AgentDailySpeech\":true,\"AgentHarnessId\":\"claude\",\"Scale\":1}");
+        File.WriteAllText("preferences.json", "{\"AgentEnabled\":true,\"PuppetMode\":true,\"AgentDailySpeech\":true,\"McpEnabled\":true,\"McpChatEnabled\":true,\"AgentHarnessId\":\"claude\",\"Scale\":1}");
         object preferences = type.GetMethod("Read", BindingFlags.Static | BindingFlags.Public)!.Invoke(null, null)!;
         bool Flag(string name) => (bool)type.GetProperty(name)!.GetValue(preferences)!;
-        Check(!Flag("AgentEnabled") && !Flag("PuppetMode") && !Flag("AgentDailySpeech"), "the Safe edition runs with every Agent switch off");
+        Check(!Flag("AgentEnabled") && !Flag("PuppetMode") && !Flag("AgentDailySpeech") && !Flag("McpEnabled") && !Flag("McpChatEnabled"), "the Safe edition runs with every Agent switch off");
         type.GetProperty("Scale")!.SetValue(preferences, 1.5);
         type.GetMethod("Save")!.Invoke(preferences, null);
         var saved = JsonNode.Parse(File.ReadAllText("preferences.json"))!.AsObject();
-        Check((bool)saved["AgentEnabled"]! && (bool)saved["PuppetMode"]! && (bool)saved["AgentDailySpeech"]!, "saving in the Safe edition keeps the Standard edition's Agent switches");
+        Check((bool)saved["AgentEnabled"]! && (bool)saved["PuppetMode"]! && (bool)saved["AgentDailySpeech"]! && (bool)saved["McpEnabled"]! && (bool)saved["McpChatEnabled"]!, "saving in the Safe edition keeps the Standard edition's Agent and MCP interface switches");
         Check((double)saved["Scale"]! == 1.5 && (string?)saved["AgentHarnessId"] == "claude", "the Safe edition's own changes are still saved");
     }
     finally { Environment.CurrentDirectory = previous; context.Unload(); }

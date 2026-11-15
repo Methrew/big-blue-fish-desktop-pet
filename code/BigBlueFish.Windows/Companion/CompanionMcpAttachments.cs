@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Automation;
@@ -12,28 +13,18 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using BigBlueFish.Agent;
 
 namespace BigBlueFish.Windows;
 
 // Attachments of the double-click input. user_message carries local paths and metadata only: every event is kept in
 // the 128-entry history and serialized once per MCP session, so image bytes would multiply in memory and on the pipe.
+// The rules (types, limit, sweep) are shared with the macOS and Linux pet: CompanionAttachmentRules.cs.
 public partial class MainWindow
 {
-    private const int McpAttachmentLimit = 10;
+    private const int McpAttachmentLimit = CompanionAttachmentRules.Limit;
     private static readonly FontFamily McpGlyphs = new("Segoe Fluent Icons, Segoe MDL2 Assets");
     private static readonly byte[] PngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
-    private static readonly Dictionary<string, (string Kind, string Mime)> McpAttachmentTypes = new(StringComparer.OrdinalIgnoreCase) {
-        [".png"] = ("image", "image/png"), [".jpg"] = ("image", "image/jpeg"), [".jpeg"] = ("image", "image/jpeg"), [".gif"] = ("image", "image/gif"),
-        [".webp"] = ("image", "image/webp"), [".bmp"] = ("image", "image/bmp"), [".tif"] = ("image", "image/tiff"), [".tiff"] = ("image", "image/tiff"),
-        [".heic"] = ("image", "image/heic"), [".heif"] = ("image", "image/heif"),
-        [".mp4"] = ("video", "video/mp4"), [".m4v"] = ("video", "video/x-m4v"), [".mov"] = ("video", "video/quicktime"), [".mkv"] = ("video", "video/x-matroska"),
-        [".webm"] = ("video", "video/webm"), [".avi"] = ("video", "video/x-msvideo"), [".wmv"] = ("video", "video/x-ms-wmv"), [".mpg"] = ("video", "video/mpeg"),
-        [".mpeg"] = ("video", "video/mpeg"), [".3gp"] = ("video", "video/3gpp"),
-        [".pdf"] = ("file", "application/pdf"), [".txt"] = ("file", "text/plain"), [".md"] = ("file", "text/markdown"), [".csv"] = ("file", "text/csv"),
-        [".json"] = ("file", "application/json"), [".zip"] = ("file", "application/zip"),
-        [".docx"] = ("file", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-        [".xlsx"] = ("file", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
-        [".pptx"] = ("file", "application/vnd.openxmlformats-officedocument.presentationml.presentation") };
     private static string? mcpAttachmentFolder;
     private static DateTime mcpAttachmentSweep;
     private McpAttachmentTray? mcpTray;
@@ -46,12 +37,11 @@ public partial class MainWindow
     // Shared by the file picker, drag-and-drop and the UI tests (DragEventArgs cannot be constructed).
     private int AddMcpAttachments(IEnumerable<string> paths, string source) => mcpTray?.Add(paths, source) ?? 0;
 
-    private static (string Kind, string Mime) McpAttachmentType(string path) =>
-        McpAttachmentTypes.TryGetValue(Path.GetExtension(path), out var type) ? type : ("file", "application/octet-stream");
+    private static (string Kind, string Mime) McpAttachmentType(string path) => CompanionAttachmentRules.Type(path);
 
     private static string[]? PickMcpAttachments(Window owner)
     {
-        string Patterns(string kind) => string.Join(";", McpAttachmentTypes.Where(t => t.Value.Kind == kind).Select(t => "*" + t.Key));
+        string Patterns(string kind) => string.Join(";", CompanionAttachmentRules.Extensions(kind).Select(extension => "*" + extension));
         var dialog = new Microsoft.Win32.OpenFileDialog { Title = "附加圖片、影片或檔案", Multiselect = true,
             Filter = $"圖片與影片|{Patterns("image")};{Patterns("video")}|圖片|{Patterns("image")}|影片|{Patterns("video")}|所有檔案|*.*" };
         try { return dialog.ShowDialog(owner) == true ? dialog.FileNames : null; }
@@ -97,20 +87,58 @@ public partial class MainWindow
         if (DateTime.UtcNow - mcpAttachmentSweep < TimeSpan.FromHours(6)) return;
         mcpAttachmentSweep = DateTime.UtcNow;
         var folder = McpAttachmentFolder;
-        _ = Task.Run(() => {
-            try
-            {
-                if (!Directory.Exists(folder)) return;
-                long kept = 0; DateTime now = DateTime.UtcNow;
-                foreach (var file in new DirectoryInfo(folder).GetFiles("paste-*").OrderByDescending(f => f.LastWriteTimeUtc))
-                {
-                    bool stale = file.LastWriteTimeUtc < now.AddDays(-7) || file.Extension == ".tmp" && file.LastWriteTimeUtc < now.AddHours(-1);
-                    if (!stale && kept + file.Length <= 500L << 20) { kept += file.Length; continue; }
-                    try { file.Delete(); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-                }
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-        });
+        _ = Task.Run(() => CompanionAttachmentRules.Sweep(folder));
+    }
+
+    // AgentCoordinator.AttachmentImage: an upright JPEG no longer than AgentUserAttachment.ImageEdge, or a small upright PNG,
+    // JPEG, GIF or WebP as it is. WPF imaging (WIC) objects belong to the thread that made them, so each picture gets a
+    // short-lived STA thread of its own. Null leaves the Agent the link alone.
+    private static Task<AgentPromptImage?> McpAttachmentPicture(AgentUserAttachment file, CancellationToken token)
+    {
+        var done = new TaskCompletionSource<AgentPromptImage?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var thread = new Thread(() => {
+            try { done.TrySetResult(AgentPicture(file.Path, token)); }
+            catch (OperationCanceledException) { done.TrySetCanceled(token); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or NotSupportedException or FileFormatException or ArgumentException
+                or InvalidOperationException or OverflowException or ExternalException) { done.TrySetResult(null); }
+            finally { System.Windows.Threading.Dispatcher.CurrentDispatcher.InvokeShutdown(); }
+        }) { IsBackground = true, Name = "AttachmentPicture" };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+        return done.Task;
+    }
+
+    private static AgentPromptImage? AgentPicture(string path, CancellationToken token)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var frame = BitmapDecoder.Create(stream, BitmapCreateOptions.IgnoreColorProfile, BitmapCacheOption.OnLoad).Frames[0];
+        // The camera's EXIF orientation: 3 upside down, 6 and 8 turned, 2, 4, 5 and 7 mirrored as well.
+        ushort orientation = frame.Metadata is BitmapMetadata metadata && metadata.ContainsQuery("System.Photo.Orientation")
+            && metadata.GetQuery("System.Photo.Orientation") is ushort value ? value : (ushort)1;
+        int longEdge = Math.Max(frame.PixelWidth, frame.PixelHeight);
+        if (orientation == 1 && longEdge <= AgentUserAttachment.ImageEdge && AgentUserAttachment.ReadAsIs(path) is { } asItIs) return asItIs;
+        token.ThrowIfCancellationRequested();
+        double scale = Math.Min(1, AgentUserAttachment.ImageEdge / (double)longEdge);
+        var transform = new TransformGroup();
+        if (scale < 1) transform.Children.Add(new ScaleTransform(scale, scale));
+        if (orientation is 3) transform.Children.Add(new RotateTransform(180));
+        if (orientation is 5 or 6) transform.Children.Add(new RotateTransform(90));
+        if (orientation is 7 or 8) transform.Children.Add(new RotateTransform(270));
+        if (orientation is 2 or 5 or 7) transform.Children.Add(new ScaleTransform(-1, 1));
+        if (orientation is 4) transform.Children.Add(new ScaleTransform(1, -1));
+        // JPEG has no alpha; the screenshots and photos sent here have none worth keeping.
+        BitmapSource opaque = new FormatConvertedBitmap(frame, PixelFormats.Bgr24, null, 0);
+        BitmapSource upright = transform.Children.Count == 0 ? opaque : new TransformedBitmap(opaque, transform);
+        foreach (int quality in new[] { 85, 70, 55 })
+        {
+            token.ThrowIfCancellationRequested();
+            var encoder = new JpegBitmapEncoder { QualityLevel = quality };
+            encoder.Frames.Add(BitmapFrame.Create(upright));
+            using var output = new MemoryStream();
+            encoder.Save(output);
+            if (output.Length <= AgentUserAttachment.ImageBytes) return new("image/jpeg", Convert.ToBase64String(output.GetBuffer(), 0, (int)output.Length));
+        }
+        return null;
     }
 
     private sealed class McpAttachment(string path, string kind, string mimeType, long size, string source, bool owned)
@@ -163,7 +191,7 @@ public partial class MainWindow
                 var item = new McpAttachment(path, type.Kind, type.Mime, size, source, owned);
                 Items.Add(item); strip.Children.Add(item.Tile = Tile(item)); added++;
                 // Agents usually receive images as data URLs, a third larger than the file.
-                if (type.Kind == "image" && size > 20L << 20) problem = "圖片超過 20 MB，Agent 可能無法直接檢視：" + name;
+                if (type.Kind == "image" && size > CompanionAttachmentRules.LargeImage) problem = "圖片超過 20 MB，Agent 可能無法直接檢視：" + name;
             }
             if (added > 0) { View.Visibility = Visibility.Visible; View.ScrollToRightEnd(); Changed?.Invoke(); }
             if (problem != null || added > 0) notice(problem ?? $"已附加 {Items.Count} 個檔案");
@@ -180,19 +208,18 @@ public partial class MainWindow
             Changed?.Invoke();
         }
 
-        // Detail entries for user_message and their paths, which the Agent connection's message lists as text. Files
+        // The user_message entries, the same for the Agent connection (resource_link blocks) and the MCP interface. Files
         // that disappeared since they were added are left out. Nothing is removed: a refused message keeps its files.
-        internal (object[] Entries, string[] Paths) Peek(out int missing)
+        internal AgentUserAttachment[] Peek(out int missing)
         {
-            var sent = new List<object>(); var paths = new List<string>(); missing = 0;
+            var sent = new List<AgentUserAttachment>(); missing = 0;
             foreach (var item in Items)
             {
                 try { item.Size = new FileInfo(item.Path).Length; }
                 catch (Exception e) when (e is IOException or UnauthorizedAccessException) { missing++; continue; }
-                sent.Add(new { path = item.Path, name = item.Name, kind = item.Kind, mimeType = item.MimeType, size = item.Size, source = item.Source });
-                paths.Add(item.Path);
+                sent.Add(new(item.Path, item.Name, item.Kind, item.MimeType, item.Size, item.Source));
             }
-            return (sent.ToArray(), paths.ToArray());
+            return sent.ToArray();
         }
 
         // After sending: pasted screenshots stay on disk for the agent until the sweep.
@@ -267,7 +294,7 @@ public partial class MainWindow
                 using var buffer = new MemoryStream(); encoder.Save(buffer); png = buffer.ToArray();
             }
             var folder = McpAttachmentFolder; Directory.CreateDirectory(folder);
-            var path = System.IO.Path.Combine(folder, $"paste-{DateTime.Now:yyyyMMdd-HHmmss-fff}-{Random.Shared.Next(0x10000):x4}.png");
+            var path = System.IO.Path.Combine(folder, CompanionAttachmentRules.PasteName(DateTime.Now));
             // The bridge may open the file as soon as the event arrives, so only a complete file gets the final name.
             File.WriteAllBytes(path + ".tmp", png); File.Move(path + ".tmp", path);
             return path;
@@ -276,7 +303,7 @@ public partial class MainWindow
         // Only our own pasted files are ever deleted, never the user's originals.
         private static void Delete(string path)
         {
-            if (!path.StartsWith(McpAttachmentFolder + System.IO.Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) return;
+            if (!CompanionAttachmentRules.Owns(McpAttachmentFolder, path)) return;
             try { File.Delete(path); } catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
         }
 
@@ -294,7 +321,7 @@ public partial class MainWindow
             remove.Click += (_, _) => Remove(item);
             var tile = new Border { Width = 52, Height = 52, CornerRadius = new CornerRadius(6), Margin = new Thickness(0, 0, 6, 0), BorderThickness = new Thickness(1),
                 BorderBrush = new SolidColorBrush(Color.FromRgb(220, 225, 237)), Background = new SolidColorBrush(Color.FromRgb(238, 241, 248)),
-                ToolTip = item.Path + "\n" + FormatSize(item.Size), Child = new Grid { Children = { placeholder, remove } } };
+                ToolTip = item.Path + "\n" + CompanionAttachmentRules.FormatSize(item.Size), Child = new Grid { Children = { placeholder, remove } } };
             AutomationProperties.SetName(tile, item.Name);
             if (item.Kind == "image") _ = ShowThumbnail(item, tile, placeholder);
             return tile;
@@ -330,9 +357,6 @@ public partial class MainWindow
                 or InvalidOperationException or ExternalException or OverflowException) { return null; }
         }
 
-        private static string FormatSize(long bytes) => bytes switch {
-            >= 1L << 30 => $"{bytes / (double)(1L << 30):0.#} GB", >= 1L << 20 => $"{bytes / (double)(1L << 20):0.#} MB",
-            >= 1L << 10 => $"{bytes / 1024.0:0.#} KB", _ => $"{bytes} B" };
     }
 }
 #endif

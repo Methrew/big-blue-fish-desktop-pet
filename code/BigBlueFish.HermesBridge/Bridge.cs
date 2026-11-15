@@ -133,6 +133,7 @@ internal sealed class Bridge(BridgeOptions options)
             {
                 link = await PetLink.ConnectAsync(options.McpCommand, incoming.Writer, token, events.Writer);
                 Interlocked.Exchange(ref linkedAt, DateTime.UtcNow.Ticks);
+                hermes.Pet = PetAbilities.From(link.Tools);
                 pet = link;
                 // The user may already be sitting there (the fish or the bridge just started): see whether a briefing is due.
                 events.Writer.TryWrite(new PetEvent("linked", default));
@@ -180,7 +181,7 @@ internal sealed class Bridge(BridgeOptions options)
                 {
                     Log.Write("收到：" + text + ignored);
                     if (turn is not { } running) { await SayAsync("目前沒有在做的事喔。", token); continue; }
-                    await SayAsync("好，正在請 Hermes 停下來…", token);
+                    await SayAsync("好，正在請 Hermes 停下來…", token, transient: true);
                     // Hermes' own stop also ends the background processes of the turn; dropping the
                     // stream afterwards makes sure the bridge itself moves on either way.
                     if (!await hermes.StopAsync(token)) Log.Write("Hermes 沒有接受停止要求，改為直接中斷連線。");
@@ -197,7 +198,7 @@ internal sealed class Bridge(BridgeOptions options)
                     continue;
                 }
                 if ((text.Length > 0 || typed.Attachments.Count > 0) && turn != null)
-                    await SayAsync("收到，等目前這件事做完就處理；輸入 /stop 可以先停下來。", token);
+                    await SayAsync("收到，等目前這件事做完就處理；輸入 /stop 可以先停下來。", token, transient: true);
                 Interlocked.Increment(ref answering); // AnswerAsync counts it down once it is answered
                 Interlocked.Increment(ref typedCount);
                 await inbox.Writer.WriteAsync(typed, token);
@@ -214,6 +215,7 @@ internal sealed class Bridge(BridgeOptions options)
         var link = await PetLink.ConnectAsync(options.McpCommand, Channel.CreateUnbounded<PetMessage>().Writer, token);
         try
         {
+            hermes.Pet = PetAbilities.From(link.Tools);
             pet = link;
             Console.WriteLine(await HandleAsync(hermes, message, token));
             return 0;
@@ -489,7 +491,7 @@ internal sealed class Bridge(BridgeOptions options)
                         if (failed > 0) notes.Add($"失敗 {failed} 次");
                         if (elapsed >= TimeSpan.FromSeconds(5)) notes.Add(ToolStatus.Elapsed(elapsed));
                         string text = Ellipsis(now.Text) + (notes.Count > 0 ? "（" + string.Join("，", notes) + "）" : "");
-                        await SayAsync(text, token);
+                        await SayAsync(text, token, transient: true);
                         shown = now;
                         shownFailures = failed;
                         said = DateTime.UtcNow;
@@ -1116,8 +1118,10 @@ internal sealed class Bridge(BridgeOptions options)
         }
     }
 
+    // Null too from a pet without get_context (macOS and Linux for now), which is not asked at all.
     private async Task<string?> WeatherAsync(PetLink link, CancellationToken token)
     {
+        if (link.Tools is { } tools && !tools.Contains("get_context")) return null;
         if (await CallAsync(link, "get_context", new { }, token) is not { } context) return null;
         try { using var document = JsonDocument.Parse(context); return TextOf(document.RootElement, "weather"); }
         catch (JsonException) { return null; }
@@ -1213,9 +1217,11 @@ internal sealed class Bridge(BridgeOptions options)
     private static string? TextOf(JsonElement e, string name) =>
         e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
 
-    private async Task SayAsync(string text, CancellationToken token)
+    // transient: a progress line or a passing notice, which the pet leaves out of its chat history.
+    private async Task SayAsync(string text, CancellationToken token, bool transient = false)
     {
-        if (pet is { } link) await CallAsync(link, "say", new { text }, token);
+        // A pet older than the flag ignores it and logs the line like any other.
+        if (pet is { } link) await CallAsync(link, "say", transient ? new { text, transient = true } : (object)new { text }, token);
     }
 
     private async Task ActAsync(string action, CancellationToken token)

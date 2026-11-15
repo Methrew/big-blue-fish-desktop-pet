@@ -35,6 +35,8 @@ internal sealed partial class LinuxPetWindow
                 case "render-settings": if (settings != null) RenderControl(settings, "settings.png"); break;
 #if !COMPANION_SAFE
                 case "render-input": if (mcpInput != null) RenderControl(mcpInput, "input.png"); break;
+                case "open-input": TryOpenMcpInput(); break;
+                case var attach when attach.StartsWith("attach "): AddMcpAttachments(attach[7..].Split('|'), "drop"); break;
 #endif
                 default: if (ReminderTestCommand(command) || ScreenTestCommand(command)) break; if (command.StartsWith("bubble ")) ShowText(command[7..], true); else await BubbleTestCommand(command); break;
             }

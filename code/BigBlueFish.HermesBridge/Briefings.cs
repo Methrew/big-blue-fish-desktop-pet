@@ -210,7 +210,7 @@ internal static partial class Briefings
         // Open-Meteo's day, if it is today's (a forecast fetched before midnight is still fresh just after it).
         if (OpenMeteo().Match(weather) is { Success: true } day && (!(OpenMeteoDay().Match(weather) is { Success: true } date)
             || DateTime.TryParseExact(date.Groups[1].Value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var of) && of == now.Date))
-            return $"{day.Groups["sky"].Value}，{(day.Groups["unit"].Value == "℉" ? "華氏 " : "")}{Round(day.Groups["low"].Value)} 到 {Round(day.Groups["high"].Value)} 度，降雨機率 {day.Groups["rain"].Value}%";
+            return $"{day.Groups["sky"].Value}，{(day.Groups["unit"].Value is "℉" or "°F" ? "華氏 " : "")}{Round(day.Groups["low"].Value)} 到 {Round(day.Groups["high"].Value)} 度，降雨機率 {day.Groups["rain"].Value}%";
         return null;
     }
 
@@ -238,10 +238,12 @@ internal static partial class Briefings
     [GeneratedRegex(@"(?<fm>\d{1,2})月(?<fd>\d{1,2})日(?<from>\d{1,2}:\d{2})到(?<tm>\d{1,2})月(?<td>\d{1,2})日(?<to>\d{1,2}:\d{2})：(?<sky>[^。]{1,20})。降雨機率(?<rain>\d{1,3})%。(?:溫度攝氏(?<low>-?\d+)至(?<high>-?\d+)度)?")]
     private static partial Regex CwaPeriod();
 
-    [GeneratedRegex(@"記錄時(?<sky>[^，]{1,10})，.*?最低(?<low>-?[\d.]+)(?<unit>[℃℉])、最高(?<high>-?[\d.]+)[℃℉]，最高降水機率(?<rain>\d{1,3})%")]
+    // The words of CompanionWeather's Open-Meteo text (either script, so a change of wording there does not silently drop the
+    // weather here), with the unit as ℃/℉ or as °C/°F.
+    [GeneratedRegex(@"[記记][錄录][時时](?<sky>[^，,]{1,10})[，,].*?最低(?<low>-?[\d.]+)\s*(?<unit>℃|℉|°C|°F)、最高(?<high>-?[\d.]+)\s*(?:℃|℉|°C|°F)[，,]最高降[水雨][機机概]率(?<rain>\d{1,3})%")]
     private static partial Regex OpenMeteo();
 
-    [GeneratedRegex(@"資料日期(\d{4}-\d{2}-\d{2})")]
+    [GeneratedRegex(@"[資资]料日期(\d{4}-\d{2}-\d{2})")]
     private static partial Regex OpenMeteoDay();
 
     [GeneratedRegex(@"^\s*https?://|zoom\.us|teams\.microsoft|teams\.live|meet\.google", RegexOptions.IgnoreCase)]

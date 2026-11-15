@@ -19,11 +19,12 @@ try
 }
 catch (Exception e)
 {
-    // Linux has no MCP interface for other clients: there the bridge only serves the Agent connection's private pipe.
+    // The MCP interface for other clients is the pet's fixed per-user pipe on every platform (a /tmp socket on macOS),
+    // there only while the user has it switched on.
     await Console.Error.WriteLineAsync((internalPipe
         ? "藍色大肥魚的內部工具未連線：請在桌寵設定中重新連線 Agent。"
         : OperatingSystem.IsWindows()
             ? "藍色大肥魚的 MCP 介面未連線：請確認桌寵正在執行，並已在設定中開啟「開啟 MCP 介面」。"
-            : "藍色大肥魚的 Linux 版沒有給其他 MCP 客戶端用的 MCP 介面：本程式只供桌寵設定裡的 Agent 連線使用，由它以 --pipe 啟動。") + e.Message);
+            : "藍色大肥魚的 MCP 介面未連線：請確認桌寵正在執行，並已在設定的「連線 Agent」頁開啟「開啟 MCP 介面」。") + e.Message);
     Environment.ExitCode = 1;
 }

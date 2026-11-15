@@ -1,25 +1,101 @@
 # Fork-original file of the taiwan-edition fork by acer1204 (2026-10-28); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 # Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 # Real-use scenarios for the fish + Hermes, on this machine's running pet, Hermes gateway and model: each one sets
-# up files (and a File Explorer window when the request says "this folder on screen"), asks through the bridge's
-# --ask path in a session of its own, then checks the outcome on disk and every tool call Hermes made: failures,
-# identical calls repeated, garbled output, and how long it took. Needs the pet with MCP on and the gateway up; it
-# changes two reminder settings and puts them back, and deletes any cron job it made.
-#   python tests/HermesScenarioVerification/scenarios.py [scenario ...]
-import json, os, shutil, sqlite3, subprocess, sys, time, urllib.request, zipfile
+# up files (and a File Explorer or Finder window when the request says "this folder on screen"), asks through the
+# bridge's --ask path in a session of its own, then checks the outcome on disk and every tool call Hermes made:
+# failures, identical calls repeated, garbled output, and how long it took. Needs the pet with MCP on and the gateway
+# up; it changes two reminder settings and puts them back, and deletes any cron job it made.
+# Windows, macOS and Linux (Python 3.9+). Build the bridge first (run-hermes-bridge.ps1 or run-hermes-bridge.sh), or
+# point BIGBLUEFISH_BRIDGE at the one inside the macOS app. Scenarios needing a pet tool this pet does not list
+# (walk_to on macOS and Linux for now) are skipped.
+#   python3 tests/HermesScenarioVerification/scenarios.py [scenario ...]
+import json, os, shutil, sqlite3, subprocess, sys, tempfile, time, urllib.request, zipfile
 from pathlib import Path
 
 sys.stdout.reconfigure(encoding='utf-8')
+WINDOWS, MAC = sys.platform == 'win32', sys.platform == 'darwin'
 CODE = Path(__file__).resolve().parents[2]
-BRIDGE = CODE / 'BigBlueFish.HermesBridge' / 'bin' / 'Release' / 'net10.0-windows' / 'BigBlueFish.HermesBridge.dll'
-HERMES = Path(os.environ.get('HERMES_HOME') or Path(os.environ['LOCALAPPDATA']) / 'hermes')
+BRIDGE = Path(os.environ.get('BIGBLUEFISH_BRIDGE') or CODE / 'BigBlueFish.HermesBridge' / 'bin' / 'Release' / ('net10.0-windows' if WINDOWS else 'net10.0') / 'BigBlueFish.HermesBridge.dll')
+HOME = Path.home()
+HERMES = Path(os.environ.get('HERMES_HOME') or (Path(os.environ['LOCALAPPDATA']) / 'hermes' if WINDOWS else HOME / '.hermes'))
 STATE_DB = 'file:' + str(HERMES / 'state.db') + '?mode=ro'
-# Since 1.0.5 the pet keeps its settings in the data folder beside the program; older builds kept them next to it.
-_BUILD = CODE / 'BigBlueFish.Windows' / 'bin' / 'x64' / 'Release' / 'net10.0-windows10.0.26100.0'
-PREFS = next((p for p in (_BUILD / 'data' / 'preferences.json', _BUILD / 'preferences.json') if p.exists()), _BUILD / 'data' / 'preferences.json')
-ROOT = Path(os.environ['TEMP']) / '大肥魚情境測試'
+
+
+def _prefs_path():
+    if os.environ.get('BIGBLUEFISH_DATA'):
+        return Path(os.environ['BIGBLUEFISH_DATA']) / 'preferences.json'
+    if MAC:
+        # The Taiwan edition's own data folder (CompanionEdition.MacDataFolder), else the original edition's.
+        support = HOME / 'Library' / 'Application Support'
+        return next((p for p in (support / 'bigbluefish-tw' / 'preferences.json', support / 'bigbluefish' / 'preferences.json') if p.exists()), support / 'bigbluefish-tw' / 'preferences.json')
+    if not WINDOWS:
+        return Path(os.environ.get('XDG_DATA_HOME') or HOME / '.local' / 'share') / 'bigbluefish' / 'preferences.json'
+    # Since 1.0.5 the pet keeps its settings in the data folder beside the program; older builds kept them next to it.
+    build = CODE / 'BigBlueFish.Windows' / 'bin' / 'x64' / 'Release' / 'net10.0-windows10.0.26100.0'
+    return next((p for p in (build / 'data' / 'preferences.json', build / 'preferences.json') if p.exists()), build / 'data' / 'preferences.json')
+
+
+PREFS = _prefs_path()
+ROOT = Path(tempfile.gettempdir()) / '大肥魚情境測試'
 OUT = ROOT / 'results'
 OUT.mkdir(parents=True, exist_ok=True)
+
+
+# The bridge as a command: the dll through dotnet, or a self-contained one (the macOS app's) as it is.
+def bridge(*arguments):
+    if BRIDGE.suffix != '.dll':
+        return [str(BRIDGE), *arguments]
+    dotnet = os.environ.get('DOTNET') or next((str(p) for p in (HOME / '.dotnet' / 'dotnet',) if p.exists()), 'dotnet')
+    return [dotnet, str(BRIDGE), *arguments]
+
+
+# The tools the running pet lists, asked through BigBlueFish.Mcp the way the bridge asks (None when it cannot be reached).
+def _find_mcp():
+    if os.environ.get('BIGBLUEFISH_MCP'):
+        return os.environ['BIGBLUEFISH_MCP']
+    name = 'BigBlueFish.Mcp.exe' if WINDOWS else 'BigBlueFish.Mcp'
+    places = [BRIDGE.parent / name]
+    if MAC:
+        places += [Path(folder) / (app + '.app') / 'Contents' / 'MacOS' / name for folder in (CODE.parent / 'release', '/Applications', HOME / 'Applications') for app in ('藍色大肥魚', '蓝色大肥鱼')]
+    elif WINDOWS:
+        places += [CODE / 'BigBlueFish.Windows' / 'bin' / 'x64' / 'Release' / 'net10.0-windows10.0.26100.0' / name]
+    else:
+        places += [Path('/opt/bigbluefish') / name]
+    return next((str(p) for p in places if Path(p).exists()), None)
+
+
+_TOOLS = []
+def pet_tools():
+    if _TOOLS:
+        return _TOOLS[0]
+    found = None
+    mcp = _find_mcp()
+    if mcp:
+        lines = '\n'.join(json.dumps(m) for m in (
+            {'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {'protocolVersion': '2025-11-25', 'capabilities': {}, 'clientInfo': {'name': 'scenarios', 'version': '1'}}},
+            {'jsonrpc': '2.0', 'method': 'notifications/initialized'},
+            {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}})) + '\n'
+        try:
+            process = subprocess.Popen([mcp], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, encoding='utf-8')
+            process.stdin.write(lines); process.stdin.flush()
+            deadline = time.time() + 15
+            while found is None and time.time() < deadline:
+                line = process.stdout.readline()
+                if not line:
+                    break
+                reply = json.loads(line)
+                if reply.get('id') == 2:
+                    found = {tool['name'] for tool in reply.get('result', {}).get('tools', [])}
+            process.kill()
+        except (OSError, ValueError):
+            found = None
+    _TOOLS.append(found)
+    return found
+
+
+def has_tool(name):
+    tools = pet_tools()
+    return tools is None or name in tools
 
 
 # Hermes' job list over its API; the key is read from Hermes' .env and never printed.
@@ -45,18 +121,39 @@ def pwsh(script):
     return subprocess.run(['pwsh', '-NoProfile', '-Command', '[Console]::OutputEncoding = [Text.Encoding]::UTF8; ' + script], capture_output=True, text=True, encoding='utf-8', errors='replace')
 
 
+def osascript(script):
+    return subprocess.run(['osascript', '-e', script], capture_output=True, text=True, encoding='utf-8', errors='replace')
+
+
+def _applescript_text(text):
+    return '"' + text.replace('\\', '\\\\').replace('"', '\\"') + '"'
+
+
+# The folder window the request calls "this folder on screen": File Explorer on Windows, Finder on macOS (asking Finder needs
+# the Automation permission for the terminal that runs this), the desktop's file manager on Linux.
 def open_explorer(folder):
-    subprocess.Popen(['explorer.exe', f'/n,{folder}'])
+    if WINDOWS:
+        subprocess.Popen(['explorer.exe', f'/n,{folder}'])
+    else:
+        subprocess.Popen(['open' if MAC else 'xdg-open', str(folder)])
+    if not WINDOWS and not MAC:
+        time.sleep(3)
+        return
     for _ in range(30):
         time.sleep(0.5)
-        if folder.name in pwsh("(New-Object -ComObject Shell.Application).Windows() | ForEach-Object { $_.LocationName }").stdout:
+        names = pwsh("(New-Object -ComObject Shell.Application).Windows() | ForEach-Object { $_.LocationName }").stdout if WINDOWS \
+            else osascript('tell application "Finder" to get name of every Finder window').stdout
+        if folder.name in names:
             time.sleep(1.5)
             return
-    raise RuntimeError('File Explorer did not open ' + str(folder))
+    raise RuntimeError('The folder window did not open: ' + str(folder))
 
 
 def close_explorer(folder):
-    pwsh(f"(New-Object -ComObject Shell.Application).Windows() | Where-Object {{ $_.LocationName -eq '{folder.name}' }} | ForEach-Object {{ $_.Quit() }}")
+    if WINDOWS:
+        pwsh(f"(New-Object -ComObject Shell.Application).Windows() | Where-Object {{ $_.LocationName -eq '{folder.name}' }} | ForEach-Object {{ $_.Quit() }}")
+    elif MAC:
+        osascript('tell application "Finder" to close (every Finder window whose name is ' + _applescript_text(folder.name) + ')')
 
 
 def ask(name, text, timeout=480):
@@ -64,7 +161,7 @@ def ask(name, text, timeout=480):
     if state.exists():
         state.unlink()
     started = time.time()
-    run = subprocess.run(['dotnet', str(BRIDGE), '--ask', text, '--state', str(state)], capture_output=True, text=True, encoding='utf-8', timeout=timeout)
+    run = subprocess.run(bridge('--ask', text, '--state', str(state)), capture_output=True, text=True, encoding='utf-8', timeout=timeout)
     session = json.loads(state.read_text(encoding='utf-8'))['session']
     return run.stdout.strip(), session, time.time() - started
 
@@ -162,7 +259,7 @@ def scenario_rename():
         (f'資料夾裡剛好是 VOL01–03.zip 和 說明.txt：{files}', files == ['VOL01.zip', 'VOL02.zip', 'VOL03.zip', '說明.txt']),
         ('第1集→VOL01、第2集→VOL02、第3集→VOL03', all(content.get(f'VOL0{i}.zip') == f'episode {i}'.encode() for i in (1, 2, 3))),
         ('說明.txt 沒被動到', (folder / '說明.txt').read_text(encoding='utf-8') == '不要動我'),
-    ], lambda calls, inner: [('用 get_context 或 find_on_screen 拿到資料夾', any(t in a for _, a in calls for t in ('get_context', 'find_on_screen')))])
+    ], lambda calls, inner: [('用 get_context、find_on_screen 或問 Finder 拿到資料夾', any(t in a for _, a in calls for t in ('get_context', 'find_on_screen', 'Finder')))])
 
 
 def scenario_zip():
@@ -189,6 +286,9 @@ def scenario_zip():
 
 
 def scenario_context():
+    if not has_tool('get_context'):
+        print('## context\n  SKIP 這個魚魚還沒有 get_context', flush=True)
+        return True
     reply, session, seconds = ask('context', '現在幾點？我已經連續用電腦多久了？等一下出門要帶傘嗎？')
     def rules(calls, inner):
         everything = ' '.join(n + ' ' + a for n, a in calls)
@@ -241,6 +341,10 @@ def scenario_missing():
 
 
 def scenario_lunch():
+    # Without the fish's own reminders (they came with get_context) a cron job is the right answer.
+    if not has_tool('get_context'):
+        print('## lunch\n  SKIP 這個魚魚不會自己提醒吃飯', flush=True)
+        return True
     known = {job['id'] for job in cron_jobs()}
     reply, session, seconds = ask('lunch', '每天中午 12 點提醒我吃午餐。')
     made = [job for job in cron_jobs() if job['id'] not in known]
@@ -261,7 +365,7 @@ def brief(kind, timeout=180):
     # The bridge's --brief path: one daily briefing or welcome back, written by Hermes in a hidden session of its
     # own and said on the real pet. Which session it used is found as the newest pet-brief- one.
     started = time.time()
-    run = subprocess.run(['dotnet', str(BRIDGE), '--brief', kind], capture_output=True, text=True, encoding='utf-8', timeout=timeout)
+    run = subprocess.run(bridge('--brief', kind), capture_output=True, text=True, encoding='utf-8', timeout=timeout)
     con = sqlite3.connect(STATE_DB, uri=True)
     row = con.execute("select id, hidden from sessions where id like 'pet-brief-%' and started_at >= ? order by started_at desc limit 1", (started - 2,)).fetchone()
     lines = [line for line in run.stdout.strip().splitlines() if not line.startswith('[')]
@@ -316,6 +420,9 @@ def scenario_appointment():
 
 
 def scenario_walk():
+    if not (has_tool('walk_to') and has_tool('find_on_screen')):
+        print('## walk\n  SKIP 這個魚魚還不能 walk_to', flush=True)
+        return True
     folder = ROOT / '情境-走過去'
     shutil.rmtree(folder, ignore_errors=True); folder.mkdir(parents=True)
     open_explorer(folder)

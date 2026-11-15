@@ -18,7 +18,7 @@ internal sealed record PetEvent(string Kind, JsonElement Detail);
 // image, video or file.
 internal sealed record Attachment(string Path, string Name, string Kind, string MimeType, long Size, string Source)
 {
-    internal const int Limit = 10; // the pet's input box takes no more
+    internal const int Limit = BigBlueFish.Windows.CompanionAttachmentRules.Limit; // the pet's input box takes no more
 
     internal static Attachment FromFile(string path, string source)
     {
@@ -27,20 +27,14 @@ internal sealed record Attachment(string Path, string Name, string Kind, string 
         return new(info.FullName, info.Name, KindOf(mime), mime, info.Exists ? info.Length : -1, source);
     }
 
-    // The same table as the pet's, for the few places that only know a path.
-    internal static string MimeOf(string extension) => extension.ToLowerInvariant() switch
-    {
-        ".png" => "image/png", ".jpg" or ".jpeg" => "image/jpeg", ".gif" => "image/gif", ".webp" => "image/webp", ".bmp" => "image/bmp",
-        ".mp4" => "video/mp4", ".mov" => "video/quicktime", ".mkv" => "video/x-matroska", ".webm" => "video/webm",
-        ".avi" => "video/x-msvideo", ".m4v" => "video/x-m4v",
-        _ => "application/octet-stream"
-    };
+    // The pet's own table (CompanionAttachmentRules.cs, linked in), for the few places that only know a path. iPhone
+    // photos (HEIC) and TIFF screenshots are sent as a JPEG made from them (ImageShrink).
+    internal static string MimeOf(string extension) => BigBlueFish.Windows.CompanionAttachmentRules.Type("file" + extension).Mime;
 
-    internal static string KindOf(string mime) =>
-        mime.StartsWith("image/", StringComparison.Ordinal) ? "image" : mime.StartsWith("video/", StringComparison.Ordinal) ? "video" : "file";
+    internal static string KindOf(string mime) => BigBlueFish.Windows.CompanionAttachmentRules.KindOf(mime);
 }
 
-// One MCP session with the pet through BigBlueFish.Mcp.exe: newline-delimited JSON-RPC 2.0 on stdio.
+// One MCP session with the pet through BigBlueFish.Mcp (.exe on Windows): newline-delimited JSON-RPC 2.0 on stdio.
 // Typed messages arrive as notifications/message from the bigbluefish.interaction logger.
 internal sealed class PetLink : IAsyncDisposable
 {
@@ -62,6 +56,9 @@ internal sealed class PetLink : IAsyncDisposable
     }
 
     internal Task Closed => closed.Task;
+
+    // The names in the pet's tools/list: the macOS and Linux pets leave out tools they do not have. Null when it did not say.
+    internal IReadOnlySet<string>? Tools { get; private set; }
 
     internal static async Task<PetLink> ConnectAsync(string command, ChannelWriter<PetMessage> inbox, CancellationToken token, ChannelWriter<PetEvent>? events = null)
     {
@@ -86,6 +83,7 @@ internal sealed class PetLink : IAsyncDisposable
             await link.SendAsync(new { jsonrpc = "2.0", method = "notifications/initialized" });
             // Interaction events are info-level logs; keep the threshold there.
             await link.RequestAsync("logging/setLevel", new { level = "info" }, limit.Token);
+            link.Tools = await link.ToolNamesAsync(limit.Token);
             return link;
         }
         catch
@@ -93,6 +91,14 @@ internal sealed class PetLink : IAsyncDisposable
             await link.DisposeAsync();
             throw;
         }
+    }
+
+    private async Task<IReadOnlySet<string>?> ToolNamesAsync(CancellationToken token)
+    {
+        var result = await RequestAsync("tools/list", new { }, token);
+        if (result.ValueKind != JsonValueKind.Object || !result.TryGetProperty("tools", out var tools) || tools.ValueKind != JsonValueKind.Array) return null;
+        return tools.EnumerateArray().Where(tool => tool.ValueKind == JsonValueKind.Object && tool.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String)
+            .Select(tool => tool.GetProperty("name").GetString()!).ToHashSet(StringComparer.Ordinal);
     }
 
     // Returns the first text content of the tool result; a tool-level failure is an IOException.

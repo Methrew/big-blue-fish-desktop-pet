@@ -158,6 +158,7 @@ public partial class MainWindow
             if (!HarnessCatalog.All.Any(x => x.Id == preferences.AgentHarnessId)) preferences.AgentHarnessId = "codex";
             agent.LocalSpeechRequested = token => Dispatcher.InvokeAsync(() => RequestAgentLocalSpeech(token)).Task.Unwrap();
             agent.SpeechBrief = (kind, allowImages, token) => Dispatcher.InvokeAsync(() => BuildAgentSpeechBrief(kind, allowImages, token)).Task.Unwrap();
+            agent.AttachmentImage = McpAttachmentPicture;
         }
         ConfigureAgent();
         if (AgentDailyActive) brain.Stop();
@@ -209,14 +210,19 @@ public partial class MainWindow
         await GenerateLocalSpeechAsync(true);
         token.ThrowIfCancellationRequested();
     }
-    private void PublishMcpInteraction(string kind, object detail)
+    // toInterface: where a user_message goes (Send decides). What the user types reaches one side only: the clients of the MCP
+    // interface while 雙擊輸入交給 MCP 介面 is on and one is connected, otherwise the built-in Agent (its ACP turn and its
+    // private pipe), so the two never both answer it. Every other event reaches both.
+    private void PublishMcpInteraction(string kind, object detail, bool toInterface = false)
     {
         DiagnosticLog.Write(DiagnosticEvent.Interaction, kind: kind);
-        // What the user types reaches the clients of the MCP interface only with 雙擊與魚魚對話 on; typed for the
-        // built-in Agent alone, it stays on the Agent's private pipe.
-        if (kind != "user_message" || McpChatOn) mcpInterface?.Publish(kind, detail);
+        if (kind == "user_message")
+        {
+            if (toInterface) mcpInterface?.Publish(kind, detail); else mcpServer?.Publish(kind, detail);
+            return; // User submission uses the bounded ACP queue and only clears accepted text.
+        }
+        mcpInterface?.Publish(kind, detail);
         mcpServer?.Publish(kind, detail);
-        if (kind == "user_message") return; // User submission uses the bounded ACP queue and only clears accepted text.
         if (kind == "click" && preferences.AgentRespondToClick || kind == "drag_end" && preferences.AgentRespondToDrag)
             agent?.Interaction(kind, detail);
     }
@@ -235,7 +241,8 @@ public partial class MainWindow
     }
     // The Agent's turn counts as spoken when it calls say, say_next or walk_to with say (ExecuteMcp marks it), not
     // when a client of the MCP interface speaks meanwhile.
-    private void ShowMcpSpeech(string text)
+    // transient: a progress line (say with transient=true, as the Hermes bridge sends them), kept out of the chat history.
+    private void ShowMcpSpeech(string text, bool transient = false)
     {
         InvalidateSpeechRequests(); EndGreetingNotice();
         externalBubble = true; walkBubble = false;
@@ -244,7 +251,7 @@ public partial class MainWindow
         bubbleUntil = DateTime.MaxValue;
         speech.Show(text, true);
         // The history keeps the line as the bubble showed it, converted to Taiwan Traditional.
-        chatLog.Add(false, speech.FullText);
+        if (!transient) chatLog.Add(false, speech.FullText);
     }
     private bool ConsumeMcpSpeech()
     {
@@ -320,8 +327,9 @@ public partial class MainWindow
                     return ControlTools.Text(new { action, started = name == "interrupt_action" || animationPhase == "External" && currentAction == action, queued = mcpActions.Count });
                 case "say": case "say_next":
                     var text = ControlTools.RequiredText(args, "text");
+                    bool transient = name == "say" && ControlTools.OptionalBool(args, "transient", false);
                     if (agentChannel) agent?.MarkSpoken();
-                    if (name == "say") ShowMcpSpeech(text); else mcpNextSpeech = text;
+                    if (name == "say") ShowMcpSpeech(text, transient); else mcpNextSpeech = text;
                     return ControlTools.Text(new { displayed = name == "say", pending = name == "say_next", text });
                 case "walk_to":
                     if (agentChannel && args.ValueKind == JsonValueKind.Object && args.TryGetProperty("say", out var arrival) && arrival.ValueKind == JsonValueKind.String) agent?.MarkSpoken();
@@ -435,10 +443,10 @@ public partial class MainWindow
         var puppet = new CheckBox { Content = "提線木偶模式", IsChecked = preferences.PuppetMode, Margin = new(0, 7, 0, 4) };
         extra.Children.Add(puppet);
         extra.Children.Add(new TextBlock { Text = "關閉大肥魚自身的吐字和動作切換邏輯，完全由外部 Agent 接管", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
-        var chat = new CheckBox { Content = "雙擊與魚魚對話", IsChecked = preferences.McpChatEnabled, Margin = new(0, 16, 0, 4) };
+        var chat = new CheckBox { Content = "雙擊輸入交給 MCP 介面（Hermes 橋接程式）", IsChecked = preferences.McpChatEnabled, Margin = new(0, 16, 0, 4) };
         chat.Click += (_, _) => { preferences.McpChatEnabled = chat.IsChecked == true; if (!McpInputEnabled && !mcpInputPicking) mcpInput?.Close(); SaveCompanion(); };
         extra.Children.Add(chat);
-        extra.Children.Add(new TextBlock { Text = "僅在 MCP 客戶端已連線時生效，輸入內容通過 MCP 傳送給已連線的 Agent。", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
+        extra.Children.Add(new TextBlock { Text = "開啟且 MCP 介面有客戶端連線時，雙擊魚魚輸入的內容只會傳給 MCP 介面，不會再送給「連線 Agent」頁的 Agent，避免兩邊各回答一次；沒有客戶端連線時，仍交給 Agent 連線。", Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
         // Said by the Hermes bridge (it hears user_returned and reads these two settings); without it they do nothing.
         var briefing = new CheckBox { Content = "每天第一次坐下時講今日簡報", IsChecked = preferences.DailyBriefing, Margin = new(0, 16, 0, 4) };
         briefing.Click += (_, _) => { preferences.DailyBriefing = briefing.IsChecked == true; SaveCompanion(); };
@@ -559,30 +567,28 @@ public partial class MainWindow
         SweepMcpAttachments();
         var tray = new McpAttachmentTray(window, blue, notice => status.Text = notice);
         content.Children.Add(tray.View);
-        // With the Agent connected the message goes to its ACP session; otherwise to the clients of the MCP interface.
+        // To the clients of the MCP interface while the input is handed to them and one is connected; otherwise to the Agent's ACP session.
         bool AgentReady() => agent?.Connected == true;
         bool CanSend() => (AgentReady() || McpChatAvailable) && tray.Saving == 0 && (!string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0);
         void Send()
         {
             if (!CanSend()) return;
-            var (attachments, paths) = tray.Peek(out int missing);
+            var attachments = tray.Peek(out int missing);
             if (attachments.Length == 0 && string.IsNullOrWhiteSpace(text.Text)) { tray.Clear(); status.Text = "附件已不存在，沒有傳送。"; return; }
-            if (agent is { Connected: true } link)
-            {
-                // The ACP turn names the files by their local paths; the Agent opens them with the user's own permissions.
-                string message = paths.Length == 0 ? text.Text
-                    : (string.IsNullOrWhiteSpace(text.Text) ? "" : text.Text + "\n\n") + "附件（本機路徑）：\n" + string.Join("\n", paths);
-                if (message.Length > 4000) { status.Text = "文字加上附件路徑超過 4000 字，請縮短內容或減少附件。"; return; }
-                // A refused message stays in the box with its attachments.
-                if (!link.SendUser(message)) { status.Text = string.IsNullOrEmpty(link.Detail) ? link.Status : link.Detail; return; }
-            }
+            bool toInterface = McpChatAvailable;
+            // The ACP turn gets the files as resource_link blocks and their local paths in the event; the Agent opens them with
+            // the user's own permissions. The 4000-character limit is the text's alone.
+            // A refused message stays in the box with its attachments.
+            if (!toInterface && agent is { Connected: true } link && !link.SendUser(text.Text, attachments))
+            { status.Text = string.IsNullOrEmpty(link.Detail) ? link.Status : link.Detail; return; }
             // Without attachments the event stays exactly { text }, as older clients expect.
-            PublishMcpInteraction("user_message", attachments.Length == 0 ? new { text = text.Text } : new { text = text.Text, attachments });
+            PublishMcpInteraction("user_message", attachments.Length == 0 ? new { text = text.Text } : new { text = text.Text, attachments }, toInterface);
             // The chat history keeps what the owner typed, and names the files sent with it.
-            chatLog.Add(true, paths.Length == 0 ? text.Text
-                : (string.IsNullOrWhiteSpace(text.Text) ? "" : text.Text.TrimEnd() + "\n") + "附件：" + string.Join("、", paths.Select(p => Path.GetFileName(p))));
+            chatLog.Add(true, attachments.Length == 0 ? text.Text
+                : (string.IsNullOrWhiteSpace(text.Text) ? "" : text.Text.TrimEnd() + "\n") + "附件：" + string.Join("、", attachments.Select(a => a.Name)));
             tray.Clear(); text.Clear();
-            status.Text = attachments.Length == 0 ? "已傳送給 Agent" : $"已傳送給 Agent（含 {attachments.Length} 個附件）";
+            string target = toInterface ? "MCP 介面" : "Agent";
+            status.Text = attachments.Length == 0 ? $"已傳送給 {target}" : $"已傳送給 {target}（含 {attachments.Length} 個附件）";
             if (missing > 0) status.Text += $"，{missing} 個檔案已不存在";
             text.Focus();
         }
@@ -676,8 +682,8 @@ public partial class MainWindow
             send.IsEnabled = CanSend();
             // Nothing can take a message: say why, keeping the draft and its attachments for later.
             var link = agent is { Connected: true } connected ? connected : null;
-            string? state = link != null ? (link.Busy ? "Agent 正在處理…" : null)
-                : McpChatAvailable ? null
+            string? state = McpChatAvailable ? null
+                : link != null ? (link.Busy ? "Agent 正在處理…" : null)
                 : preferences.AgentEnabled ? agent?.Status ?? "Agent 尚未連線"
                 : "Agent 已斷開，重新連線後可傳送。";
             bool blocked = link == null && !McpChatAvailable;

@@ -3,9 +3,9 @@
 # Modified by Methrew on 2026-11-09 to merge the taiwan-edition fork with Bai-Cute/big-blue-fish-desktop-pet 1.1.2 (Apache-2.0).
 """Run against an actual published Linux app under an isolated X11 desktop.
 
-On Linux the MCP tools are only served on the Agent connection's own pipe (McpEnabled is an alias of AgentEnabled),
-so the test switches the Agent connection on and attaches the stdio bridge with --pipe. The Agent itself is a stub
-that never connects: no CLI installed on the test machine is started."""
+The test switches the Agent connection on and attaches the stdio bridge to its own pipe with --pipe; the MCP interface
+for other clients (McpEnabled, the fixed pipe) stays off. The Agent itself is a stub that never connects: no CLI
+installed on the test machine is started."""
 import base64, json, os, pathlib, queue, subprocess, sys, threading, time, xml.etree.ElementTree as ET
 
 payload = pathlib.Path(sys.argv[1]).resolve()
@@ -116,7 +116,7 @@ try:
     kinds=[e.get('params',{}).get('data',{}).get('kind') for e in events]
     check(all(k in kinds for k in ['click','drag_start','drag_end']),'real pointer click and drag pushed automatically')
     check(state()['currentAction']=='待机呼吸休闲','pointer gestures do not switch puppet animation')
-    # McpChatEnabled is an alias of AgentEnabled on Linux: the input is offered whenever the Agent connection is on.
+    # The input is offered whenever the Agent connection is on (McpChatEnabled only hands it to a client of the MCP interface).
     location=state(); x,y=location['X']+250,location['Y']+130
     subprocess.run(['xdotool','mousemove',str(x),str(y),'click','--repeat','2','--delay','120','1'],check=True,env=env)
     wait(lambda:content('get_settings')['state']['inputOpen'],5)

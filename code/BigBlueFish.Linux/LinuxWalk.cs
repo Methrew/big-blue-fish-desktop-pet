@@ -109,7 +109,7 @@ internal sealed partial class LinuxPetWindow
         EnsureWalkable();
         var targets = await ResolveWalkTargets(stops, token);
         token.ThrowIfCancellationRequested();
-        if (!Preferences.McpEnabled) throw new OperationCanceledException();
+        if (!Preferences.AnyAgentControl) throw new OperationCanceledException();
         // A leg takes at most about 8.5 s; past Hermes' 300 s tool timeout the agent would see a failure mid-tour.
         if (touring && wait && targets.Count * 8.5 + (targets.Count - 1) * pause > TourLimitSeconds)
             throw new ArgumentException($"這趟最久可能要 {targets.Count * 8.5 + (targets.Count - 1) * pause:0} 秒，超過 {TourLimitSeconds} 秒。請減少站數或縮短 pause_seconds，或分成幾趟。");
@@ -215,7 +215,7 @@ internal sealed partial class LinuxPetWindow
                     var until = DateTime.UtcNow.AddSeconds(pause);
                     while (tour == trip && (trip.Pressed || DateTime.UtcNow < until)) await Task.Delay(100);
                     if (tour != trip) break;
-                    if (!Preferences.McpEnabled) { StopTour("mcp_disabled"); break; }
+                    if (!Preferences.AnyAgentControl) { StopTour("mcp_disabled"); break; }
                     EnsureWalkable();
                 }
                 var say = $"第 {i + 1} 個（共 {targets.Count} 個）" + (labels[i] is { } label ? "：" + label : "");
@@ -289,7 +289,7 @@ internal sealed partial class LinuxPetWindow
         plan.Motion = plan.Distance < 12 * s ? "none" : Math.Abs(dx) >= .5 * Math.Abs(dy) ? "run" : "float";
         plan.Mirrored = plan.Motion == "run" && dx > 0; // The clips face left.
         // The user wants the double-click input gone while the fish runs (not when she stays put).
-        if (plan.Motion != "none") mcpInput?.Close();
+        if (plan.Motion != "none" && !mcpInputPicking) mcpInput?.Close();
         double bodyCenter = plan.To.X + body.CenterX, aimCenter = aim.CenterX;
         plan.FaceMirrored = Math.Abs(aimCenter - bodyCenter) < body.Width / 2 ? plan.Mirrored : aimCenter > bodyCenter;
         walkAvoid = null;
@@ -379,7 +379,7 @@ internal sealed partial class LinuxPetWindow
         if (closed || phase == "Exit") { CancelWalk("exit"); return; }
         if (!IsVisible || hidden || fullscreenHidden) { CancelWalk("hidden"); return; }
         if (plan.Puppet != Puppet) { CancelWalk("puppet_mode"); return; }
-        if (!Preferences.McpEnabled) { CancelWalk("mcp_disabled"); return; }
+        if (!Preferences.AnyAgentControl) { CancelWalk("mcp_disabled"); return; }
         if (settings != null && settings != plan.Settings) { CancelWalk("settings"); return; }
         // Another clip took over (interrupt_action, a drag or click clip): the fish stays where it is.
         if (phase is not ("WalkStart" or "WalkLoop")) { CancelWalk(phase switch { "External" => "interrupt", "Drag" => "drag", "Click" => "click", _ => "cancelled" }); return; }

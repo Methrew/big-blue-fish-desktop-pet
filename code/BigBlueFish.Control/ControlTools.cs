@@ -58,7 +58,7 @@ public static class ControlTools
           "LastBrushDate":{"type":["string","null"],"pattern":"^[0-9]{4}-[0-9]{2}-[0-9]{2}$","description":"有效本地日期yyyy-MM-dd或null，用於每日刷牙動作去重；通常無需修改。"},
           "StartupEnabled":{"type":"boolean","description":"目前使用者的系統開機啟動設定。"},
           "PuppetMode":{"type":"boolean","description":"提線木偶模式，內建Agent連線時即「把日常關心的觸發和日常的動作切換邏輯交給Agent」：完全外部接管，由Agent安排日常關心與動作。每次從false改true須等待使用者在桌面確認；視窗等待期間桌寵仍可拖曳。中斷連線不會自動退出該模式。"},
-          "McpChatEnabled":{"type":"boolean","description":"允許雙擊開啟輸入框；還必須有完成初始化的真實MCP連線。文字與附件路徑（圖片、影片或檔案，經迴紋針、Ctrl+V或拖曳加入）通過user_message交給客戶端；為false時MCP介面的客戶端收不到user_message。內建Agent連線開啟時輸入框一律可用（輸入交給內建Agent），不受此欄位影響。"},
+          "McpChatEnabled":{"type":"boolean","description":"設定頁的「雙擊輸入交給 MCP 介面（Hermes 橋接程式）」：雙擊輸入只交給一方。true且MCP介面有完成初始化的真實客戶端時，文字與附件路徑（圖片、影片或檔案）只通過user_message交給MCP介面的客戶端，內建Agent連線收不到；沒有客戶端連線時輸入交給內建Agent連線（開著時）。false時MCP介面的客戶端收不到user_message，輸入只交給內建Agent連線。"},
           "AgentDailySpeech":{"type":"boolean","description":"日常吐字交給內建Agent；普通模式由魚魚計時，提線木偶模式由Agent預約喚醒。"},
           "AgentRespondToClick":{"type":"boolean","description":"點選事件是否主動發起內建Agent輪次，預設false；事件仍可從互動資源讀取。"},
           "AgentRespondToDrag":{"type":"boolean","description":"拖曳結束是否主動發起內建Agent輪次，預設false。"},
@@ -115,7 +115,7 @@ public static class ControlTools
              "where":{"type":"string","enum":["all","desktop","windows"],"default":"all","description":"all：桌面圖示與所有看得到的視窗；desktop：只找桌面圖示；windows：只找視窗標題與視窗裡的元素。"},
              "limit":{"type":"integer","minimum":1,"maximum":50,"default":20,"description":"最多列出幾筆。"}}
             """, ["query"]),
-        Tool("say", "立即按約28個組合字元/秒顯示傳入text原文（Windows台灣版會先把其中的簡體字轉成繁體），替換目前氣泡並取消目前本機生成；不呼叫模型，不改寫內容、朗讀或解析Markdown。不能全為空白，執行時最多4000個UTF-16單元。無需本機模型或插電；不自動恢復隱藏角色，不清除say_next待說原文。displayed=true表示進入顯示流程，並非使用者已看見或吐字完成。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
+        Tool("say", "立即按約28個組合字元/秒顯示傳入text原文（Windows台灣版會先把其中的簡體字轉成繁體），替換目前氣泡並取消目前本機生成；不呼叫模型，不改寫內容、朗讀或解析Markdown。不能全為空白，執行時最多4000個UTF-16單元。無需本機模型或插電；不自動恢復隱藏角色，不清除say_next待說原文。displayed=true表示進入顯示流程，並非使用者已看見或吐字完成。", """{"text":{"type":"string","minLength":1,"maxLength":4000},"transient":{"type":"boolean","default":false,"description":"true表示這是進度或一時的提示（例如「正在上網搜尋…」），只顯示在氣泡，不寫進輸入框的聊天記錄；省略為false。"}}""", ["text"]),
         Tool("say_next", "僅儲存一條待說原文，新呼叫覆蓋舊呼叫。下次滿足正常說話倒計時、可見、未拖曳、未開設定/安裝視窗、鍵鼠空閒8–600秒等條件時顯示；不要求本機模型可用。pending=true只表示已儲存，不保證何時顯示。提線木偶模式暫停該節奏，此時要立即說話請用say；吐字測試不消費它；MCP介面與內建Agent連線都關閉或退出時清除，單純斷開仍保留。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
         Tool("request_local_speech", "立即呼叫魚魚自己的模型（本機模型或設定的遠端模型）讀取目前情境並產生日常關心，沿用正常的載入與逐字顯示流程。適用於Agent決定時機、魚魚自己的模型編寫吐字；需要AgentDailySpeech=false且模型可用，隱藏、忙碌或供電暫停時回傳錯誤。無需傳入文字。", "{}"),
         Tool("get_operation_guide", "讀取大肥魚操作技能全文與使用者目前的人設；只供內建Agent連線使用，經MCP介面呼叫會回錯誤。", "{}"),
@@ -168,4 +168,10 @@ public static class ControlTools
         if (value.ValueKind != JsonValueKind.String || !choices.Contains(value.GetString())) throw new ArgumentException($"{name} 只能是 {string.Join("、", choices)}。");
         return value.GetString()!;
     }
+    // Tools of the shared list that the running pet does not implement: ControlServer leaves them out of tools/list and
+    // refuses them in tools/call, so no agent keeps calling a tool that can only fail. Empty on Windows; the macOS and Linux
+    // pets fill it at startup, before their servers start, and a platform that gains a tool takes its name out there.
+    public static readonly HashSet<string> Unavailable = new(StringComparer.Ordinal);
+    public static object[] Available => [.. Definitions.Where(tool => !Unavailable.Contains(NameOf(tool)))];
+    public static string NameOf(object tool) => (string)tool.GetType().GetProperty("name")!.GetValue(tool)!;
 }

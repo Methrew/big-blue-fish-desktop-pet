@@ -47,7 +47,7 @@ for name in ["BigBlueFish.Mac", "libcoreclr.dylib", "libhostfxr.dylib",
              "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard",
              "runtime/BigBlueFish.MacOcr", "runtime/BigBlueFish.MacScreen", "media/gstreamer/lib/libgstreamer-1.0.0.dylib"]:
     check((payload / name).is_file(), "bundled dependency: " + name)
-for name in ["BigBlueFish.Mcp", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dll"]:
+for name in ["BigBlueFish.Mcp", "BigBlueFish.HermesBridge", "BigBlueFish.Control.dll", "BigBlueFish.Agent.dll"]:
     check((payload / name).is_file() == (args.edition == "Standard"), "edition isolation: " + name)
 # macOS always plays the 640x360 compatibility clips, so the 1280x720 clips are not bundled.
 check(not list((payload / "assets/fish").glob("*.webm")), "no enhanced clips in the macOS bundle")
@@ -64,7 +64,7 @@ check(b"LemiXiaoNaiPaoTi" not in program and not any(p.name.lower().replace("-",
 native = list(payload.rglob("*.dylib")) + [payload / n for n in [
     "BigBlueFish.Mac", "runtime/llama-server", "runtime/BigBlueFish.RunnerGuard", "runtime/BigBlueFish.MacOcr", "runtime/BigBlueFish.MacScreen"]]
 if args.edition == "Standard":
-    native.append(payload / "BigBlueFish.Mcp")
+    native += [payload / "BigBlueFish.Mcp", payload / "BigBlueFish.HermesBridge"]
 names = {p.name for p in payload.rglob("*") if p.is_file()}
 dependency_errors = []
 for file in native:
@@ -101,7 +101,7 @@ check(True, "native runner guard executes a child")
 with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
     data = pathlib.Path(temporary)
     # The Safe edition shares the data folder with the Standard edition: it must leave the Standard Agent switches alone.
-    standard_agent = {"AgentEnabled": True, "PuppetMode": True, "AgentDailySpeech": True} if args.edition == "Safe" else {}
+    standard_agent = {"AgentEnabled": True, "PuppetMode": True, "AgentDailySpeech": True, "McpEnabled": True, "McpChatEnabled": True} if args.edition == "Safe" else {}
     (data / "preferences.json").write_text(json.dumps({"ModelEnabled": False, "PublicInfo": False,
         "CheckUpdatesOnStartup": False, "HideOnFullscreen": False, "Left": 300, "Top": 250, **standard_agent}))
     (data / "model-selection.json").write_text('{"Source":"none"}')

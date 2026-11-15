@@ -162,7 +162,7 @@ llama.cpp 用 `-m` 載入模型、沒有加 `--alias` 時，模型名稱就是�
 - API Key 只放在 `Authorization: Bearer` 標頭裡，不會寫進記錄主控台。
 - 由 Agent 編寫日常關心時走的是另一條路：截圖或文字交給 Agent，不經過遠端模型。
 
-截圖和 OCR 都需要「螢幕與系統錄音」權限；沒有權限時兩者都會失敗，魚魚只會傳「使用者正在使用電腦。」。
+截圖和 OCR 都需要「螢幕與系統錄音」權限（macOS 14 為「螢幕錄製」，App 的提示會依系統版本寫出正確的名稱）；沒有權限時兩者都會失敗，魚魚只會傳「使用者正在使用電腦。」。
 
 魚魚用三種方式判斷伺服器是否支援圖片，任一個成立就算支援：`/v1/models` 回應的 `data[].architecture.input_modalities` 含有 `image`；llama.cpp 的 `/v1/models` 回應中 `models[].capabilities` 含有 `multimodal`；llama.cpp 的 `/props` 回應中 `modalities.vision` 為 `true`（llama-server 加了 `--mmproj` 時就會是這樣）。模型清單每 5 分鐘最多重新讀取一次。送出截圖後伺服器回覆錯誤時（例如沒有 `--mmproj` 的 llama-server 會回 HTTP 500），魚魚會立刻用同一個視窗的 OCR 文字重送一次，這次說話不會中斷；之後這台伺服器改傳文字，直到你再按一次「儲存並測試連線」或修改遠端設定。
 
@@ -459,7 +459,7 @@ open release/藍色大肥魚.app
 | --- | --- |
 | 第一次打開時 macOS 說無法打開或無法驗證開發者 | 到「系統設定 › 隱私權與安全性」，在下方按「強制打開」。 |
 | 從終端機執行 `BigBlueFish.HermesBridge` 或 `BigBlueFish.Mcp` 被擋下 | 下載的 App 帶有 `com.apple.quarantine` 標記。先在 Finder 打開 App 一次，或執行 `xattr -dr com.apple.quarantine "/Applications/藍色大肥魚.app"`。`run-hermes-bridge.sh` 偵測到這個標記時也會提醒你。 |
-| 已經勾選「螢幕與系統錄音」，還是讀不到螢幕 | 更新或重新建置後授權可能已經失效：把開關關掉再打開，或用「−」移除後再用「＋」加回 App，然後重新開啟藍色大肥魚。 |
+| 已經勾選「螢幕與系統錄音」（macOS 14 為「螢幕錄製」），還是讀不到螢幕 | 更新或重新建置後授權可能已經失效：把開關關掉再打開，或用「−」移除後再用「＋」加回 App，然後重新開啟藍色大肥魚。 |
 | `find_on_screen` 只找到視窗標題 | 還沒允許「輔助使用」，或授權在更新後失效；請照上面的方式重新允許。Electron、Chromium 類的 App 本來就可能只找得到視窗標題。 |
 | `get_context` 的 Finder 資料夾清單是空的 | 結果裡的 `openFoldersNote` 會說明原因，例如還沒允許「自動化 › Finder」、你拒絕了詢問，或 Finder 逾時沒有回應。 |
 | 遠端模型顯示「無法連線遠端模型」 | 檢查網址、伺服器是否在執行、防火牆，以及「區域網路」權限。 |

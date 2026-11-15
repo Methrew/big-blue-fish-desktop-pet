@@ -43,7 +43,7 @@ internal static partial class CompanionNative
     internal static IOException CaptureFailure(string detail)
     {
         if (!CGPreflightScreenCaptureAccess())
-            return new IOException("讀取螢幕需要「螢幕與系統錄音」權限：請到「系統設定 › 隱私權與安全性 › 螢幕與系統錄音」允許「" + EditionName
+            return new IOException("讀取螢幕需要「" + ScreenRecordingPane + "」權限：請到「系統設定 › 隱私權與安全性 › " + ScreenRecordingPane + "」允許「" + EditionName
                 + "」。如果已經勾選，請先關閉再重新開啟（或移除後重新加入），然後重新啟動桌寵。每次重新建置或更新 App 後，macOS 可能需要這樣重新授權一次。");
         return new IOException("螢幕截圖沒有完成" + (detail.Length > 0 ? "：" + detail : "。"));
     }

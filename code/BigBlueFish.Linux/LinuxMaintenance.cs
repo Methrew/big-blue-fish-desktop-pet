@@ -185,7 +185,7 @@ internal sealed partial class LinuxPetWindow
             string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-macOS-arm64.dmg";
             if (Url(asset) == null) { if (manual) await Confirm("發現新版本", app + " " + latest + " 已經發布，但 macOS 安裝檔還沒準備好，請稍後再檢查一次。", "知道了"); return; }
             if (await Confirm("發現新版本", app + " " + latest + " 已經發布。請在發布頁面下載「" + asset + "」，結束目前的" + app
-                + "，打開 DMG 後把新版拖到「應用程式」檔案夾，取代舊版。設定和模型存放在資料夾「" + Environment.CurrentDirectory + "」，不會受影響；取代後如果讀不到畫面，請到「系統設定 › 隱私權與安全性 › 螢幕與系統錄音」重新允許。", "開啟發布頁面", reject: "稍後再說"))
+                + "，打開 DMG 後把新版拖到「應用程式」檔案夾，取代舊版。設定和模型存放在資料夾「" + Environment.CurrentDirectory + "」，不會受影響；取代後如果讀不到畫面，請到「系統設定 › 隱私權與安全性 › " + CompanionNative.ScreenRecordingPane + "」重新允許。", "開啟發布頁面", reject: "稍後再說"))
                 OpenUrl(root.GetProperty("html_url").GetString() ?? CompanionEdition.ReleasesPage);
 #else
             string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-Linux-x64.deb";

@@ -160,6 +160,28 @@ Said? First(List<Said> said, string kind, string? text = null) => said.FirstOrDe
     Check(fish.ActiveFor(T("10:41")) == null, "away: no stretch while away");
 }
 
+// 7b. The window's steady clock must keep counting while the computer sleeps (the Mac app reads CLOCK_MONOTONIC):
+//     then a 40-minute sleep is a break and the return is told. On a clock that stops during sleep, as
+//     Environment.TickCount64 does on macOS, the same gap reads as a wall clock moved forward and the stretch goes on.
+{
+    CompanionReminders Hour()
+    {
+        var fish = new CompanionReminders();
+        fish.Observe(T("09:00"), 3, TimeSpan.FromSeconds(1));
+        fish.TakeReturn();
+        for (var t = T("09:00"); t < T("10:00"); t += TimeSpan.FromSeconds(30)) fish.Observe(t, 3, TimeSpan.FromSeconds(30));
+        return fish;
+    }
+    var counted = Hour();
+    counted.Observe(T("10:40"), 2, TimeSpan.FromMinutes(40));
+    Check(counted.TakeReturn() is { Break: { } pause } && Math.Abs(pause.TotalMinutes - 40) < 1 && counted.ActiveFor(T("10:40")) is { } fresh && fresh < TimeSpan.FromMinutes(1),
+        "sleep on a clock that counts it: a 40-minute break, told on return, and a new stretch");
+    var stopped = Hour();
+    stopped.Observe(T("10:40"), 2, TimeSpan.FromSeconds(1));
+    Check(stopped.TakeReturn() == null && stopped.ActiveFor(T("10:40")) is { } carried && carried > TimeSpan.FromMinutes(59),
+        "sleep on a clock that stops: taken for a clock moved forward (why the Mac does not use TickCount64)");
+}
+
 // 8. The clock is set back an hour (time sync, the user): counting starts afresh and nothing stalls.
 {
     var fish = new CompanionReminders();

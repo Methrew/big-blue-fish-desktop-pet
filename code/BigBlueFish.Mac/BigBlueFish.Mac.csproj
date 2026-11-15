@@ -14,6 +14,7 @@
     <Compile Include="../BigBlueFish.Linux/LinuxSettings.cs" Link="Linux/LinuxSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxMaintenance.cs" Link="Linux/LinuxMaintenance.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxTestCommands.cs" Link="Linux/LinuxTestCommands.cs" />
+    <Compile Include="../BigBlueFish.Linux/LinuxProactive.cs" Link="Linux/LinuxProactive.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxLogConsole.cs" Link="Linux/LinuxLogConsole.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxAgentSettings.cs" Link="Linux/LinuxAgentSettings.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxAgentWorkspaceSettings.cs" Link="Linux/LinuxAgentWorkspaceSettings.cs" />
@@ -29,6 +30,7 @@
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionBrain.cs" Link="Shared/CompanionBrain.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionInferenceDevices.cs" Link="Shared/CompanionInferenceDevices.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionWeather.cs" Link="Shared/CompanionWeather.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionReminders.cs" Link="Shared/CompanionReminders.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionNews.cs" Link="Shared/CompanionNews.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionRegions.cs" Link="Shared/CompanionRegions.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionEdition.cs" Link="Shared/CompanionEdition.cs" />

@@ -143,6 +143,7 @@ internal sealed partial class LinuxPetWindow
                 var property = typeof(CompanionPreferences).GetProperty(meal.Item2)!;
                 Slider(meal.Item1 + "时间（时）", (int)property.GetValue(Preferences)!, 0, 23, value => property.SetValue(Preferences, (int)value));
             }
+            BuildReminderSettings(body);
         }
         void About() {
             Title("关于与更新"); body.Children.Add(Paragraph("蓝色大肥鱼 " + System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(LinuxPetWindow).Assembly)!.InformationalVersion.Split('+')[0] + (McpAvailable ? "" : " · 无MCP版")));

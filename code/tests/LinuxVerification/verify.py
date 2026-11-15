@@ -79,13 +79,13 @@ try:
     version=ET.parse(pathlib.Path(__file__).resolve().parents[3]/'Version.props').findtext('.//Version')
     check(init['serverInfo']['version']==version,'real stdio bridge negotiates current version')
     check(len(request('tools/list')['tools'])==17,'all MCP tools available')
-    # The tool list is shared with Windows; walk_to, find_on_screen and get_context are Windows-only and must say so on Linux.
+    # The tool list is shared with Windows; walk_to and find_on_screen are Windows-only and must say so on Linux.
     walk=request('tools/call',dict(name='walk_to',arguments=dict(x=1,y=1)))
     check(walk.get('isError') and 'Linux' in walk['content'][0]['text'],'walk_to reports unsupported on Linux')
     find=request('tools/call',dict(name='find_on_screen',arguments=dict(query='x')))
     check(find.get('isError') and 'Linux' in find['content'][0]['text'],'find_on_screen reports unsupported on Linux')
-    context=request('tools/call',dict(name='get_context',arguments={}))
-    check(context.get('isError') and 'Linux' in context['content'][0]['text'],'get_context reports unsupported on Linux')
+    context=content('get_context')
+    check(context['summary'] and context['power']['onAC'] in (True,False) and context['openFolders']==[],'get_context reads the moment on Linux, without folders')
     check(len(content('list_actions'))==106,'same 106 production actions')
     text='主人，Linux 端收到的原文呀~ ABC 123'
     content('say',text=text); wait(lambda: state()['text']==text)

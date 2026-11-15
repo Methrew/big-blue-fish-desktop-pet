@@ -252,6 +252,7 @@ internal sealed partial class LinuxPetWindow : Window
         if (full && !fullscreenHidden && !hidden) { fullscreenHidden = true; Hide(); bubbleWindow.Hide(); speechVersion++; brain.CancelGeneration(); }
         else if (!full && fullscreenHidden) { fullscreenHidden = false; if (!hidden) { Show(); Clamp(); } }
         player.Paused = hidden || fullscreenHidden;
+        ObserveActivity();
         TickAgent(now);
         if (hidden || fullscreenHidden) return;
         if (typing)
@@ -261,6 +262,7 @@ internal sealed partial class LinuxPetWindow : Window
             if (count == textBoundaries.Length) { typing = false; ResetDwell(); }
         }
         if (now >= bubbleUntil) bubbleWindow.Hide();
+        if (Remind(now)) return;
         if (Puppet || dragging || settings != null || modelInstalling || now < nextSpeech) return;
         if (nextExternalText == null && !AgentDailyActive && (generating || brain.Busy || !Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower)) return;
         if (CompanionNative.IdleSeconds < 8 || CompanionNative.IdleSeconds > 600) { nextSpeech = now.AddSeconds(30); return; }
@@ -288,7 +290,7 @@ internal sealed partial class LinuxPetWindow : Window
         }
         finally { generating = false; loading.IsVisible = false; }
     }
-    void SayExternal(string text) { speechVersion++; brain.CancelGeneration(); loading.IsVisible = false; ShowText(text, true); }
+    void SayExternal(string text) { speechVersion++; brain.CancelGeneration(); loading.IsVisible = false; ShowText(text, true); externalSaidAt = DateTime.UtcNow; }
     async Task SpeakManual(bool weather)
     {
         if (closed || phase == "Exit") return;

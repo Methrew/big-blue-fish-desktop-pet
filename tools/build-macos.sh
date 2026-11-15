@@ -76,6 +76,7 @@ cat > "$work/$title.app/Contents/Info.plist" <<EOF
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
 <key>NSHighResolutionCapable</key><true/>
+<key>NSAppleEventsUsageDescription</key><string>Agent 讀取目前狀況（get_context）時，${title}會詢問 Finder 開著哪些資料夾；只讀取視窗的資料夾路徑，不會修改檔案。</string>
 </dict></plist>
 EOF
 # shortcut: ad-hoc signature only; Developer ID signing and notarization need the maintainers' certificate.

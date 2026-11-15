@@ -135,7 +135,7 @@ internal sealed partial class LinuxPetWindow
             if (closed || phase == "Exit" || !Preferences.McpEnabled) throw new InvalidOperationException("MCP 接口已关闭或桌宠正在退出。");
             switch (name)
             {
-                case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = mcpServer?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status } });
+                case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = mcpServer?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status, fullscreen = CompanionNative.IsFullscreen(), idleSeconds = Math.Round(ReminderIdle), activeMinutes = ReminderActiveMinutes, lastBreakMinutes = ReminderLastBreakMinutes } });
                 case "update_settings": await UpdateSettings(args, token); return ControlTools.Text(new { settings = CurrentSettings() });
                 case "request_local_speech": await RequestAgentLocalSpeech(token); return ControlTools.Text(new { generated = modelReply && bubbleWindow.IsVisible });
                 case "list_actions": return ControlTools.Text(policy.Rules.Select(r => new { action = r.Id, pool = r.Pool, weight = r.Weight, duration_seconds = r.Pool == "Greeting" ? 10 / 1.5 : 10 }));
@@ -158,7 +158,12 @@ internal sealed partial class LinuxPetWindow
                     agent?.MarkSpoken();
                     if (name == "say") SayExternal(text); else nextExternalText = text;
                     return ControlTools.Text(new { displayed = name == "say", pending = name == "say_next", text });
-                case "walk_to": case "find_on_screen": case "get_context": throw new NotSupportedException($"Linux 版尚不支援 {name}。"); // The tool list is shared with Windows.
+                case "get_context":
+                    // Asking Finder (macOS) for its windows takes a moment; the UI thread stays free meanwhile.
+                    var folders = await CompanionNative.OpenFoldersAsync(token);
+                    token.ThrowIfCancellationRequested();
+                    return ControlTools.Text(CurrentContext(folders.Folders, folders.Note));
+                case "walk_to": case "find_on_screen": throw new NotSupportedException($"{(OperatingSystem.IsMacOS() ? "macOS" : "Linux")} 版尚不支援 {name}。"); // The tool list is shared with Windows.
                 case "get_operation_guide": case "get_wakeups": case "schedule_wakeup": case "cancel_wakeup":
                     return ControlTools.Text(agent?.ExecuteTool(name, args) ?? throw new InvalidOperationException("Agent 尚未连接。"));
                 default: throw new ArgumentException("未知 MCP 工具。");

@@ -36,7 +36,7 @@ internal sealed partial class LinuxPetWindow
 #if !COMPANION_SAFE
                 case "render-input": if (mcpInput != null) RenderControl(mcpInput, "input.png"); break;
 #endif
-                default: if (command.StartsWith("bubble ")) ShowText(command[7..], true); break;
+                default: if (ReminderTestCommand(command)) break; if (command.StartsWith("bubble ")) ShowText(command[7..], true); break;
             }
         } catch (Exception error) { File.WriteAllText("test-error.txt", error.ToString()); }
     }

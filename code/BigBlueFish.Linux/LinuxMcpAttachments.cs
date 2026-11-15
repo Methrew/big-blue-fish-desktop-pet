@@ -53,8 +53,8 @@ internal sealed partial class LinuxPetWindow
     McpAttachmentTray OpenMcpAttachments(Window dialog, Border frame, Panel panel, TextBox text, TextBlock status, string ready)
     {
         SweepMcpAttachments();
-        // One line: the window has fixed heights, so a long notice is shortened and shown whole as its tooltip.
-        status.TextWrapping = TextWrapping.NoWrap; status.TextTrimming = TextTrimming.CharacterEllipsis;
+        // Up to two lines (the window grows by the second, see TryOpenMcpInput); a longer notice is shortened and shown whole as its tooltip.
+        status.TextWrapping = TextWrapping.Wrap; status.MaxLines = 2; status.TextTrimming = TextTrimming.CharacterEllipsis;
         status.PropertyChanged += (_, e) => { if (e.Property == TextBlock.TextProperty) ToolTip.SetTip(status, status.Text); };
         var tray = new McpAttachmentTray(dialog, notice => status.Text = notice, ready);
         panel.Children.Add(tray.View);

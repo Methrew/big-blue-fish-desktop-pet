@@ -331,8 +331,11 @@ internal sealed partial class LinuxPetWindow
             if (e.Property == IsVisibleProperty || e.Property == WidthProperty || e.Property == HeightProperty) Follow();
         };
         PositionChanged += moved; PropertyChanged += changed;
-        // The attachment row adds its own height under the editor.
-        tray.Changed = () => { dialog.Height = tray.Items.Count > 0 ? 184 : 120; send.IsEnabled = CanSend(); Follow(); };
+        // The attachment row adds its own height under the editor, and a two-line notice (an Agent CLI that is not
+        // installed says what to do about it) its second line.
+        double InputHeight() => (tray.Items.Count > 0 ? 184 : 120) + Math.Max(0, Math.Ceiling(status.Bounds.Height) - 16);
+        tray.Changed = () => { dialog.Height = InputHeight(); send.IsEnabled = CanSend(); Follow(); };
+        status.PropertyChanged += (_, e) => { if (e.Property == Visual.BoundsProperty && dialog.Height != InputHeight()) dialog.Height = InputHeight(); };
         // What the clock itself last wrote: attachment notices and send results stay until the connection state changes.
         string? shown = null;
         var clock = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };

@@ -136,6 +136,13 @@ void ImportChecks(string folder)
     MacDataImport.Run(target, source);
     Check(Directory.Exists(target) && !File.Exists(Path.Combine(target, "half-copied")) && !Directory.Exists(staging), "a half-finished staging folder is redone from the start");
 
+    // A Hermes bridge started before the pet's first launch leaves only its own file there: the import still happens.
+    Directory.Delete(target, true);
+    Directory.CreateDirectory(target); File.WriteAllText(Path.Combine(target, "hermes-bridge.json"), "{\"session\":\"pet-1\"}");
+    MacDataImport.Run(target, source);
+    Check(File.Exists(Path.Combine(target, "preferences.json")) && File.Exists(Path.Combine(target, "models/model.gguf")) && File.Exists(Path.Combine(target, MacDataImport.NoteName))
+        && File.ReadAllText(Path.Combine(target, "hermes-bridge.json")) == "{\"session\":\"pet-1\"}" && !Directory.Exists(staging), "a folder holding only the bridge's file is still imported into, the file kept");
+
     string empty = Path.Combine(folder, "fresh", CompanionEdition.MacDataFolder);
     MacDataImport.Run(empty, Path.Combine(folder, "fresh", CompanionEdition.OriginalMacDataFolder));
     Check(!Directory.Exists(empty), "without the original's folder nothing is created ahead of the app");

@@ -7,7 +7,8 @@ namespace BigBlueFish.Windows;
 
 // This edition keeps its own data folder (CompanionEdition.MacDataFolder): the original resets a Taiwan weather code
 // such as TW-061-01 and drops this edition's own settings when it saves. On the first launch, when that folder does
-// not exist yet, settings, the model choice and Agent data are copied once from the original's folder. The import only
+// not exist yet (or holds only what a Hermes bridge started before the pet wrote there), settings, the model choice
+// and Agent data are copied once from the original's folder. The import only
 // reads the original: nothing there is moved, changed or deleted. Models are APFS clones (no extra disk space) or
 // are left out, never copied in full. The result is written to import-from-original.txt in the new folder.
 internal static class MacDataImport
@@ -15,9 +16,15 @@ internal static class MacDataImport
     internal const string NoteName = "import-from-original.txt";
     const uint CloneNoFollow = 1; // CLONE_NOFOLLOW
 
+    // What the Hermes bridge keeps beside the pet's data (its default --state path) and Finder's folder file: a folder
+    // holding only these has not been set up by the pet yet.
+    static readonly string[] Bystanders = ["hermes-bridge.json", "hermes-bridge.json.tmp", ".DS_Store"];
+    static bool SetUp(string target) => File.Exists(target) || Directory.Exists(target)
+        && (IsLink(target) || Directory.EnumerateFileSystemEntries(target).Any(entry => !Bystanders.Contains(Path.GetFileName(entry))));
+
     internal static void Run(string target, string source)
     {
-        if (Directory.Exists(target) || File.Exists(target) || !Directory.Exists(source) || Same(target, source)) return;
+        if (SetUp(target) || !Directory.Exists(source) || Same(target, source)) return;
         // Built beside the target and renamed into place last, so an interrupted import is redone from the start.
         string parent = Path.GetDirectoryName(Path.GetFullPath(target))!, staging = Path.Combine(parent, "." + Path.GetFileName(target) + ".importing");
         // Two copies started together (login item and a click) both get here before the single-instance check: the
@@ -30,7 +37,7 @@ internal static class MacDataImport
         if (gate == null) return;
         try
         {
-            if (Directory.Exists(target)) return;
+            if (SetUp(target)) return;
             Discard(staging);
             Directory.CreateDirectory(staging);
             var note = new StringBuilder();
@@ -65,7 +72,15 @@ internal static class MacDataImport
             }
             note.AppendLine().AppendLine("天氣、新聞等快取沒有複製，會重新取得。之後兩個版本各自儲存設定，互不影響。");
             File.WriteAllText(Path.Combine(staging, NoteName), note.ToString(), new UTF8Encoding(false));
-            Directory.Move(staging, target);
+            if (!Directory.Exists(target)) Directory.Move(staging, target);
+            else
+            {
+                // Beside the bridge's files: entry by entry, each a rename on the same volume, the note last.
+                foreach (var entry in new DirectoryInfo(staging).EnumerateFileSystemInfos().Where(e => e.Name != NoteName))
+                    if (entry is DirectoryInfo folder) folder.MoveTo(Path.Combine(target, entry.Name)); else ((FileInfo)entry).MoveTo(Path.Combine(target, entry.Name));
+                File.Move(Path.Combine(staging, NoteName), Path.Combine(target, NoteName));
+                Directory.Delete(staging);
+            }
         }
         catch (Exception error)
         {

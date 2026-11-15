@@ -93,7 +93,8 @@ try:
     text='主人，Linux 端收到的原文呀~ ABC 123'
     content('say',text=text); wait(lambda: state()['text']==text)
     check(state()['modelPid'] is None and state()['bubbleVisible'],'literal speech works without local model')
-    content('interrupt_action',action='点击回应-元气挥手')
+    played=content('interrupt_action',action='點擊回應-元氣揮手')
+    check(played['action']=='点击回应-元气挥手','Traditional action name plays the Simplified clip')
     content('play_action',action='吃白饭')
     wait(lambda: state()['currentAction']=='点击回应-元气挥手',3)
     wait(lambda: state()['currentAction']=='吃白饭',14)

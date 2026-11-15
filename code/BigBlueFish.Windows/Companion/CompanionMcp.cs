@@ -339,19 +339,9 @@ public partial class MainWindow
     }
     // The clips are named in Simplified Chinese; an agent writing Traditional Chinese, as it is asked to, still means
     // the same clip. Null when no clip has the name either way.
-    private string? ResolveAction(string name)
-    {
-        if (animationPolicy.Rules.Any(r => r.Id == name)) return name;
-        string wanted = CompanionTraditional.Convert(name);
-        return animationPolicy.Rules.FirstOrDefault(r => CompanionTraditional.Convert(r.Id) == wanted)?.Id;
-    }
+    private string? ResolveAction(string name) => CompanionActionNames.Resolve(animationPolicy.Rules.Select(r => r.Id), name);
     // Names the closest clips, so a misspelt name is fixed in one step instead of a round of list_actions.
-    private string UnknownAction(string field, string name)
-    {
-        string wanted = CompanionTraditional.Convert(name);
-        var closest = animationPolicy.Rules.Select(r => r.Id).OrderBy(id => CompanionScreenSearch.EditDistance(CompanionTraditional.Convert(id), wanted)).Take(3);
-        return $"{field} 沒有「{name}」這個動作。最接近的是：{string.Join("、", closest)}。請照 list_actions 的名稱原樣填，不要重複查 list_actions。";
-    }
+    private string UnknownAction(string field, string name) => CompanionActionNames.Unknown(animationPolicy.Rules.Select(r => r.Id), field, name);
     // Neither the [JsonIgnore] aliases nor the protected API key and authorization code ever reach a client.
     private Dictionary<string, object?> CurrentMcpSettings()
     {

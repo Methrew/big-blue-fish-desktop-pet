@@ -148,8 +148,8 @@ internal sealed partial class LinuxPetWindow
                     if (!Preferences.McpEnabled) throw new OperationCanceledException();
                     return ControlTools.Image(image.DataUrl, new { target = name, identity, image.Width, image.Height, capturedAt = DateTimeOffset.UtcNow });
                 case "play_action": case "interrupt_action":
-                    string action = ControlTools.RequiredText(args, "action", 200);
-                    if (!policy.Rules.Any(r => r.Id == action)) throw new ArgumentException("动作不存在。");
+                    string asked = ControlTools.RequiredText(args, "action", 200), action = CompanionActionNames.Resolve(policy.Rules.Select(r => r.Id), asked)
+                        ?? throw new ArgumentException(CompanionActionNames.Unknown(policy.Rules.Select(r => r.Id), "action", asked)); // Traditional names mean the same clip
                     if (name == "interrupt_action") { externalActions.Clear(); moveRule = null; Play(policy.Find(action), "External"); }
                     else { if (externalActions.Count >= 100) throw new InvalidOperationException("待播放动作队列已满。"); externalActions.Enqueue(action); }
                     return ControlTools.Text(new { action, started = name == "interrupt_action", queued = externalActions.Count });

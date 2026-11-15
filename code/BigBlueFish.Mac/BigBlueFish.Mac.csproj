@@ -20,6 +20,7 @@
     <Compile Include="../BigBlueFish.Linux/LinuxFonts.cs" Link="Linux/LinuxFonts.cs" />
     <Compile Include="../BigBlueFish.Linux/LinuxBubbleText.cs" Link="Linux/LinuxBubbleText.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionTraditional.cs" Link="Shared/CompanionTraditional.cs" />
+    <Compile Include="../BigBlueFish.Windows/Companion/CompanionActionNames.cs" Link="Shared/CompanionActionNames.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionCaptureFallback.cs" Link="Shared/CompanionCaptureFallback.cs" />
     <Compile Include="../BigBlueFish.Windows/Companion/CompanionMedia.cs" Link="Shared/CompanionMedia.cs" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.4" />

@@ -12,14 +12,14 @@ internal sealed partial class LinuxPetWindow
 {
     Action BuildLogConsole(StackPanel panel)
     {
-        panel.Children.Add(Paragraph($"本次运行的排障日志，保留最近{DiagnosticLog.Capacity}条。记录操作、状态、耗时和错误码；不包含截图、OCR、聊天或提示词正文，目录已匿名化。"));
-        var follow = new CheckBox { Content = "自动滚动", IsChecked = true, VerticalAlignment = VerticalAlignment.Center };
+        panel.Children.Add(Paragraph($"這次執行的疑難排解記錄，保留最近 {DiagnosticLog.Capacity} 筆。記錄操作、狀態、耗時和錯誤碼；不包含截圖、OCR、聊天或提示詞的內容，資料夾路徑已匿名化。"));
+        var follow = new CheckBox { Content = "自動捲動", IsChecked = true, VerticalAlignment = VerticalAlignment.Center };
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-        toolbar.Children.Add(ActionButton("保存为 TXT…", async () => {
+        toolbar.Children.Add(ActionButton("另存為 TXT…", async () => {
             if (settings == null) return;
             try
             {
-                var file = await settings.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions { Title = "保存排障日志", SuggestedFileName = $"BigBlueFish-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt", DefaultExtension = "txt", FileTypeChoices = [new FilePickerFileType("文本文件") { Patterns = ["*.txt"] }] });
+                var file = await settings.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions { Title = "儲存疑難排解記錄", SuggestedFileName = $"BigBlueFish-diagnostics-{DateTime.Now:yyyyMMdd-HHmmss}.txt", DefaultExtension = "txt", FileTypeChoices = [new FilePickerFileType("文字檔") { Patterns = ["*.txt"] }] });
                 if (file == null) return;
                 await using var stream = await file.OpenWriteAsync(); if (stream.CanSeek) stream.SetLength(0);
                 await using var writer = new StreamWriter(stream, new UTF8Encoding(true)); await writer.WriteAsync(DiagnosticLog.ExportText()); await writer.FlushAsync();
@@ -39,7 +39,7 @@ internal sealed partial class LinuxPetWindow
             revision = DiagnosticLog.Revision; var snapshot = DiagnosticLog.Snapshot();
             console.Text = string.Join(Environment.NewLine, snapshot.Select(x => x.ToString()));
             if (follow.IsChecked == true) console.CaretIndex = console.Text.Length;
-            count.Text = $"{snapshot.Length} / {DiagnosticLog.Capacity} 条 · INFO / WARN · 自动刷新";
+            count.Text = $"{snapshot.Length} / {DiagnosticLog.Capacity} 筆 · INFO / WARN · 自動重新整理";
         }
         var clock = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) }; clock.Tick += (_, _) => Refresh(); Refresh(); clock.Start(); return clock.Stop;
     }

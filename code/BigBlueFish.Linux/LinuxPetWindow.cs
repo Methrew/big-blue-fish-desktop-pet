@@ -138,6 +138,10 @@ internal sealed partial class LinuxPetWindow : Window
     // Platform hooks the macOS edition implements (BigBlueFish.Mac/MacPetWindow.cs); without an implementation the calls compile away.
     partial void InitializePlatform();
     partial void TickPlatform();
+    // The bubble window was given a new size (macOS checks its drawing surface once the size has held, MacPetWindow.cs).
+    partial void BubbleResized();
+    // Every tick, the Exit clip's goodbye bubble included: macOS keeps the bubble's drawing surface at the window's size.
+    partial void KeepSurfacePlatform();
     partial void RememberFocusPlatform(bool remember);
     partial void ReturnFocusPlatform();
     partial void ApplyPlatformSettings();
@@ -249,7 +253,9 @@ internal sealed partial class LinuxPetWindow : Window
         string prefix = bubbleText.Text ?? ""; bubbleText.Text = fullText;
         InvalidateBubbleMeasure(); bubbleFrame.Measure(new Size(320 * scale, double.PositiveInfinity)); var size = bubbleFrame.DesiredSize; bubbleText.Text = prefix;
         var area = (Screens.ScreenFromWindow(this) ?? Screens.Primary)?.WorkingArea ?? new PixelRect(0, 0, 1280, 720);
+        double oldWidth = bubbleWindow.Width, oldHeight = bubbleWindow.Height;
         bubbleWindow.Width = Math.Min(size.Width, area.Width / DesktopScaling - 16); bubbleWindow.Height = Math.Min(size.Height, area.Height / DesktopScaling - 16);
+        if (bubbleWindow.Width != oldWidth || bubbleWindow.Height != oldHeight) BubbleResized();
         int width = (int)(bubbleWindow.Width * DesktopScaling), height = (int)(bubbleWindow.Height * DesktopScaling);
         int x = Position.X + (int)(Width * DesktopScaling / 2) - width / 2, y = Position.Y + (int)(SpriteSize * 58 / 360 * DesktopScaling) - height - 10;
         if (y < area.Y) y = Position.Y + (int)(SpriteSize * 336 / 360 * DesktopScaling) + 10;
@@ -257,7 +263,9 @@ internal sealed partial class LinuxPetWindow : Window
     }
     async Task Tick()
     {
-        if (closed || phase == "Exit") return;
+        if (closed) return;
+        KeepSurfacePlatform();
+        if (phase == "Exit") return;
         await TestCommands(); if (closed || phase == "Exit") return;
         var now = DateTime.UtcNow;
         lastForeground = CompanionNative.ResolveForeground(CompanionNative.GetForegroundWindow(), lastForeground);

@@ -93,6 +93,18 @@ internal sealed partial class LinuxPetWindow
                 case "cloud-models":
                     (cloudModelsListed ?? throw new InvalidOperationException("the model page is not open"))(argument.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(id => new CloudModelInfo(id, id)).ToList()); break;
                 case "bubble" when space > 0: ShowText(command[7..], true); break;
+#if COMPANION_MAC
+                // surface <file.json>: the bubble's drawing surface next to its window (pixels); surface-shrink halves the
+                // surface's height as a stale resize leaves it; surface-check on|off switches the repair (KeepSurfacePlatform in MacPetWindow.cs).
+                case "surface":
+                    if (Path.GetFileName(argument) != argument || !argument.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("a .json file name in the data folder expected: " + argument);
+                    var surface = CompanionNative.Surface(bubbleWindow);
+                    File.WriteAllText(argument, JsonSerializer.Serialize(new { visible = bubbleWindow.IsVisible, found = surface != null,
+                        drawableWidth = surface?.Drawable.X, drawableHeight = surface?.Drawable.Y, width = surface?.Width, height = surface?.Height,
+                        windowWidth = bubbleWindow.Width, windowHeight = bubbleWindow.Height }, Readable)); break;
+                case "surface-shrink": if (!CompanionNative.ShrinkSurfaceForTest(bubbleWindow)) throw new InvalidOperationException("the bubble has no Metal surface"); break;
+                case "surface-check": bubbleSurfaceCheck = argument != "off"; break;
+#endif
 #if !COMPANION_SAFE
                 case "render-input": RenderControl(mcpInput ?? throw new InvalidOperationException("the input is not open"), Png("input.png")); break;
                 case "open-input": if (!TryOpenMcpInput()) throw new InvalidOperationException("the input needs the Agent or the MCP chat on"); break;

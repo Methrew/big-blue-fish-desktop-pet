@@ -36,6 +36,30 @@ internal sealed partial class LinuxPetWindow
     // keychain read to retry once the screen is unlocked (MacSecrets.cs).
     partial void TickPlatform() { CompanionNative.TrackActivation(); CompanionNative.UpdatePointerPassThrough(); WatchSecretUnlock(); }
 
+    // The bubble grows line by line with a streamed reply, and Avalonia's Metal surface can keep an earlier size after such
+    // a resize (CompanionNative.RefreshStaleSurface): the text was then drawn stretched, its last line cut off. Once the
+    // bubble's size has held for 200 ms, each tick compares its surface with the window and asks AppKit for a repaint on
+    // the main thread, which sizes the surface again. If that has not helped after 240 ms, the window is resized by one
+    // point and back, which hands AppKit the size afresh. Reported once per size in the log console. Tick runs it before
+    // its Exit return, so the goodbye bubble shown while the Exit clip plays is kept too.
+    DateTime bubbleResizedAt;
+    int bubbleStaleTicks;
+    double? bubbleNudgedFrom; // the height before the one-point resize, put back on the next tick
+    bool bubbleSurfaceCheck = true; // --test-mode: "surface-check off" leaves a stale surface alone, to see it last
+    partial void BubbleResized() { bubbleResizedAt = DateTime.UtcNow; bubbleStaleTicks = 0; bubbleNudgedFrom = null; }
+    partial void KeepSurfacePlatform()
+    {
+        if (bubbleNudgedFrom is { } before)
+        {
+            if (bubbleWindow.Height == before + 1) bubbleWindow.Height = before;
+            bubbleNudgedFrom = null; return;
+        }
+        if (!bubbleSurfaceCheck || !bubbleWindow.IsVisible || DateTime.UtcNow - bubbleResizedAt < TimeSpan.FromMilliseconds(200)) return;
+        if (!CompanionNative.RefreshStaleSurface(bubbleWindow)) { bubbleStaleTicks = 0; return; }
+        if (bubbleStaleTicks++ == 0) DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: "macOS", state: "stale_surface");
+        if (bubbleStaleTicks == 7) { bubbleNudgedFrom = bubbleWindow.Height; bubbleWindow.Height += 1; }
+    }
+
     // A left press remembers the app the user was working in; any other press, or a lost drag, forgets it.
     partial void RememberFocusPlatform(bool remember) { if (remember) CompanionNative.RememberFrontmost(); else CompanionNative.ForgetFrontmost(); }
     // After every release, once the click has been handled: the keyboard goes back unless the click opened something to type in.

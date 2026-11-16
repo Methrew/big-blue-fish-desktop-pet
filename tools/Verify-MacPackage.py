@@ -149,6 +149,44 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
                     pass
                 time.sleep(.25)
             check(status["text"] == "主人，我們一起乾杯吧！" and status["bubbleVisible"], "bubble shows Simplified text in Taiwan Traditional")
+
+            def command(text, timeout=10):
+                for name in ("test-done.txt", "test-error.txt"):
+                    (data / name).unlink(missing_ok=True)
+                (data / "test-command.txt").write_text(text, encoding="utf-8")
+                deadline = time.monotonic() + timeout
+                while time.monotonic() < deadline:
+                    try:
+                        if (data / "test-done.txt").read_text(encoding="utf-8") == text:
+                            return not (data / "test-error.txt").exists()
+                    except FileNotFoundError:
+                        pass
+                    time.sleep(.1)
+                return False
+
+            def surface(name):
+                ok = command("surface " + name)
+                return json.loads((data / name).read_text(encoding="utf-8")) if ok else {}
+
+            # A bubble whose Metal surface kept an earlier size (frames drawn off the main thread after a resize) shows its
+            # text stretched with the last lines cut off, and Avalonia leaves it so while the bubble does not change; the
+            # app finds it once the bubble's size has held and has it drawn again (KeepSurfacePlatform in MacPetWindow.cs).
+            time.sleep(.5)
+            settled = surface("surface-settled.json")
+            command("surface-check off")
+            command("surface-shrink")
+            shrunk = surface("surface-shrunk.json")
+            time.sleep(1)
+            left = surface("surface-left.json")
+            command("surface-check on")
+            time.sleep(.5)
+            repaired = surface("surface-repaired.json")
+            stale = lambda s: s.get("found") and s["drawableHeight"] < s["height"] - 1
+            check(settled.get("found") and settled["drawableWidth"] == settled["width"] and settled["drawableHeight"] == settled["height"],
+                  "the bubble's Metal surface matches its window")
+            check(stale(shrunk) and stale(left), "a stale bubble surface stays stale without the repair (the failure it guards against)")
+            check(repaired.get("found") and repaired["drawableHeight"] == repaired["height"] and repaired["drawableWidth"] == repaired["width"],
+                  "the app draws a stale bubble surface again at the window's size")
             # The screen reader answers in JSON, Accessibility granted or not, and never prompts without --prompt.
             screen = json.loads(subprocess.run([str(payload / "runtime/BigBlueFish.MacScreen"), "find", "windows"], stdout=subprocess.PIPE, check=True, timeout=30).stdout)
             check(isinstance(screen.get("trusted"), bool) and len(screen.get("displays", [])) > 0 and isinstance(screen.get("windows"), list),

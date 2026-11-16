@@ -112,6 +112,48 @@ internal static partial class CompanionNative
         objc_msgSend_activate(application, Selector("activateFromApplication:options:"), current, 0);
     }
 
+    // ---- Drawing surface ----
+    // Avalonia.Native (12.1.4) draws a window into a CAMetalLayer whose drawableSize is set to the view's pixel size only
+    // when a frame is drawn on the main thread (AvnMetalRenderTarget.BeginDrawing); frames its render thread draws after a
+    // resize keep the earlier size, and the layer (contentsGravity resize) shows that surface stretched over the window
+    // until AppKit draws one on the main thread. The handle is the AvnWindow; its AvnView, a subview of the content view,
+    // hosts the layer. The layer and both sizes in pixels; null when the window draws some other way.
+    internal static (IntPtr Layer, CGPoint Drawable, int Width, int Height)? Surface(Avalonia.Controls.TopLevel topLevel)
+    {
+        IntPtr window = WindowOf(topLevel.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero), content = Send(window, "contentView");
+        if (content == IntPtr.Zero) return null;
+        IntPtr subviews = Send(content, "subviews"); long count = subviews == IntPtr.Zero ? 0 : (long)Send(subviews, "count");
+        for (long i = 0; i <= count; i++)
+        {
+            IntPtr view = i == count ? content : objc_msgSend_index(subviews, Selector("objectAtIndex:"), (nuint)i), layer = Send(view, "layer");
+            if (layer == IntPtr.Zero || !SendBool(layer, "respondsToSelector:", Selector("drawableSize"))) continue;
+            var bounds = SendRect(view, "bounds"); double scale = objc_msgSend_double(window, Selector("backingScaleFactor"));
+            // AvnView sizes the surface as (int)convertSizeToBacking(frame.size).
+            return (layer, SendPoint(layer, "drawableSize"), (int)(bounds.Width * scale), (int)(bounds.Height * scale));
+        }
+        return null;
+    }
+
+    // Whether the window's surface had a size other than the window's; then its layer is marked for display, so AppKit
+    // draws the next frame on the main thread, which gives the surface the window's size.
+    internal static bool RefreshStaleSurface(Avalonia.Controls.TopLevel topLevel)
+    {
+        if (Surface(topLevel) is not { } surface || Math.Abs(surface.Drawable.X - surface.Width) <= 1 && Math.Abs(surface.Drawable.Y - surface.Height) <= 1) return false;
+        objc_msgSend(surface.Layer, Selector("setNeedsDisplay"));
+        return true;
+    }
+
+    // --test-mode only: gives the window's surface half its height, as a frame drawn off the main thread after a resize leaves it.
+    internal static bool ShrinkSurfaceForTest(Avalonia.Controls.TopLevel topLevel)
+    {
+        if (Surface(topLevel) is not { } surface) return false;
+        objc_msgSend_size(surface.Layer, Selector("setDrawableSize:"), new CGPoint { X = surface.Drawable.X, Y = Math.Max(1, Math.Floor(surface.Drawable.Y / 2)) });
+        return true;
+    }
+
+    [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern double objc_msgSend_double(IntPtr target, IntPtr selector);
+    [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern IntPtr objc_msgSend_index(IntPtr target, IntPtr selector, nuint index);
+    [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern void objc_msgSend_size(IntPtr target, IntPtr selector, CGPoint size); // a CGSize: two doubles, as CGPoint
     [DllImport(Objc, EntryPoint = "objc_msgSend")] [return: MarshalAs(UnmanagedType.I1)] static extern bool objc_msgSend_getbool(IntPtr target, IntPtr selector);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern nuint objc_msgSend_nuint(IntPtr target, IntPtr selector);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern void objc_msgSend_set_nuint(IntPtr target, IntPtr selector, nuint value);

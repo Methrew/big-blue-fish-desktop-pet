@@ -47,7 +47,9 @@ public static class DiagnosticLog
         // The cloud model source: its kind, its providers and the kinds of failure it reports (never a message or a key).
         + "cloud openai no_key invalid_key forbidden billing rate_limited overloaded model_not_found bad_request refused truncated interrupted network server daily_limit "
         // The Agent's launch profiles: Claude Code, Codex CLI and Gemini CLI on an API Key of the cloud AI service (never the key).
-        + "claude-api codex-api gemini-api").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
+        + "claude-api codex-api gemini-api "
+        // The speech bubble's drawing surface on macOS, found with a size other than the window's and drawn again.
+        + "stale_surface").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
     static readonly HashSet<string> actions = LoadActions();
     static readonly Dictionary<string, string> previousSettings = new();
     static readonly HashSet<string> settingNames = new(("ModelEnabled GpuEnabled PublicInfo ForegroundEnabled StopModelOnBattery HideOnFullscreen CheckUpdatesOnStartup "

@@ -25,7 +25,7 @@
 
 保留原版支援的 21 款 CLI Harness（包括 Claude Code）。新增台灣繁體檢查工具 `tools/Check-Traditional.py`，以及繁體轉換、地區與天氣、遠端模型、雲端 AI 服務（用本機的假 Claude、OpenAI、Gemini 伺服器，不連線真正的 API）、主動提醒、畫面比對、Mac 版身分與系統讀數等主控台測試。
 
-其他修正：已經有一隻魚在執行時再開一次，會說明原因（登入項目啟動時安靜結束），從 Finder 再開會叫回隱藏的魚；鑰匙圈暫時讀不到時會重試，不會把授權碼當成已經移除；「管理本機模型」顯示目前使用的模型，開始下載或匯入時才停止模型；天氣取不到時說明原因，不重新啟動模型；天氣播報照寫設定的地點，當天的資料說「今天」；使用遠端模型時，閒置中不再定時連線檢查遠端伺服器；輸入框的狀態可以顯示兩行；macOS 與 Linux 的 MCP 介面改用「連線其他 MCP 軟體」選單，依所選的 Claude Desktop、Claude Code、Codex CLI、Gemini CLI、Cursor、VS Code 或 Hermes 橋接程式顯示並複製對應的設定（取代原本只有 Hermes 的複製按鈕）；Agent 送來的英文（例如 Claude Code 的權限模式、思考深度、權限按鈕與標題、登入方式）顯示成台灣繁體中文，模型與產品名稱、終端機指令維持原文。Windows 改用本版自己的開機啟動與 App Paths 名稱，不改動原版的設定；Linux 在 Wayland 上從 GNOME 讀取閒置時間，其他桌面環境視為未知。
+其他修正：已經有一隻魚在執行時再開一次，會說明原因（登入項目啟動時安靜結束），從 Finder 再開會叫回隱藏的魚；鑰匙圈暫時讀不到時會重試，不會把授權碼當成已經移除；「管理本機模型」顯示目前使用的模型，開始下載或匯入時才停止模型；天氣取不到時說明原因，不重新啟動模型；天氣播報照寫設定的地點，當天的資料說「今天」；使用遠端模型時，閒置中不再定時連線檢查遠端伺服器；輸入框的狀態可以顯示兩行；macOS 與 Linux 的 MCP 介面改用「連線其他 MCP 軟體」選單，依所選的 Claude Desktop、Claude Code、Codex CLI、Gemini CLI、Cursor、VS Code 或 Hermes 橋接程式顯示並複製對應的設定（取代原本只有 Hermes 的複製按鈕）；Agent 送來的英文（例如 Claude Code 的權限模式、思考深度、權限按鈕與標題、登入方式）顯示成台灣繁體中文，模型與產品名稱、終端機指令維持原文；macOS 上模型邊產生邊顯示時，氣泡有時把文字畫得被拉長、最後一行被切掉（Avalonia 的 Metal 繪圖區在氣泡長高後仍停在先前的大小），現在氣泡大小穩定後會檢查繪圖區，不一致時請 macOS 重畫。Windows 改用本版自己的開機啟動與 App Paths 名稱，不改動原版的設定；Linux 在 Wayland 上從 GNOME 讀取閒置時間，其他桌面環境視為未知。
 
 授權維持 Apache-2.0。和原作者 1.1.3 版不同的程式碼與文件，都在檔案開頭註明修改者（acer1204、Methrew）；無法加註解的檔案也有修改：動作設定 `animations.json`、套件 lock 檔、Agent 用的 `SKILL.md` 與 `persona.md`、`docs/CHARACTER_CARD.txt` 和 `release/README.md`。氣泡字型改用 jf open 粉圓後，移除了原版的 Lemi 小奶泡體字型與它的授權檔。雲端 AI 服務新增的相依套件 Anthropic 13.8.0（Apache-2.0）與 Microsoft.Extensions.AI.Abstractions 10.5.1（MIT）列在第三方聲明，授權條文放在 `code/licenses`。
 

@@ -8,7 +8,7 @@
 > - 台灣版：acer1204（[acer1204/big-blue-fish-desktop-pet 的 taiwan-edition 分支](https://github.com/acer1204/big-blue-fish-desktop-pet/tree/taiwan-edition)）
 > - 台灣 macOS 版整合：Methrew（[Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet)）
 >
-> 本版以原作者的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎，整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.3-tw.1`，意思是「原版 1.1.3 的台灣版第 1 次修訂」。本版不是由原作者或 acer1204 維護，內容也沒有經過他們審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
+> 本版以原作者的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎，整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.3-tw.1`，意思是「原版 1.1.3 的台灣版第 1 次修訂」。acer1204 認可本版整合其台灣版；本版不是由原作者或 acer1204 維護，內容也未經原作者審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
 
 藍色大肥魚是一款住在電腦桌面上的 AI 桌寵軟體。她是一位藍髮的小鯨魚娘，形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」。軟體內建 4B 本機語言模型，透過 OCR 讀懂主人正在桌面上做的事情，每隔一段時間就從文字氣泡裡送來一句可愛的話，陪伴和關心主人；她也會看看天氣、瀏覽科技新聞，再用自己的方式講給主人聽。
 

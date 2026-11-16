@@ -41,8 +41,16 @@ internal sealed partial class LinuxPetWindow
         string agentRoot = Path.Combine(Environment.CurrentDirectory, "agent");
         var apiPanel = new StackPanel { Spacing = 8 };
         var apiKey = new CheckBox();
-        var apiDescription = Paragraph(""); var apiModel = Paragraph(""); var apiKeyState = Paragraph("");
-        apiPanel.Children.Add(apiKey); apiPanel.Children.Add(apiDescription); apiPanel.Children.Add(apiModel); apiPanel.Children.Add(apiKeyState);
+        var apiDescription = Paragraph(""); var apiKeyState = Paragraph("");
+        // The model hint can be selected and copied: pasted, its example keeps the straight quotes JSON needs.
+        var apiModel = new SelectableTextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap, Margin = new Avalonia.Thickness(0, 4, 0, 12), Foreground = Avalonia.Media.Brushes.SlateGray };
+        // Claude Code and Gemini CLI: the CLI's own settings file (a model, for one), shown in Finder or the file manager.
+        var openSettings = ActionButton(ApiKeyLaunch.OpenSettingsLabel, () => {
+            if (ApiKeyLaunch.For(Preferences.AgentHarnessId) is not { EditableSettings: true } api) return;
+            try { RevealFile(api.EnsureSettingsFile(agentRoot)); }
+            catch (Exception error) { AgentError("無法開啟設定檔資料夾", error); }
+        });
+        apiPanel.Children.Add(apiKey); apiPanel.Children.Add(apiDescription); apiPanel.Children.Add(apiModel); apiPanel.Children.Add(openSettings); apiPanel.Children.Add(apiKeyState);
         apiPanel.Children.Add(ActionButton("前往雲端 AI 服務", () => showModelPage?.Invoke()));
         extra.Children.Add(apiPanel);
         ApiKeyLaunch? shownApi = null;
@@ -51,7 +59,7 @@ internal sealed partial class LinuxPetWindow
             var api = ApiKeyLaunch.For(Preferences.AgentHarnessId);
             apiPanel.IsVisible = api != null;
             if (api == null) return;
-            if (api != shownApi) { shownApi = api; apiKey.Content = api.Label; apiDescription.Text = api.Description(ModelPageName); apiModel.Text = api.ModelHint(agentRoot); }
+            if (api != shownApi) { shownApi = api; apiKey.Content = api.Label; apiDescription.Text = api.Description(ModelPageName); apiModel.Text = api.ModelHint(agentRoot); openSettings.IsVisible = api.EditableSettings; }
             if (apiKey.IsEnabled) apiKey.IsChecked = Preferences.AgentUsesApiKey(api.Harness);
             string provider = CompanionPreferences.AgentApiKeyProvider(api.Harness)!;
             string missing = api.MissingHint(CompanionCloud.Info(provider).DisplayName);

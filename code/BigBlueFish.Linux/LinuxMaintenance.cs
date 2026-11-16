@@ -17,6 +17,16 @@ internal sealed partial class LinuxPetWindow
     Window? modelDialog;
     CancellationTokenSource? modelWindowCancellation;
     void CloseModelInstaller() { modelWindowCancellation?.Cancel(); modelDialog?.Close(); }
+    // Shows a file in the file manager: Finder opens its folder with the file selected (open -R); on Linux the folder it is
+    // in opens. In --test-mode it is only written down in test-opened.txt, so a test never opens a window.
+    static void RevealFile(string file)
+    {
+        if (App.Args.Contains("--test-mode")) { File.AppendAllText("test-opened.txt", file + "\n"); return; }
+        var start = new ProcessStartInfo(OperatingSystem.IsMacOS() ? "/usr/bin/open" : "/usr/bin/xdg-open") { UseShellExecute = false };
+        if (OperatingSystem.IsMacOS()) start.ArgumentList.Add("-R");
+        start.ArgumentList.Add(OperatingSystem.IsMacOS() ? file : Path.GetDirectoryName(file)!);
+        Process.Start(start)?.Dispose();
+    }
     static void OpenUrl(string url) { var start = new ProcessStartInfo(OperatingSystem.IsMacOS() ? "/usr/bin/open" : "/usr/bin/xdg-open") { UseShellExecute = false }; start.ArgumentList.Add(url); Process.Start(start); }
     async Task InstallModel()
     {

@@ -98,11 +98,16 @@ public sealed class ApiKeyLaunch
         Removed = ["ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_BASE_URL", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX", "CLAUDE_CODE_USE_FOUNDRY"],
         // A model picked under 模型與權限 lasts for the current conversation only (claude-agent-acp's set_config_option
         // changes the live session); settings.json in Claude Code's own folder holds one for every conversation.
-        ModelHintText = file => "想一直用比較省錢的 Sonnet 或 Haiku，請在 " + file + " 寫入 {\"model\": \"sonnet\"}（或 \"haiku\"）；"
-            + "已經開啟這個選項時，寫好後按「重新連線」就會套用。這個檔案只影響魚魚用 API Key 啟動的 Claude Code，第一輪和之後每一段對話都會用這個模型。"
-            + "下方「模型與權限」選的模型只套用到目前這段對話，按「開始新對話」後會回到這個檔案指定的模型（沒有這個檔案時是 Claude Code 預設的模型）。",
-        ModelAdvice = file => "Claude Code 會用它預設的模型；想一直用比較省錢的 Sonnet 或 Haiku，請先在 " + file
-            + " 寫入 {\"model\": \"sonnet\"}（或 \"haiku\"）再開啟，第一輪就會用它。「模型與權限」選的模型只套用到目前這段對話。",
+        EditableSettings = true, EmptySettings = "{}\n",
+        // Claude Code quietly does without a settings.json it cannot read, so a broken one (a curly quote from a text
+        // editor) is found here, before the start, and nothing is written into its folder.
+        Prepare = folder => ReadUserSettings("Claude Code", Path.Combine(folder, "settings.json")),
+        ModelHintText = file => "想一直用比較省錢的 Sonnet 或 Haiku，請按「" + OpenSettingsLabel + "」，用文字編輯器打開裡面的 " + Path.GetFileName(file)
+            + "，在最外層的大括號裡加上 \"model\": \"sonnet\"（或 \"haiku\"），例如 {\"model\": \"sonnet\"}" + QuoteNote
+            + "已經開啟這個選項時，存檔後按「重新連線」就會套用。這個檔案只影響魚魚用 API Key 啟動的 Claude Code，第一輪和之後每一段對話都會用這個模型。"
+            + "下方「模型與權限」選的模型只套用到目前這段對話，按「開始新對話」後會回到這個檔案指定的模型（檔案裡沒有 \"model\" 時，例如按鈕剛建立的 {}，是 Claude Code 預設的模型）。",
+        ModelAdvice = file => "Claude Code 會用它預設的模型；想一直用比較省錢的 Sonnet 或 Haiku，請先按這個選項下方的「" + OpenSettingsLabel + "」，在 " + Path.GetFileName(file)
+            + " 加上 \"model\": \"sonnet\"（或 \"haiku\"）再開啟，第一輪就會用它。「模型與權限」選的模型只套用到目前這段對話。",
         Exposure = "，所以它和它執行的指令也可能讀得到；工作區 .claude 資料夾裡設定檔的 env 和 hooks 也會生效，可能把 Key 送到別的主機，所以不要把來源不明的專案當作工作區。",
         WorkspaceNote = "工作區的 .claude/settings.local.json 照樣適用。",
     };
@@ -164,10 +169,12 @@ public sealed class ApiKeyLaunch
         Rejections = ["API_KEY_INVALID", "API key not valid", "API_KEY_SERVICE_BLOCKED", "API_KEY_HTTP_REFERRER_BLOCKED", "API_KEY_IP_ADDRESS_BLOCKED",
             "API_KEY_ANDROID_APP_BLOCKED", "API_KEY_IOS_APP_BLOCKED", "CONSUMER_SUSPENDED", "reported as leaked"],
         Prepare = GeminiSettings,
-        ModelHintText = file => "想一直用比較省錢的模型，請在 " + file + " 最外層加上 \"model\": {\"name\": \"gemini-3-flash-preview\"}（模型名稱以 Google 的說明為準）；"
-            + "已經開啟這個選項時，寫好後按「重新連線」就會套用。這個檔案只影響魚魚用 API Key 啟動的 Gemini CLI；魚魚每次啟動前會把裡面的登入方式設回 Gemini API Key，其他設定都會保留。",
-        ModelAdvice = file => "Gemini CLI 會用它預設的模型（由 Gemini CLI 自動挑選）；想一直用比較省錢的模型，請先在 " + file
-            + " 寫入 {\"model\": {\"name\": \"gemini-3-flash-preview\"}} 再開啟，第一輪就會用它。",
+        EditableSettings = true,
+        ModelHintText = file => "想一直用比較省錢的模型，請按「" + OpenSettingsLabel + "」，用文字編輯器打開裡面的 " + Path.GetFileName(file)
+            + "，在最外層的大括號裡加上 \"model\": {\"name\": \"gemini-3-flash-preview\"}（模型名稱以 Google 的說明為準），和其他設定之間用逗號隔開" + QuoteNote
+            + "已經開啟這個選項時，存檔後按「重新連線」就會套用。這個檔案只影響魚魚用 API Key 啟動的 Gemini CLI；魚魚每次啟動前會把裡面的登入方式設回 Gemini API Key，其他設定都會保留。",
+        ModelAdvice = file => "Gemini CLI 會用它預設的模型（由 Gemini CLI 自動挑選）；想一直用比較省錢的模型，請先按這個選項下方的「" + OpenSettingsLabel + "」，在 " + Path.GetFileName(file)
+            + " 加上 \"model\": {\"name\": \"gemini-3-flash-preview\"} 再開啟，第一輪就會用它。",
         Exposure = "，所以它和它執行的指令也可能讀得到；工作區 .gemini 資料夾裡的設定和工作區的 .env 檔也會生效，可能改變登入方式或把 Key 送到別的主機，所以不要把來源不明的專案當作工作區。",
         WorkspaceNote = "工作區的 .gemini/settings.json 照樣適用。",
     };
@@ -199,6 +206,16 @@ public sealed class ApiKeyLaunch
     public required string SignInExample { get; init; }
     /// <summary>The CLI's own settings file, relative to the configuration folder.</summary>
     public required string SettingsName { get; init; }
+    /// <summary>Whether the user may edit that file (a model, for one); the page then offers 開啟設定檔資料夾. Codex CLI's
+    /// config.toml is the fish's own, written again before each start.</summary>
+    public bool EditableSettings { get; init; }
+    /// <summary>The button under the model hint that shows the settings file in the file manager (EnsureSettingsFile).</summary>
+    public const string OpenSettingsLabel = "開啟設定檔資料夾";
+    /// <summary>What the button writes for a settings file that is not there yet; null: the settings Prepare writes.</summary>
+    internal string? EmptySettings { get; init; }
+    // Text editors that turn " into curly quotes make the file invalid JSON; TextEdit does it by default (智慧型引號).
+    static string QuoteNote => "；引號要用半形的 \"，不能用 “ ” 這種彎引號"
+        + (OperatingSystem.IsMacOS() ? "（用「文字編輯」時，請先在「編輯 › 替代」取消勾選「智慧型引號」）" : "") + "。";
     internal string FolderVariable { get; init; } = "";
     internal string KeyVariable { get; init; } = "";
     internal IReadOnlyDictionary<string, string> Fixed { get; init; } = new Dictionary<string, string>();
@@ -217,6 +234,23 @@ public sealed class ApiKeyLaunch
     /// <summary>The CLI's settings in that folder, read when it starts; only this CLI reads them, never the user's own.</summary>
     public string SettingsFile(string agentRoot) => Path.Combine([ConfigFolder(agentRoot), .. SettingsName.Split('/')]);
 
+    /// <summary>
+    /// For 開啟設定檔資料夾: the CLI's settings file, so the user can open it and edit it. The configuration folder is made
+    /// as Create makes it (for this user only, never through a link); a file that is not there yet is written with what
+    /// the CLI would start from (Claude Code: an empty object; Gemini CLI: the settings the fish writes before a start),
+    /// so there is a file to open. One that is there is left as it is, even when it is not valid JSON: that is what the
+    /// user comes to fix.
+    /// </summary>
+    public string EnsureSettingsFile(string agentRoot)
+    {
+        if (!EditableSettings) throw new InvalidOperationException(Product + " 的設定檔由魚魚管理，請不要修改。");
+        string folder = ConfigFolder(agentRoot), file = SettingsFile(agentRoot);
+        PrivateFolder(folder, "先不開啟這個資料夾");
+        if (File.Exists(file)) return file;
+        if (EmptySettings != null) AtomicText.Write(file, EmptySettings); else Prepare?.Invoke(folder);
+        return file;
+    }
+
     /// <summary>With a key: the private configuration folder (created, for this user only, with what the CLI must read
     /// there) and the variables. Without one: nothing starts, and <paramref name="missing"/> says why (the CLI's own
     /// sign-in is never used in its place).</summary>
@@ -225,7 +259,7 @@ public sealed class ApiKeyLaunch
         key = key?.Trim() ?? "";
         if (key.Length == 0) return new(Profile, new Dictionary<string, string?>(), missing);
         string folder = ConfigFolder(agentRoot);
-        PrivateFolder(folder);
+        PrivateFolder(folder, "先不啟動 " + Product);
         Prepare?.Invoke(folder);
         var environment = new Dictionary<string, string?>(StringComparer.Ordinal) { [FolderVariable] = folder, [KeyVariable] = key };
         foreach (var (name, value) in Fixed) environment[name] = value;
@@ -278,21 +312,30 @@ public sealed class ApiKeyLaunch
     static void GeminiSettings(string folder)
     {
         string file = Path.Combine(folder, ".gemini", "settings.json");
-        string? text = File.Exists(file) ? File.ReadAllText(file) : null;
-        JsonObject settings;
-        try
-        {
-            settings = string.IsNullOrWhiteSpace(text) ? new JsonObject()
-                : JsonNode.Parse(text, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject
-                    ?? throw new JsonException();
-        }
-        catch (JsonException) { throw new IOException("Gemini CLI 的設定檔不是有效的 JSON，先不啟動 Gemini CLI。請修正或刪除這個檔案後按「重新連線」：" + file); }
+        JsonObject settings = ReadUserSettings("Gemini CLI", file) ?? new JsonObject();
         var security = Section(settings, "security");
         Section(security, "auth")["selectedType"] = "gemini-api-key";
         if (security["environmentVariableRedaction"] is null) security["environmentVariableRedaction"] = new JsonObject { ["enabled"] = true };
         var privacy = Section(settings, "privacy");
         if (privacy["usageStatisticsEnabled"] is null) privacy["usageStatisticsEnabled"] = false;
         WriteIfChanged(file, settings.ToJsonString(new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }) + "\n");
+    }
+    // A settings file the user edits (開啟設定檔資料夾), read with comments and trailing commas allowed: null when it is not
+    // there or blank. One that is not a JSON object stops the start, and the reason sends the user back to the button.
+    static JsonObject? ReadUserSettings(string product, string file)
+    {
+        string? text = File.Exists(file) ? File.ReadAllText(file) : null;
+        if (string.IsNullOrWhiteSpace(text)) return null;
+        try
+        {
+            return JsonNode.Parse(text, documentOptions: new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }) as JsonObject
+                ?? throw new JsonException();
+        }
+        catch (JsonException)
+        {
+            throw new IOException(product + " 的設定檔不是有效的 JSON" + (text.IndexOfAny(['“', '”']) >= 0 ? "（裡面有 “ ” 這種彎引號，要改成半形的 \"）" : "")
+                + "，先不啟動 " + product + "。請按 Agent 連線設定裡的「" + OpenSettingsLabel + "」，修正或刪除 " + Path.GetFileName(file) + " 後按「重新連線」。檔案位置：" + file);
+        }
     }
     static JsonObject Section(JsonObject parent, string name)
     {
@@ -307,11 +350,12 @@ public sealed class ApiKeyLaunch
 
     // For this user only, every time and not only when the folder is new. A link is refused: the rules would go to whatever
     // it points at, and the CLI would keep its sign-in there.
-    void PrivateFolder(string folder)
+    // refused: what does not happen then (先不啟動 Claude Code, or 先不開啟這個資料夾 for the button).
+    void PrivateFolder(string folder, string refused)
     {
         if (new DirectoryInfo(folder) is { Exists: true, LinkTarget: not null })
-            throw new IOException(Product + " 的設定資料夾是一個連結，不是一般的資料夾；為了安全，先不啟動 " + Product + "。請刪除這個連結後再試：" + folder);
-        if (OperatingSystem.IsWindows()) { PrivateWindowsFolder(folder); return; }
+            throw new IOException(Product + " 的設定資料夾是一個連結，不是一般的資料夾；為了安全，" + refused + "。請刪除這個連結後再試：" + folder);
+        if (OperatingSystem.IsWindows()) { PrivateWindowsFolder(folder, refused); return; }
         const UnixFileMode mine = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
         Directory.CreateDirectory(folder, mine);
         File.SetUnixFileMode(folder, mine);
@@ -321,13 +365,13 @@ public sealed class ApiKeyLaunch
     // control). Its rules are replaced with this user and SYSTEM only, inheritance off (what is inside follows), every time,
     // since an installation or an update gives Users access to it again.
     [SupportedOSPlatform("windows")]
-    void PrivateWindowsFolder(string folder)
+    void PrivateWindowsFolder(string folder, string refused)
     {
         var directory = Directory.CreateDirectory(folder);
         if ((directory.Attributes & FileAttributes.ReparsePoint) != 0)
-            throw new IOException(Product + " 的設定資料夾是一個連結，不是一般的資料夾；為了安全，先不啟動 " + Product + "。請刪除這個連結後再試：" + folder);
+            throw new IOException(Product + " 的設定資料夾是一個連結，不是一般的資料夾；為了安全，" + refused + "。請刪除這個連結後再試：" + folder);
         using var identity = WindowsIdentity.GetCurrent();
-        var me = identity.User ?? throw new IOException("無法取得目前 Windows 帳戶的識別碼，先不啟動 " + Product + "。");
+        var me = identity.User ?? throw new IOException("無法取得目前 Windows 帳戶的識別碼，" + refused + "。");
         var security = new DirectorySecurity();
         security.SetOwner(me);
         security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);

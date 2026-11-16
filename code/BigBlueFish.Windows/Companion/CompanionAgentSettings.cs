@@ -52,7 +52,16 @@ public partial class MainWindow
         var apiPanel = new StackPanel();
         var apiKey = new CheckBox { Margin = new(0, 12, 0, 5) };
         var apiDescription = ModernUI.Text(""); var apiModel = ModernUI.Text(""); var apiKeyState = ModernUI.Text("");
-        apiPanel.Children.Add(apiKey); apiPanel.Children.Add(apiDescription); apiPanel.Children.Add(apiModel); apiPanel.Children.Add(apiKeyState);
+        // Claude Code and Gemini CLI: the CLI's own settings file (a model, for one), selected in File Explorer.
+        var openSettings = ModernUI.Button(ApiKeyLaunch.OpenSettingsLabel, () => {
+            if (ApiKeyLaunch.For(preferences.AgentHarnessId) is not { EditableSettings: true } api) return;
+            // Explorer by its full path: a bare name would be looked for in the current folder (the data folder, which every
+            // local user can write to) before the Windows folder. Explorer takes /select,"<path>" as one raw argument.
+            string explorer = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "explorer.exe");
+            try { Process.Start(new ProcessStartInfo(explorer, "/select,\"" + api.EnsureSettingsFile(agentRoot) + "\"") { UseShellExecute = false })?.Dispose(); }
+            catch (Exception error) { ModernUI.Error(owner, "無法開啟設定檔資料夾", error); }
+        });
+        apiPanel.Children.Add(apiKey); apiPanel.Children.Add(apiDescription); apiPanel.Children.Add(apiModel); apiPanel.Children.Add(openSettings); apiPanel.Children.Add(apiKeyState);
         apiPanel.Children.Add(ModernUI.Button("前往雲端 AI 服務", () => { if (companionSettings is { } open) BuildCompanionSettingsContent(open, ModelSettingsPage); }));
         extra.Children.Add(apiPanel);
         var state = new TextBlock { Foreground = ModernUI.Blue, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap, Margin = new(0, 12, 0, 5) };
@@ -87,7 +96,7 @@ public partial class MainWindow
             apiPanel.Visibility = api != null ? Visibility.Visible : Visibility.Collapsed;
             if (api == null) return;
             string provider = CompanionPreferences.AgentApiKeyProvider(api.Harness)!;
-            if (api != shownApi) { shownApi = api; apiKey.Content = api.Label; apiDescription.Text = api.Description(ModelPageName); apiModel.Text = api.ModelHint(agentRoot); }
+            if (api != shownApi) { shownApi = api; apiKey.Content = api.Label; apiDescription.Text = api.Description(ModelPageName); apiModel.Text = api.ModelHint(agentRoot); openSettings.Visibility = api.EditableSettings ? Visibility.Visible : Visibility.Collapsed; }
             if (apiKey.IsEnabled) apiKey.IsChecked = preferences.AgentUsesApiKey(api.Harness);
             // Whether the stored key can be used here (AgentLaunchFor gets "" for one this Windows account cannot decrypt):
             // decrypted only when the stored value changes, not every half second.

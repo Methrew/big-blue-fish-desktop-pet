@@ -89,8 +89,9 @@ static class LaunchVerification
                 api.Product + " without a key: nothing to start, no folder, the reason kept");
         }
         check(codex.Warning(rules).Contains("ChatGPT") && !gemini.Warning(rules).Contains("ChatGPT") && !claude.Warning(rules).Contains("ChatGPT")
-            && claude.Warning(rules).Contains(claude.SettingsFile(rules)) && gemini.Warning(rules).Contains(gemini.SettingsFile(rules)),
-            "ChatGPT is named only for Codex CLI's own sign-in; the model advice names the CLI's own settings file");
+            && claude.Warning(rules).Contains("「" + ApiKeyLaunch.OpenSettingsLabel + "」") && gemini.Warning(rules).Contains("「" + ApiKeyLaunch.OpenSettingsLabel + "」")
+            && !codex.Warning(rules).Contains(ApiKeyLaunch.OpenSettingsLabel),
+            "ChatGPT is named only for Codex CLI's own sign-in; the model advice sends the user to the button that shows the CLI's own settings file");
         var keyed = claude.Create(rules, " " + FakeKey + "\n", Missing);
         check(keyed.Unavailable == null && keyed.Environment["ANTHROPIC_API_KEY"] == FakeKey && keyed.Environment["CLAUDE_CONFIG_DIR"] == claude.ConfigFolder(rules)
             && new[] { "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_BASE_URL" }.All(name => keyed.Environment.TryGetValue(name, out var value) && value == null)
@@ -132,8 +133,49 @@ static class LaunchVerification
         File.WriteAllText(geminiFile, "{ not json");
         string? refused = null;
         try { gemini.Create(rules, GeminiFakeKey, Missing); } catch (IOException error) { refused = error.Message; }
-        check(refused != null && refused.Contains(geminiFile) && File.ReadAllText(geminiFile) == "{ not json", "settings that are not JSON stop the start and are left as they are");
+        check(refused != null && refused.Contains(geminiFile) && refused.Contains("「" + ApiKeyLaunch.OpenSettingsLabel + "」") && File.ReadAllText(geminiFile) == "{ not json",
+            "settings that are not JSON stop the start, are left as they are and send the user to 開啟設定檔資料夾");
+        // Claude Code's settings.json is read before a start and never written: one Claude Code could not read (a curly
+        // quote from a text editor) stops the start, since Claude Code would quietly do without it.
+        string claudeFile = claude.SettingsFile(rules);
+        File.WriteAllText(claudeFile, "{“model”: “sonnet”}\n");
+        string? claudeRefused = null;
+        try { claude.Create(rules, FakeKey, Missing); } catch (IOException error) { claudeRefused = error.Message; }
+        check(claudeRefused != null && claudeRefused.Contains("彎引號") && claudeRefused.Contains("「" + ApiKeyLaunch.OpenSettingsLabel + "」") && claudeRefused.Contains(claudeFile)
+            && !claudeRefused.Contains(FakeKey) && File.ReadAllText(claudeFile) == "{“model”: “sonnet”}\n",
+            "a Claude Code settings.json with curly quotes stops the start, says why and where, and is left as it is");
+        File.WriteAllText(claudeFile, "// mine\n{\"model\": \"sonnet\",}\n");
+        check(claude.Create(rules, FakeKey, Missing).Unavailable == null && File.ReadAllText(claudeFile) == "// mine\n{\"model\": \"sonnet\",}\n",
+            "a readable Claude Code settings.json lets it start and is never rewritten");
+        File.Delete(claudeFile);
         File.Delete(geminiFile);
+
+        // 開啟設定檔資料夾: a file to open in a private folder like a start's; what the user wrote there stays as it is.
+        const UnixFileMode mine = UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute;
+        string edit = Path.Combine(root, "edit");
+        bool Private(string folder) => OperatingSystem.IsWindows() ? PrivateOnWindows(folder) : File.GetUnixFileMode(folder) == mine;
+        check(claude.EditableSettings && gemini.EditableSettings && !codex.EditableSettings,
+            "the settings files of Claude Code and Gemini CLI are the user's to edit; Codex CLI's config.toml is the fish's");
+        string claudeEdit = claude.EnsureSettingsFile(edit);
+        check(claudeEdit == claude.SettingsFile(edit) && File.ReadAllText(claudeEdit) == "{}\n" && Private(claude.ConfigFolder(edit)),
+            "Claude Code's settings.json is made (an empty object) in its private folder, so there is a file to open");
+        File.WriteAllText(claudeEdit, "{\"model\": \"sonnet\"}\n");
+        check(claude.EnsureSettingsFile(edit) == claudeEdit && File.ReadAllText(claudeEdit) == "{\"model\": \"sonnet\"}\n", "an existing settings file is shown as it is");
+        string geminiEdit = gemini.EnsureSettingsFile(edit);
+        check(geminiEdit == gemini.SettingsFile(edit) && (string?)Settings(geminiEdit)["security"]?["auth"]?["selectedType"] == "gemini-api-key" && Private(gemini.ConfigFolder(edit)),
+            "Gemini CLI's settings file, when new, is the one the fish writes before a start");
+        File.WriteAllText(geminiEdit, "{ not json");
+        check(gemini.EnsureSettingsFile(edit) == geminiEdit && File.ReadAllText(geminiEdit) == "{ not json", "settings that are not JSON are shown as they are, for the user to fix");
+        string? codexRefused = null;
+        try { codex.EnsureSettingsFile(edit); } catch (InvalidOperationException error) { codexRefused = error.Message; }
+        check(codexRefused != null && !Directory.Exists(codex.ConfigFolder(edit)), "Codex CLI's config.toml is not offered for editing");
+        check(claude.ModelHint(edit).Contains("「" + ApiKeyLaunch.OpenSettingsLabel + "」") && gemini.ModelHint(edit).Contains("「" + ApiKeyLaunch.OpenSettingsLabel + "」")
+            && claude.ModelHint(edit).Contains("settings.json") && gemini.ModelHint(edit).Contains("settings.json")
+            && !claude.ModelHint(edit).Contains(edit) && !gemini.ModelHint(edit).Contains(edit) && !codex.ModelHint(edit).Contains(ApiKeyLaunch.OpenSettingsLabel)
+            && claude.ModelHint(edit).Contains("例如按鈕剛建立的 {}") && claude.ModelHint(edit).Contains("智慧型引號") == OperatingSystem.IsMacOS()
+            && gemini.ModelHint(edit).Contains("智慧型引號") == OperatingSystem.IsMacOS(),
+            "the hints send the user to 開啟設定檔資料夾 instead of a path to type, and say how TextEdit keeps straight quotes on macOS");
+
         foreach (var api in ApiKeyLaunch.All)
         {
             string folder = api.ConfigFolder(rules);
@@ -160,6 +202,11 @@ static class LaunchVerification
             string? linkRefused = null;
             try { codex.Create(linked, OpenAiFakeKey, Missing); } catch (IOException error) { linkRefused = error.Message; }
             check(linkRefused != null && linkRefused.Contains("連結") && !File.Exists(Path.Combine(elsewhere, "config.toml")), "a link in place of the config folder is refused");
+            Directory.CreateSymbolicLink(claude.ConfigFolder(linked), elsewhere);
+            string? editRefused = null;
+            try { claude.EnsureSettingsFile(linked); } catch (IOException error) { editRefused = error.Message; }
+            check(editRefused != null && editRefused.Contains("連結") && editRefused.Contains("先不開啟這個資料夾") && !editRefused.Contains("先不啟動")
+                && !File.Exists(Path.Combine(elsewhere, "settings.json")), "開啟設定檔資料夾 refuses a link in place of the config folder too, and says so for the button");
         }
         bool badProfile = false; try { _ = new AgentLaunch("../x", new Dictionary<string, string?>()); } catch (ArgumentException) { badProfile = true; }
         check(badProfile, "a profile is a plain name, never a path");
@@ -441,7 +488,8 @@ static class LaunchVerification
             keys["gemini"] = GeminiFakeKey;
             File.WriteAllText(hostGeminiFile, "{ not json");
             check(await host.LaunchChanged(), "a key saved while the settings are broken is a change");
-            await until(() => !host.Connected && host.Status == "連線或要求失敗" && host.Detail.Contains(hostGeminiFile), "settings that are not JSON stop Gemini CLI and say which file", 15);
+            await until(() => !host.Connected && host.Status == "連線或要求失敗" && host.Detail.Contains(hostGeminiFile) && host.Detail.Contains(ApiKeyLaunch.OpenSettingsLabel),
+                "settings that are not JSON stop Gemini CLI, say which file and send the user to 開啟設定檔資料夾", 15);
             File.Delete(hostGeminiFile);
             host.Reconnect();
             await until(() => host.Connected && !host.Busy && Starts() == before + 3 && host.SessionId == geminiApiSession, "重新連線 resumes the Gemini API Key's conversation", 15);
@@ -450,6 +498,15 @@ static class LaunchVerification
             on["codex"] = false; on["gemini"] = false;
             host.Configure("claude", new(true, false, false));
             await until(() => host.Connected && !host.Busy && host.SessionId == claudeCurrent && host.LaunchProfile == claude.Profile, "back on Claude Code's API Key conversation", 15);
+            // A settings.json the user broke while editing it: 重新連線 says so instead of starting Claude Code without it.
+            string hostClaudeFile = claude.SettingsFile(agentRoot);
+            File.WriteAllText(hostClaudeFile, "{“model”: “haiku”}");
+            host.Reconnect();
+            await until(() => !host.Connected && host.Status == "連線或要求失敗" && host.Detail.Contains("彎引號") && host.Detail.Contains(ApiKeyLaunch.OpenSettingsLabel),
+                "a broken Claude Code settings.json stops the start and sends the user to 開啟設定檔資料夾", 15);
+            File.Delete(hostClaudeFile);
+            host.Reconnect();
+            await until(() => host.Connected && !host.Busy && host.SessionId == claudeCurrent, "fixed, 重新連線 resumes Claude Code's API Key conversation", 15);
 
             // 清空工作區 ends the reservations of every saved conversation, the API Key's included.
             string current = host.SessionId;

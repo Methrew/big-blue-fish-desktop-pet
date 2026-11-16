@@ -1,17 +1,23 @@
-# 藍色大肥魚 · 1.1.3-tw.1（台灣繁體中文版）
+# 藍色大肥魚 · 1.1.3-tw.2（台灣繁體中文版）
 
-這是以原作者 Bai-Cute 的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎、整合 acer1204 台灣版功能的**非官方**台灣繁體中文版，也是本版第一次以自己的名稱與更新來源發布。本版不是由原作者或 acer1204 維護，使用上的問題請回報到 [Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)。
+這是以原作者 Bai-Cute 的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎、整合 acer1204 台灣版功能的**非官方**台灣繁體中文版。本版不是由原作者或 acer1204 維護，使用上的問題請回報到 [Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)。
 
 ## 下載
 
 | 版本 | macOS 14 以上 · Apple Silicon |
 | --- | --- |
-| 標準版 | `BigBlueFish-TW-v1.1.3-tw.1-macOS-arm64.dmg` |
-| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.1-Safe-macOS-arm64.dmg` |
+| 標準版 | `BigBlueFish-TW-v1.1.3-tw.2-macOS-arm64.dmg` |
+| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.2-Safe-macOS-arm64.dmg` |
 
 每個 DMG 都附有 `.sha256` 檢查碼檔。打開 DMG 後把 App 拖到「應用程式」檔案夾；App 只有臨時簽章，第一次打開時請到「系統設定 › 隱私權與安全性」按「強制打開」。安裝、權限與解除安裝的說明見本版儲存庫的 `docs/MACOS.md`（[專案頁面](https://github.com/Methrew/big-blue-fish-desktop-pet)）。
 
 本版不提供 Windows 與 Linux 的安裝程式或套件。
+
+## 這一版的更新（1.1.3-tw.2）
+
+- **Mac 版播放高畫質動畫**：在 Apple Silicon 上改用硬體解碼（VideoToolbox），播放 1280×720、每秒 60 格的動畫，畫面更清晰、動作更流暢（1.1.3-tw.1 只播 640×360、每秒 24 格）。CPU 用量比相容動畫多一些，想省電可以在「設定 › 桌寵與顯示」關閉「高畫質動畫」；Mac 無法硬體解碼時會自動改播相容動畫。DMG 因此從約 140 MB 變成約 1 GB。
+- **修正對話氣泡被切掉**：模型邊產生邊顯示時，氣泡有時把文字畫得被拉長、最後一行被切掉，現在會自動重畫。
+- 已安裝 1.1.3-tw.1 時，按「關於與更新 › 檢查更新」會看到這一版；下載 DMG 後結束魚魚，把新版拖到「應用程式」取代舊版即可，設定和模型不受影響。
 
 ## 和原版 1.1.3 相比
 

@@ -1,6 +1,16 @@
 <!-- Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0). -->
 # 更新記錄
 
+## 1.1.3-tw.2（台灣繁體中文版）
+
+macOS 版改播高畫質動畫：在 Apple Silicon 上改用 VideoToolbox 硬體解碼，播放原作者提升到 1280×720、每秒 60 格的動畫（1.1.3-tw.1 和原版 Mac 版都只播 640×360、每秒 24 格的相容動畫，因為它們找的是 Linux 專用的硬體解碼器）。每段動畫的顏色和透明度兩條影像都由媒體引擎解碼，由 alphacombine 逐格配對，再用 Accelerate 轉成畫面；顏色和 CPU 解碼的結果平均只差約 2 階（滿分 255），透明度完全相同。每秒要送出 60 格畫面，所以 CPU 用量比相容動畫多：在 M4 上整個 App 約佔一顆核心的 43%，相容動畫約 23%，多半在效率核心上。可以在「設定 › 桌寵與顯示 › 高畫質動畫」關閉，從下一段動作開始改播相容動畫；Mac 無法硬體解碼或解碼失敗時也會自動改播相容動畫。點選和拖曳時預先解碼的開頭 0.25 秒仍是相容動畫。App 內含兩套動畫，約 1.1 GiB（DMG 約 1 GB）。
+
+為了硬體解碼，App 另外內附同一版 GStreamer 1.29.2 官方套件裡的 applemedia 外掛，以及它載入的 libgstgl、libgstvulkan、libgstiosurface 和 MoltenVK，全部核對 SHA-256；MoltenVK 與它內含的 glslang、cereal、SPIRV-Cross、SPIRV-Tools 的授權列在第三方聲明，條文放在 `code/licenses/gstreamer`。打包檢查會確認兩套動畫、這些元件和授權檔都在，並在能硬體解碼的 Mac 上確認動畫是以硬體解碼播放。
+
+修正 macOS 的對話氣泡：模型邊產生邊顯示時，氣泡有時把文字畫得被拉長、最後一行被切掉。原因是 Avalonia 的 Metal 繪圖區在氣泡長高後仍停在先前的大小；現在氣泡大小穩定後會檢查繪圖區，不一致時請 macOS 在主執行緒重畫，必要時再重新調整一次大小，關閉桌寵時的告別氣泡也一樣。「記錄主控台」會記下這種情況。
+
+這一版修改、但無法加註解的檔案：macOS 動畫元件的鎖定清單 `tools/gstreamer-runtime-macos.json` 和授權來源清單 `code/licenses/gstreamer/sources.json`。
+
 ## 1.1.3-tw.1（台灣繁體中文版）
 
 非官方的台灣繁體中文版，以原作者 Bai-Cute 的 1.1.3 版（含官方 macOS 版）為基礎，整合 acer1204 台灣版（taiwan-edition）的功能並移植到 macOS，由 Methrew 整合。以 Apple Silicon macOS 為主要平台；Windows 與 Linux 的原始碼一併合併並確認可以編譯，但沒有實際執行或測試，也不提供安裝程式。
@@ -21,13 +31,13 @@
 
 服務名稱改用官方名稱：雲端 AI 服務的「服務」選項改為「Claude API（Anthropic）」、「OpenAI API」、「Gemini API（Google）」，「模型來源」改為「雲端 AI 服務（Claude、OpenAI、Gemini）」；說明文件也跟著改，只有指 ChatGPT 本身（例如 Codex CLI 的 ChatGPT 帳號登入、ChatGPT Plus 訂閱）時才寫 ChatGPT。
 
-改善 macOS 版：改用 VideoToolbox 硬體解碼播放 1280×720、每秒 60 格的動畫（原版 Mac 版只播 640×360、每秒 24 格的相容動畫；GStreamer 的 applemedia 外掛與它載入的 libgstgl、libgstvulkan、libgstiosurface、MoltenVK 一併內附並核對檢查碼，色彩轉換交給 Accelerate；無法硬體解碼時自動改播相容動畫，也可以在「設定 › 桌寵與顯示」關閉，App 約 1.1 GiB）；修正閒置時間讀數，讓自動說話與 Agent 日常關心真正觸發，睡眠時間也算休息；桌寵跟著切換桌面空間、點選後把鍵盤焦點還給原本的 App；點選、拖曳與走路動作的開頭預先解碼；截圖與前景偵測更省電；GPU 偵測等候安全性掃描；從 Finder 開啟時讀取登入 shell 的 PATH。
+改善 macOS 版：App 只內含實際播放的相容動畫（約 0.2 GiB）；修正閒置時間讀數，讓自動說話與 Agent 日常關心真正觸發，睡眠時間也算休息；桌寵跟著切換桌面空間、點選後把鍵盤焦點還給原本的 App；點選、拖曳與走路動作的開頭預先解碼；截圖與前景偵測更省電；GPU 偵測等候安全性掃描；從 Finder 開啟時讀取登入 shell 的 PATH。
 
 保留原版支援的 21 款 CLI Harness（包括 Claude Code）。新增台灣繁體檢查工具 `tools/Check-Traditional.py`，以及繁體轉換、地區與天氣、遠端模型、雲端 AI 服務（用本機的假 Claude、OpenAI、Gemini 伺服器，不連線真正的 API）、主動提醒、畫面比對、Mac 版身分與系統讀數等主控台測試。
 
-其他修正：已經有一隻魚在執行時再開一次，會說明原因（登入項目啟動時安靜結束），從 Finder 再開會叫回隱藏的魚；鑰匙圈暫時讀不到時會重試，不會把授權碼當成已經移除；「管理本機模型」顯示目前使用的模型，開始下載或匯入時才停止模型；天氣取不到時說明原因，不重新啟動模型；天氣播報照寫設定的地點，當天的資料說「今天」；使用遠端模型時，閒置中不再定時連線檢查遠端伺服器；輸入框的狀態可以顯示兩行；macOS 與 Linux 的 MCP 介面改用「連線其他 MCP 軟體」選單，依所選的 Claude Desktop、Claude Code、Codex CLI、Gemini CLI、Cursor、VS Code 或 Hermes 橋接程式顯示並複製對應的設定（取代原本只有 Hermes 的複製按鈕）；Agent 送來的英文（例如 Claude Code 的權限模式、思考深度、權限按鈕與標題、登入方式）顯示成台灣繁體中文，模型與產品名稱、終端機指令維持原文；macOS 上模型邊產生邊顯示時，氣泡有時把文字畫得被拉長、最後一行被切掉（Avalonia 的 Metal 繪圖區在氣泡長高後仍停在先前的大小），現在氣泡大小穩定後會檢查繪圖區，不一致時請 macOS 重畫。Windows 改用本版自己的開機啟動與 App Paths 名稱，不改動原版的設定；Linux 在 Wayland 上從 GNOME 讀取閒置時間，其他桌面環境視為未知。
+其他修正：已經有一隻魚在執行時再開一次，會說明原因（登入項目啟動時安靜結束），從 Finder 再開會叫回隱藏的魚；鑰匙圈暫時讀不到時會重試，不會把授權碼當成已經移除；「管理本機模型」顯示目前使用的模型，開始下載或匯入時才停止模型；天氣取不到時說明原因，不重新啟動模型；天氣播報照寫設定的地點，當天的資料說「今天」；使用遠端模型時，閒置中不再定時連線檢查遠端伺服器；輸入框的狀態可以顯示兩行；macOS 與 Linux 的 MCP 介面改用「連線其他 MCP 軟體」選單，依所選的 Claude Desktop、Claude Code、Codex CLI、Gemini CLI、Cursor、VS Code 或 Hermes 橋接程式顯示並複製對應的設定（取代原本只有 Hermes 的複製按鈕）；Agent 送來的英文（例如 Claude Code 的權限模式、思考深度、權限按鈕與標題、登入方式）顯示成台灣繁體中文，模型與產品名稱、終端機指令維持原文。Windows 改用本版自己的開機啟動與 App Paths 名稱，不改動原版的設定；Linux 在 Wayland 上從 GNOME 讀取閒置時間，其他桌面環境視為未知。
 
-授權維持 Apache-2.0。和原作者 1.1.3 版不同的程式碼與文件，都在檔案開頭註明修改者（acer1204、Methrew）；無法加註解的檔案也有修改：動作設定 `animations.json`、套件 lock 檔、Agent 用的 `SKILL.md` 與 `persona.md`、`docs/CHARACTER_CARD.txt`、`release/README.md`、macOS 動畫元件的鎖定清單 `tools/gstreamer-runtime-macos.json` 和授權來源清單 `code/licenses/gstreamer/sources.json`。氣泡字型改用 jf open 粉圓後，移除了原版的 Lemi 小奶泡體字型與它的授權檔。雲端 AI 服務新增的相依套件 Anthropic 13.8.0（Apache-2.0）與 Microsoft.Extensions.AI.Abstractions 10.5.1（MIT）列在第三方聲明，授權條文放在 `code/licenses`。
+授權維持 Apache-2.0。和原作者 1.1.3 版不同的程式碼與文件，都在檔案開頭註明修改者（acer1204、Methrew）；無法加註解的檔案也有修改：動作設定 `animations.json`、套件 lock 檔、Agent 用的 `SKILL.md` 與 `persona.md`、`docs/CHARACTER_CARD.txt` 和 `release/README.md`。氣泡字型改用 jf open 粉圓後，移除了原版的 Lemi 小奶泡體字型與它的授權檔。雲端 AI 服務新增的相依套件 Anthropic 13.8.0（Apache-2.0）與 Microsoft.Extensions.AI.Abstractions 10.5.1（MIT）列在第三方聲明，授權條文放在 `code/licenses`。
 
 ## 1.1.3 · 2026-11-13
 

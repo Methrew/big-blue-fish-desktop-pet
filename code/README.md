@@ -5,7 +5,7 @@
 
 MCP 的連線設定、工具欄位、動作與文字排程、事件的接收及錯誤處理見[內部工具參考](../docs/MCP.md)；共用的通訊協定程式碼在 `BigBlueFish.Control/`，stdio 橋接程式的入口在 `BigBlueFish.Mcp/`，各平台的執行端是 Windows 的 `CompanionMcp.cs`，以及 macOS 與 Linux 共用的 `LinuxMcp.cs`、`LinuxMcpInterface.cs`（外部 MCP 介面）。
 
-本版（台灣繁體中文版 `1.1.3-tw.1`）以 macOS（Apple Silicon）為主要平台：Mac 版在這台 Mac 上建置並執行測試；Windows 與 Linux 的原始碼只確認可以編譯，沒有實際執行或測試。
+本版（台灣繁體中文版 `1.1.3-tw.2`）以 macOS（Apple Silicon）為主要平台：Mac 版在這台 Mac 上建置並執行測試；Windows 與 Linux 的原始碼只確認可以編譯，沒有實際執行或測試。
 
 ## 專案結構
 

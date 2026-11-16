@@ -29,8 +29,8 @@
 
 | 版本 | 檔案 |
 | --- | --- |
-| 標準版 | `BigBlueFish-TW-v1.1.3-tw.1-macOS-arm64.dmg` |
-| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.1-Safe-macOS-arm64.dmg` |
+| 標準版 | `BigBlueFish-TW-v1.1.3-tw.2-macOS-arm64.dmg` |
+| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.2-Safe-macOS-arm64.dmg` |
 
 檔名開頭是 `BigBlueFish-TW`，和原作者的 `BigBlueFish-v…` 不同。發布頁面還沒有任何版本時，請先[從原始碼建置](#從原始碼建置)。
 

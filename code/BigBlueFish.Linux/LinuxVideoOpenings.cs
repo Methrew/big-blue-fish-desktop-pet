@@ -8,7 +8,8 @@ namespace BigBlueFish.Windows;
 // Preloaded openings, as CompanionVideoPlayer keeps them on Windows: click and drag clips keep their first quarter second
 // decoded, so a click or a drag shows motion at once instead of holding the old frame while the previous pipeline is
 // released and the next one is created, prerolled and seeked. Openings are the 640x360 compatibility clips decoded on
-// the CPU, the path macOS always plays, and never more than PreloadBudget bytes for all of them together.
+// the CPU (a quarter second; on a Mac that decodes the 1280x720 clips in hardware, the clip continues at that size), and
+// never more than PreloadBudget bytes for all of them together.
 internal sealed partial class LinuxVideoPlayer
 {
     const double OpeningSeconds = .25, OpeningInterval = 1.0 / 24;

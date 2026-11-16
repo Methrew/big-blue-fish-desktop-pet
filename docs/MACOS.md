@@ -504,7 +504,7 @@ code/run-hermes-bridge.sh
 
 ## Mac 版的改進
 
-- **App 變小**：macOS 版一律播放 640×360 的相容動畫，所以 App 只內含 `assets/fish/compat/` 和 `animations.json`，不再內含 macOS 從不播放的 1280×720 動畫，從約 1.0 GiB 降到約 0.2 GiB。
+- **高畫質動畫**：播放原作者提升到 1280×720、每秒 60 格的動畫。原版 Mac 版找的是 Linux 專用的硬體解碼器，所以一直只播 640×360、每秒 24 格的相容動畫。本版用 GStreamer 的 applemedia 外掛（VideoToolbox）在 Apple Silicon 的媒體引擎上解碼每段動畫的顏色和透明度兩條影像，再用 Accelerate 轉成畫面用的 BGRA；顏色和 CPU 解碼的結果平均只差約 2 階（滿分 255），透明度完全相同。每秒要送出 60 格畫面，CPU 用量比相容動畫多：在 M4 上整個 App 約佔一顆核心的 43%，相容動畫約 23%，多半在效率核心上。想省電可以在「設定 › 桌寵與顯示」關閉「高畫質動畫」，從下一段動作開始改播相容動畫。這台 Mac 無法硬體解碼 VP9，或硬體解碼失敗時，也會自動改播相容動畫。點選和拖曳時預先解碼的開頭 0.25 秒仍是相容動畫，之後接著播高畫質。App 內含兩套動畫，約 1.1 GiB。
 - **點選和拖曳的反應更即時**：5 個點選動作和拖曳動作的開頭 0.25 秒會在啟動後先解碼好（約 33 MB 記憶體）；第一次 `walk_to` 時也會預先解碼走路片段的開頭（約多 22 MB）。點選或拖曳時會先播出這段開頭，同時準備後面的動畫，不會停在上一個畫面。
 - **在所有桌面空間顯示**：切換桌面空間時，桌寵、對話氣泡和輸入框會跟著過去，Mission Control 也不會移動它們，按 ⌘` 切換視窗時會略過桌寵。預設開啟，可以在「設定 › 桌寵與顯示 › 在所有桌面空間顯示桌寵」關閉。「全螢幕時自動隱藏桌寵」開著的時候（預設），桌寵不會出現在全螢幕 App 上方；關閉後，桌寵也會顯示在全螢幕 App 上方。
 - **不會搶走鍵盤**：點一下或拖曳桌寵之後，鍵盤焦點會回到原本正在使用的 App。如果這次點選打開了輸入框、設定或提示視窗，焦點就留在桌寵這邊。
@@ -586,7 +586,7 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh
 
 產生的 App 在 `release/藍色大肥魚.app`（無MCP版是 `release/藍色大肥魚無MCP版.app`）；第二個參數可以指定其他輸出資料夾。標準版另外內含 `BigBlueFish.Mcp` 與 Hermes 橋接程式。App 名稱、Bundle ID 與致謝都從 `code/BigBlueFish.Windows/Companion/CompanionEdition.cs` 讀取。
 
-`python3 tools/Verify-MacPackage.py "release/藍色大肥魚.app" --edition Standard --output <輸出資料夾>` 會檢查 App 的內容（相容動畫 106 個、沒有 1280×720 動畫、輔助程式是 arm64 等），並以測試模式和暫存資料夾短暫啟動 App；執行前請先關閉正在執行的魚魚（包括原版）。發布用的 DMG 由 GitHub Actions 的「macOS package」工作流程建置、驗證並產生 `.sha256`。
+`python3 tools/Verify-MacPackage.py "release/藍色大肥魚.app" --edition Standard --output <輸出資料夾>` 會檢查 App 的內容（1280×720 動畫和相容動畫各 106 個、硬體解碼元件、輔助程式是 arm64 等；這台 Mac 能硬體解碼 VP9 時，也確認動畫是以硬體解碼播放），並以測試模式和暫存資料夾短暫啟動 App；執行前請先關閉正在執行的魚魚（包括原版）。發布用的 DMG 由 GitHub Actions 的「macOS package」工作流程建置、驗證並產生 `.sha256`。
 
 ### 3. 執行
 

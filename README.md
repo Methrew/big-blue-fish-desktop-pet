@@ -70,7 +70,7 @@
   - Hermes 對話橋接：把雙擊輸入的文字交給本機的 [Hermes Agent](https://github.com/NousResearch/hermes-agent)，另有每日簡報、回來時的摘要、排程回報與 Google 日曆提醒。標準版 App 已內附橋接程式。
   - 外部 MCP 介面：讓 Hermes 橋接程式等本機的 MCP 客戶端透過 `BigBlueFish.Mcp` 控制魚魚，預設關閉；雙擊輸入只會交給一方，不會讓兩個 Agent 各回答一次。
   - 輸入框附件：用迴紋針按鈕、拖曳或 ⌘V 貼上，一次最多附加 10 個圖片、影片或檔案，以 ACP 的 `resource_link` 交給 Agent。
-- **Mac 版的改進**：App 只內含 macOS 實際播放的 640×360 相容動畫，從約 1.0 GiB 縮小到約 0.2 GiB；修正原版 Mac 版讀不到真正的閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵會跟著切換桌面空間，點一下或拖曳後鍵盤焦點會回到原本的 App；點選和拖曳的動作會預先解碼開頭，反應更即時；第一次偵測 GPU 時等待更久，能用 Metal；從 Finder 開啟時也會讀取登入 shell 的 PATH，找得到 npm 或 Homebrew 安裝的 Agent CLI。
+- **Mac 版的改進**：改用 Mac 的硬體解碼（VideoToolbox）播放原作者提升到 1280×720、每秒 60 格的動畫（原版 Mac 版一直只播 640×360、每秒 24 格的相容動畫），想省電可以在「設定 › 桌寵與顯示」關閉；修正原版 Mac 版讀不到真正的閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵會跟著切換桌面空間，點一下或拖曳後鍵盤焦點會回到原本的 App；點選和拖曳的動作會預先解碼開頭，反應更即時；第一次偵測 GPU 時等待更久，能用 Metal；從 Finder 開啟時也會讀取登入 shell 的 PATH，找得到 npm 或 Homebrew 安裝的 Agent CLI。
 
 ## 認識魚魚
 
@@ -118,7 +118,7 @@
 
 除了這些，魚魚還藏著許多沒有寫在這裡的小心思。願主人在每天的陪伴裡慢慢發現她的可愛，每一次不經意的抬頭，都能撞見一個小小的驚喜。
 
-> macOS 版播放 640×360、每秒 24 格的相容動畫（Mac 隨附的動畫解碼元件沒有透明 VP9 的硬體解碼），Windows 版播放原作者提升到 1280×720、每秒 60 格的版本。
+> macOS 版和 Windows 版都播放原作者提升到 1280×720、每秒 60 格的動畫。macOS 用 VideoToolbox 硬體解碼（Apple Silicon）；無法硬體解碼，或在「設定 › 桌寵與顯示」關閉「高畫質動畫」時，改播 640×360、每秒 24 格的相容動畫。
 
 ## 內建模型
 
@@ -240,7 +240,7 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET �
 
 本專案以 [Apache License 2.0](LICENSE) 發布，原作者的著作權聲明（Copyright 2026 Bai-Cute）和授權條款維持不變，本版的修改同樣以 Apache-2.0 授權發布。依授權條款第 4 條，修改過的原始碼檔案開頭會註明修改者與日期；和原作者 1.1.3 版的完整差異，可以在本儲存庫用 `git diff 75cd217` 檢視。魚魚的形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」；專案使用的動畫、模型、執行環境、字型和資料分別來自以下專案，各自遵循其原有授權：
 
-- 角色動畫：106 段透明 WebM 動畫來自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT 授權；播放素材經原作者提升到 1280×720、每秒 60 格，並保留原始解析度與影格率的相容素材（macOS 版只內含相容素材），動作的選擇與觸發邏輯為本專案自訂。dsh-pet 的 README 另外規定素材禁止商用、角色形象採 CC BY-NC-SA 4.0，並要求衍生作品附上 dsh-pet 的網址；這些限制由 acer1204 的台灣版補充說明，詳見[第三方聲明](code/THIRD-PARTY.md)。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象。
+- 角色動畫：106 段透明 WebM 動畫來自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT 授權；播放素材經原作者提升到 1280×720、每秒 60 格，並保留原始解析度與影格率的相容素材（macOS 版兩套都內含：能用 VideoToolbox 硬體解碼時播放 1280×720，否則播放相容素材），動作的選擇與觸發邏輯為本專案自訂。dsh-pet 的 README 另外規定素材禁止商用、角色形象採 CC BY-NC-SA 4.0，並要求衍生作品附上 dsh-pet 的網址；這些限制由 acer1204 的台灣版補充說明，詳見[第三方聲明](code/THIRD-PARTY.md)。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象。
 - 本機模型：Qwen3.5-4B 及其衍生的 heretic 版本與 GGUF 轉換，Apache-2.0 授權，模型檔由使用者另外下載；
 - 推論與執行環境：llama.cpp（MIT）、.NET 10 執行環境（MIT）、Microsoft Visual C++ 執行階段程式庫（Windows，依 Microsoft 再散布條款）；
 - 動畫解碼：macOS 與 Windows 版使用隨附的 GStreamer 元件，Linux 版使用系統的 GStreamer；

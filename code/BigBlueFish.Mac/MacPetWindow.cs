@@ -10,6 +10,7 @@ internal sealed partial class LinuxPetWindow
 {
     partial void InitializePlatform()
     {
+        player.PreferHardware = Preferences.HighQualityAnimation;
         // Avalonia raises Opened again on every Show after Hide, and resets the behaviour of owned windows when it shows
         // them, so the window behaviour is applied on each Opened. Until the first frame the pet lets clicks through.
         Opened += (_, _) => { CompanionNative.TrackPointerWindow(TryGetPlatformHandle()?.Handle ?? IntPtr.Zero); ConfigurePlatformWindow(this); };
@@ -75,6 +76,18 @@ internal sealed partial class LinuxPetWindow
 
     partial void AddPlatformGeneralOptions(Panel body)
     {
+        var quality = new CheckBox { Content = "高畫質動畫（1280×720、每秒 60 格）", IsChecked = Preferences.HighQualityAnimation, Margin = new Thickness(0, 4) };
+        quality.IsCheckedChanged += (_, _) => { Preferences.HighQualityAnimation = quality.IsChecked == true; player.PreferHardware = Preferences.HighQualityAnimation; Save(); };
+        body.Children.Add(quality);
+        // Normally done by the first clip already; a runtime that cannot load must not take the settings window down
+        // with it (the log console, reached from here, is where the reason shows).
+        bool ready;
+        try { CompanionMedia.Initialize(); ready = true; }
+        catch (Exception error) { ready = false; DiagnosticLog.Write(DiagnosticEvent.AnimationFailed, state: "unavailable", error: error); }
+        body.Children.Add(Paragraph(!ready ? "動畫元件無法載入，所以無法使用高畫質動畫；原因會顯示在「記錄主控台」。"
+            : CompanionMedia.HardwareAvailable ? "由 Mac 的硬體解碼，畫面更清晰、動作更流暢，從下一段動作開始套用。CPU 用量會比關閉時多一些；想省電可以關閉，改播 640×360、每秒 24 格的動畫。"
+            : "這台 Mac 無法用硬體解碼這種動畫，所以播放 640×360、每秒 24 格的動畫。"));
+        quality.IsEnabled = ready && CompanionMedia.HardwareAvailable;
         var box = new CheckBox { Content = "在所有桌面空間顯示桌寵", IsChecked = Preferences.ShowOnAllSpaces, Margin = new Thickness(0, 4) };
         box.IsCheckedChanged += (_, _) => { Preferences.ShowOnAllSpaces = box.IsChecked == true; ApplyPlatformSettings(); Save(); };
         body.Children.Add(box);

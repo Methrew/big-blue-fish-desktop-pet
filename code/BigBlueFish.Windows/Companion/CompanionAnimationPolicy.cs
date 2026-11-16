@@ -50,7 +50,8 @@ internal sealed class CompanionAnimationPolicy
             throw new InvalidDataException("動畫規則不完整或有重複");
         foreach (var rule in rules)
 #if COMPANION_MAC
-            // The macOS app ships only the compatibility clips it plays (LinuxVideoPlayer always decodes compat/).
+            // The macOS app ships both sets; compat/ is the one that must always be there: the fallback where VP9 has no
+            // hardware decoder or 高畫質動畫 is off, and the source of the preloaded openings (LinuxVideoPlayer).
             if (Path.GetFileName(rule.File) != rule.File || !File.Exists(Path.Combine(directory, "compat", rule.File)))
 #else
             if (Path.GetFileName(rule.File) != rule.File || !File.Exists(Path.Combine(directory, rule.File)))

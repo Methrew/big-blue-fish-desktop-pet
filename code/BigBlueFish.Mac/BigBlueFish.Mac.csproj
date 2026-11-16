@@ -65,7 +65,9 @@
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/opencc/*.txt" LogicalName="BigBlueFish.Windows.assets.opencc.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../BigBlueFish.Windows/assets/regions/region-display-names.json" LogicalName="BigBlueFish.Windows.assets.regions.region-display-names.json" />
     <AvaloniaResource Include="../BigBlueFish.Windows/Res/Font/jf-openhuninn-2.1.ttf" Link="Assets/jf-openhuninn-2.1.ttf" />
-    <!-- macOS has no hardware VP9 alpha decoder in the bundled GStreamer, so it always plays the 640x360 compatibility clips; the 1280x720 clips are left out. -->
+    <!-- The 1280x720, 60 fps clips play through VideoToolbox (applemedia, CompanionMedia); the 640x360 compatibility clips
+         are the fallback where VP9 has no hardware decoder, and the source of the preloaded openings. -->
+    <Content Include="../BigBlueFish.Windows/assets/fish/*.webm" Link="assets/fish/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../BigBlueFish.Windows/assets/fish/animations.json" Link="assets/fish/animations.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../BigBlueFish.Windows/assets/fish/LICENSE.txt" Link="assets/fish/LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="../BigBlueFish.Windows/assets/fish/compat/**/*" Link="assets/fish/compat/%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />

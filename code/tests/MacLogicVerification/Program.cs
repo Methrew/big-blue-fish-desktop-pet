@@ -1,6 +1,6 @@
 // Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 // macOS edition logic that needs no window, permission or bundled runtime: inference device reporting, the
-// compatibility-only animation check, the login-shell PATH import under slow or hanging shells, the foreground
+// animation check against compat/ (the set macOS always needs), the login-shell PATH import under slow or hanging shells, the foreground
 // window rules and the Terminal login script. Usage: dotnet MacLogicVerification.dll [repository root]
 // (found from the program or the current folder when left out).
 using System.Diagnostics;
@@ -45,7 +45,8 @@ void InferenceDevices()
 
 void AnimationPolicy()
 {
-    // The macOS bundle has animations.json and compat/ only (COMPANION_MAC is defined for this project).
+    // The rules are checked against compat/, the set macOS always needs (COMPANION_MAC is defined for this project); a
+    // folder with compat/ only must load.
     string assets = Path.Combine(scratch, "fish"), compat = Path.Combine(assets, "compat");
     Directory.CreateDirectory(compat);
     File.Copy(Path.Combine(root, "code/BigBlueFish.Windows/assets/fish/animations.json"), Path.Combine(assets, "animations.json"));

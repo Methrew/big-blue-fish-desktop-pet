@@ -20,11 +20,18 @@ internal static partial class CompanionNative
     static IntPtr WindowOf(IntPtr handle) => handle == IntPtr.Zero ? IntPtr.Zero
         : SendBool(handle, "respondsToSelector:", Selector("setIgnoresMouseEvents:")) ? handle : Send(handle, "window");
 
+    // Every pixel of a 640x360 frame; every other pixel of every other row of a 1280x720 one (the hardware-decoded clips,
+    // 60 frames a second), which still tells the fish from the space around her and keeps the copy at 230,400 bytes.
     static void KeepShape(IntPtr handle, byte[] pixels, int width, int height, bool mirror)
     {
-        if (shapeAlpha.Length != width * height) shapeAlpha = new byte[width * height];
-        for (int i = 0; i < shapeAlpha.Length; i++) shapeAlpha[i] = pixels[i * 4 + 3];
-        shapeWidth = width; shapeHeight = height; shapeMirrored = mirror;
+        int step = width * height > 640 * 360 ? 2 : 1, w = width / step, h = height / step;
+        if (shapeAlpha.Length != w * h) shapeAlpha = new byte[w * h];
+        for (int y = 0; y < h; y++)
+        {
+            int row = y * step * width, target = y * w;
+            for (int x = 0; x < w; x++) shapeAlpha[target + x] = pixels[(row + x * step) * 4 + 3];
+        }
+        shapeWidth = w; shapeHeight = h; shapeMirrored = mirror;
         if (shapeWindow == IntPtr.Zero) shapeWindow = WindowOf(handle);
     }
 

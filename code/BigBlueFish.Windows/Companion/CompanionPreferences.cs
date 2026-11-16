@@ -23,6 +23,9 @@ internal sealed class CompanionPreferences
 #if COMPANION_MAC
     // The pet, its bubble and the input box on every desktop Space (Mission Control leaves them in place).
     public bool ShowOnAllSpaces { get; set; } = true;
+    // The 1280x720, 60 fps clips through VideoToolbox where the Mac decodes VP9 in hardware; off: the 640x360, 24 fps
+    // clips on the CPU, which costs less CPU time in all (fewer frames to hand to the window).
+    public bool HighQualityAnimation { get; set; } = true;
 #endif
     public bool CheckUpdatesOnStartup { get; set; } = true;
     public bool AgentEnabled { get; set; }

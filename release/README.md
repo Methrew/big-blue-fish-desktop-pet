@@ -1,4 +1,4 @@
-# 藍色大肥魚 · 1.1.3-tw.2（台灣繁體中文版）
+# 藍色大肥魚 · 1.1.3-tw.3（台灣繁體中文版）
 
 這是以原作者 Bai-Cute 的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎、整合 acer1204 台灣版功能的**非官方**台灣繁體中文版。本版不是由原作者或 acer1204 維護，使用上的問題請回報到 [Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)。
 
@@ -6,18 +6,19 @@
 
 | 版本 | macOS 14 以上 · Apple Silicon |
 | --- | --- |
-| 標準版 | `BigBlueFish-TW-v1.1.3-tw.2-macOS-arm64.dmg` |
-| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.2-Safe-macOS-arm64.dmg` |
+| 標準版 | `BigBlueFish-TW-v1.1.3-tw.3-macOS-arm64.dmg` |
+| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.3-Safe-macOS-arm64.dmg` |
 
 每個 DMG 都附有 `.sha256` 檢查碼檔。打開 DMG 後把 App 拖到「應用程式」檔案夾；App 只有臨時簽章，第一次打開時請到「系統設定 › 隱私權與安全性」按「強制打開」。安裝、權限與解除安裝的說明見本版儲存庫的 `docs/MACOS.md`（[專案頁面](https://github.com/Methrew/big-blue-fish-desktop-pet)）。
 
 本版不提供 Windows 與 Linux 的安裝程式或套件。
 
-## 這一版的更新（1.1.3-tw.2）
+## 這一版的更新（1.1.3-tw.3）
 
-- **Mac 版播放高畫質動畫**：在 Apple Silicon 上改用硬體解碼（VideoToolbox），播放 1280×720、每秒 60 格的動畫，畫面更清晰、動作更流暢（1.1.3-tw.1 只播 640×360、每秒 24 格）。CPU 用量比相容動畫多一些，想省電可以在「設定 › 桌寵與顯示」關閉「高畫質動畫」；Mac 無法硬體解碼時會自動改播相容動畫。DMG 因此從約 140 MB 變成約 1 GB。
-- **修正對話氣泡被切掉**：模型邊產生邊顯示時，氣泡有時把文字畫得被拉長、最後一行被切掉，現在會自動重畫。
-- 已安裝 1.1.3-tw.1 時，按「關於與更新 › 檢查更新」會看到這一版；下載 DMG 後結束魚魚，把新版拖到「應用程式」取代舊版即可，設定和模型不受影響。
+- **Mac 版可以把檔案拖到魚魚身上**：在 Finder 選好檔案，直接拖到魚魚身上放開，輸入框會打開並附加這些檔案；輸入框已經開著時，檔案會加進去。和雙擊輸入一樣，要先在「設定 › 連線 Agent」開啟「連線本機相容的 Agent 命令列工具」（或由 Hermes 橋接程式接收雙擊輸入）；兩邊都還不能接收時，魚魚會說明原因（橋接程式沒在執行，或要先開啟連線）。無MCP版沒有雙擊輸入框，不接受拖放的檔案。
+- **修正 Mac 版拖到輸入框沒有反應**：之前把檔案拖到輸入框上沒有作用，只能用迴紋針或貼上；現在拖到輸入框任何地方都會附加。
+- **修正 Mac 版輸入框被切掉或壓扁**：加入附件或出現兩行提示後，輸入框有時下半部被切掉，看不到迴紋針和「傳送」按鈕；變矮時有時被壓扁成一條。現在會自動重畫。
+- 已安裝 1.1.3-tw.1 或 1.1.3-tw.2 時，按「關於與更新 › 檢查更新」會看到這一版；下載 DMG 後結束魚魚，把新版拖到「應用程式」取代舊版即可，設定和模型不受影響。從 1.1.3-tw.1 更新時，也會一起得到 1.1.3-tw.2 的高畫質動畫和對話氣泡修正。
 
 ## 和原版 1.1.3 相比
 
@@ -26,7 +27,7 @@
 - **自己的身分**：App 名稱「藍色大肥魚」、Bundle ID `io.github.methrew.bigbluefish.tw`、資料夾 `~/Library/Application Support/bigbluefish-tw`，檢查更新只看本版的發布頁面。第一次啟動時會從原版的資料夾唯讀匯入一次設定、模型選擇和 Agent 資料（模型用 APFS 複本）。可以和原版同時安裝，但同一時間只會執行一隻魚。
 - **雲端 AI 服務（本版新增）**：「模型來源」可以改選 Claude API（Anthropic）、OpenAI API 或 Gemini API（Google），用自己的 API Key 讓魚魚說話，不必安裝本機模型。API Key 存在 macOS 鑰匙圈，MCP 與 Agent 讀不到（只有開啟「Claude Code 改用 Claude API Key」、「Codex CLI 改用 OpenAI API Key」或「Gemini CLI 改用 Gemini API Key」時，魚魚啟動的那個 CLI 會拿到同一家的 Key）；可以限制每天最多送出幾次請求（預設 200 次），費用由服務依用量向你的帳戶收取。
 - **從台灣版移植到 Mac**：遠端 llama.cpp 模型（API Key 存在鑰匙圈）、魚魚自己的主動提醒（久坐、用餐、深夜、低電量、下雨）、`get_context` 與 `user_returned`、`find_on_screen` 與 `walk_to`、Hermes 對話橋接（標準版 App 內附）、外部 MCP 介面，以及輸入框附件（以 ACP 的 `resource_link` 交給 Agent）。
-- **Mac 版的改進**：改用 Mac 的硬體解碼（VideoToolbox）播放原作者提升到 1280×720、每秒 60 格的動畫（原版 Mac 版一直只播 640×360、每秒 24 格的相容動畫），想省電可以在「設定 › 桌寵與顯示」關閉；修正讀不到真正閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵跟著切換桌面空間、不搶走鍵盤焦點；點選與拖曳的動作開頭預先解碼；第一次偵測 GPU 時能用 Metal；從 Finder 開啟時也找得到 npm 或 Homebrew 安裝的 Agent CLI。
+- **Mac 版的改進**：改用 Mac 的硬體解碼（VideoToolbox）播放原作者提升到 1280×720、每秒 60 格的動畫（原版 Mac 版一直只播 640×360、每秒 24 格的相容動畫），想省電可以在「設定 › 桌寵與顯示」關閉；修正讀不到真正閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵跟著切換桌面空間、不搶走鍵盤焦點；點選與拖曳的動作開頭預先解碼；第一次偵測 GPU 時能用 Metal；從 Finder 開啟時也找得到 npm 或 Homebrew 安裝的 Agent CLI；可以把 Finder 裡的檔案直接拖到魚魚身上，打開輸入框並附加給 Agent。
 - 支援的 21 款 CLI Harness（包括 Claude Code）和原版相同。
 
 ## 已知限制

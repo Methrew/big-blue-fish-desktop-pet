@@ -8,7 +8,7 @@
 > - 台灣版：acer1204（[acer1204/big-blue-fish-desktop-pet 的 taiwan-edition 分支](https://github.com/acer1204/big-blue-fish-desktop-pet/tree/taiwan-edition)）
 > - 台灣 macOS 版整合：Methrew（[Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet)）
 >
-> 本版以原作者的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎，整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.3-tw.1`，意思是「原版 1.1.3 的台灣版第 1 次修訂」。acer1204 認可本版整合其台灣版；本版不是由原作者或 acer1204 維護，內容也未經原作者審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
+> 本版以原作者的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎，整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.3-tw.3`，意思是「原版 1.1.3 的台灣版第 3 次修訂」。acer1204 認可本版整合其台灣版；本版不是由原作者或 acer1204 維護，內容也未經原作者審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
 
 藍色大肥魚是一款住在電腦桌面上的 AI 桌寵軟體。她是一位藍髮的小鯨魚娘，形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」。軟體內建 4B 本機語言模型，透過 OCR 讀懂主人正在桌面上做的事情，每隔一段時間就從文字氣泡裡送來一句可愛的話，陪伴和關心主人；她也會看看天氣、瀏覽科技新聞，再用自己的方式講給主人聽。
 
@@ -29,8 +29,8 @@
 
 | 版本 | 檔案 |
 | --- | --- |
-| 標準版 | `BigBlueFish-TW-v1.1.3-tw.2-macOS-arm64.dmg` |
-| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.2-Safe-macOS-arm64.dmg` |
+| 標準版 | `BigBlueFish-TW-v1.1.3-tw.3-macOS-arm64.dmg` |
+| 無MCP版 | `BigBlueFish-TW-v1.1.3-tw.3-Safe-macOS-arm64.dmg` |
 
 檔名開頭是 `BigBlueFish-TW`，和原作者的 `BigBlueFish-v…` 不同。發布頁面還沒有任何版本時，請先[從原始碼建置](#從原始碼建置)。
 
@@ -70,7 +70,7 @@
   - Hermes 對話橋接：把雙擊輸入的文字交給本機的 [Hermes Agent](https://github.com/NousResearch/hermes-agent)，另有每日簡報、回來時的摘要、排程回報與 Google 日曆提醒。標準版 App 已內附橋接程式。
   - 外部 MCP 介面：讓 Hermes 橋接程式等本機的 MCP 客戶端透過 `BigBlueFish.Mcp` 控制魚魚，預設關閉；雙擊輸入只會交給一方，不會讓兩個 Agent 各回答一次。
   - 輸入框附件：用迴紋針按鈕、拖曳或 ⌘V 貼上，一次最多附加 10 個圖片、影片或檔案，以 ACP 的 `resource_link` 交給 Agent。
-- **Mac 版的改進**：改用 Mac 的硬體解碼（VideoToolbox）播放原作者提升到 1280×720、每秒 60 格的動畫（原版 Mac 版一直只播 640×360、每秒 24 格的相容動畫），想省電可以在「設定 › 桌寵與顯示」關閉；修正原版 Mac 版讀不到真正的閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵會跟著切換桌面空間，點一下或拖曳後鍵盤焦點會回到原本的 App；點選和拖曳的動作會預先解碼開頭，反應更即時；第一次偵測 GPU 時等待更久，能用 Metal；從 Finder 開啟時也會讀取登入 shell 的 PATH，找得到 npm 或 Homebrew 安裝的 Agent CLI。
+- **Mac 版的改進**：改用 Mac 的硬體解碼（VideoToolbox）播放原作者提升到 1280×720、每秒 60 格的動畫（原版 Mac 版一直只播 640×360、每秒 24 格的相容動畫），想省電可以在「設定 › 桌寵與顯示」關閉；修正原版 Mac 版讀不到真正的閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵會跟著切換桌面空間，點一下或拖曳後鍵盤焦點會回到原本的 App；點選和拖曳的動作會預先解碼開頭，反應更即時；第一次偵測 GPU 時等待更久，能用 Metal；從 Finder 開啟時也會讀取登入 shell 的 PATH，找得到 npm 或 Homebrew 安裝的 Agent CLI；可以把 Finder 裡的檔案直接拖到魚魚身上，打開輸入框並附加給 Agent。
 
 ## 認識魚魚
 

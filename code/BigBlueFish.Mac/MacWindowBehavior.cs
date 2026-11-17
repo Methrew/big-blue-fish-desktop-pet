@@ -42,10 +42,22 @@ internal static partial class CompanionNative
         shapeWindow = window; UpdatePointerPassThrough();
     }
 
+    // While a mouse button is held: whether the press went to some other window (a file dragged from Finder, a selection in
+    // another app, a window over the fish such as the Dock or a screenshot thumbnail); null while no button is held. Decided
+    // once, at the first look after the press, by the window a mouse-down at the pointer hits: the pet's own window only
+    // while it took clicks there. A press on the fish keeps the pointer over her window, which follows it while she is dragged.
+    static bool? pressedElsewhere;
+
     internal static void UpdatePointerPassThrough()
     {
         var window = shapeWindow;
-        if (window == IntPtr.Zero || Send(Class("NSEvent"), "pressedMouseButtons") != IntPtr.Zero) return; // never drop a press or drag in progress
+        if (window == IntPtr.Zero) return;
+        // The pet's own press or drag (petting or moving the fish) is never dropped. A press that began elsewhere keeps its
+        // events in the window it began in, so the shape still decides: a file dragged from Finder over the fish finds the
+        // window and can be dropped on her, and it passes on to what is behind her transparent pixels.
+        if (Send(Class("NSEvent"), "pressedMouseButtons") == IntPtr.Zero) pressedElsewhere = null;
+        else if (!(pressedElsewhere ??= objc_msgSend_number_at(Class("NSWindow"), Selector("windowNumberAtPoint:belowWindowWithWindowNumber:"),
+            SendPoint(Class("NSEvent"), "mouseLocation"), 0) != objc_msgSend_nint(window, Selector("windowNumber")))) return;
         bool opaque = false;
         if (shapeWidth > 0)
         {
@@ -163,6 +175,8 @@ internal static partial class CompanionNative
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern void objc_msgSend_size(IntPtr target, IntPtr selector, CGPoint size); // a CGSize: two doubles, as CGPoint
     [DllImport(Objc, EntryPoint = "objc_msgSend")] [return: MarshalAs(UnmanagedType.I1)] static extern bool objc_msgSend_getbool(IntPtr target, IntPtr selector);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern nuint objc_msgSend_nuint(IntPtr target, IntPtr selector);
+    [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern nint objc_msgSend_nint(IntPtr target, IntPtr selector);
+    [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern nint objc_msgSend_number_at(IntPtr target, IntPtr selector, CGPoint point, nint below);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern void objc_msgSend_set_nuint(IntPtr target, IntPtr selector, nuint value);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern IntPtr objc_msgSend_pid(IntPtr target, IntPtr selector, int pid);
     [DllImport(Objc, EntryPoint = "objc_msgSend")] static extern void objc_msgSend_ptr(IntPtr target, IntPtr selector, IntPtr argument);

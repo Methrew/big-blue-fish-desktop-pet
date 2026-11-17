@@ -159,27 +159,63 @@ internal sealed partial class LinuxPetWindow
         }, RoutingStrategies.Tunnel);
     }
 
-    // Tunnel handlers, so the editor does not get the drag first.
+    // Avalonia raises a drag's events on the element under the pointer and only bubbles them (they never tunnel), so the
+    // handlers sit on the window and see them from every part of the box, even marked handled on the way.
     static void AcceptMcpDrops(Window dialog, Border frame, TextBox text, McpAttachmentTray tray)
     {
         var normal = frame.BorderBrush;
         DragDrop.SetAllowDrop(dialog, true);
+        // Anything but files (text dragged from a page, say) is turned away: the box has nothing to do with it.
         void Over(object? sender, DragEventArgs e)
         {
-            if (!e.DataTransfer.Contains(DataFormat.File)) return;
-            e.DragEffects = DragDropEffects.Copy; e.Handled = true; frame.BorderBrush = DropHighlight;
+            bool files = e.DataTransfer.Contains(DataFormat.File);
+            e.DragEffects = files ? DragDropEffects.Copy : DragDropEffects.None; e.Handled = true; frame.BorderBrush = files ? DropHighlight : normal;
         }
-        dialog.AddHandler(DragDrop.DragEnterEvent, Over, RoutingStrategies.Tunnel);
-        dialog.AddHandler(DragDrop.DragOverEvent, Over, RoutingStrategies.Tunnel);
-        dialog.AddHandler(DragDrop.DragLeaveEvent, (_, _) => frame.BorderBrush = normal, RoutingStrategies.Tunnel);
+        dialog.AddHandler(DragDrop.DragEnterEvent, Over, RoutingStrategies.Bubble, true);
+        dialog.AddHandler(DragDrop.DragOverEvent, Over, RoutingStrategies.Bubble, true);
+        dialog.AddHandler(DragDrop.DragLeaveEvent, (_, _) => frame.BorderBrush = normal, RoutingStrategies.Bubble, true);
         dialog.AddHandler(DragDrop.DropEvent, (_, e) => {
             frame.BorderBrush = normal;
             var paths = e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>().ToArray();
-            if (paths is not { Length: > 0 }) return;
-            e.DragEffects = DragDropEffects.Copy; e.Handled = true;
+            e.Handled = true;
+            if (paths is not { Length: > 0 }) { e.DragEffects = DragDropEffects.None; return; }
+            e.DragEffects = DragDropEffects.Copy;
             // The file checks run after the drop returns, so the Finder is not kept waiting.
             Dispatcher.UIThread.Post(() => { tray.Add(paths, "drop"); dialog.Activate(); text.Focus(); });
-        }, RoutingStrategies.Tunnel);
+        }, RoutingStrategies.Bubble, true);
+    }
+
+    // Files dropped on the fish herself open the input box, as a double-click does, with them attached; a box already open
+    // takes them. On macOS her window lets the drag through wherever she is transparent (CompanionNative.UpdatePointerPassThrough).
+    partial void AcceptFileDrops()
+    {
+        DragDrop.SetAllowDrop(this, true);
+        void Over(object? sender, DragEventArgs e)
+        {
+            e.DragEffects = e.DataTransfer.Contains(DataFormat.File) && !closed && phase != "Exit" ? DragDropEffects.Copy : DragDropEffects.None;
+            e.Handled = true;
+        }
+        AddHandler(DragDrop.DragEnterEvent, Over);
+        AddHandler(DragDrop.DragOverEvent, Over);
+        AddHandler(DragDrop.DropEvent, (_, e) => {
+            var paths = e.DataTransfer.TryGetFiles()?.Select(file => file.TryGetLocalPath()).OfType<string>().ToArray();
+            e.Handled = true;
+            if (paths is not { Length: > 0 } || closed || phase == "Exit") { e.DragEffects = DragDropEffects.None; return; }
+            e.DragEffects = DragDropEffects.Copy;
+            // As in the input box: the file checks run after the drop returns, so the Finder is not kept waiting.
+            Dispatcher.UIThread.Post(() => TakeDroppedFiles(paths));
+        });
+    }
+
+    // A box already open takes them even while nothing can receive it (its status line says why), as a drop on the box itself
+    // would. Without one, and without the Agent connection or a Hermes bridge to take the input, the fish says what is missing.
+    void TakeDroppedFiles(IEnumerable<string> paths)
+    {
+        if (closed || phase == "Exit") return;
+        if (mcpInput is { } open) { inputHiddenForWalk = false; open.Show(this); open.Activate(); AddMcpAttachments(paths, "drop"); return; }
+        if (TryOpenMcpInput()) { AddMcpAttachments(paths, "drop"); return; }
+        ShowText(McpChatOn && !Preferences.AgentEnabled ? "雙擊輸入交給了 MCP 介面，但 Hermes 橋接程式沒有在執行，魚魚現在收不了檔案喔～"
+            : "要先在「設定 › 連線 Agent」開啟連線，魚魚才能把檔案交給 Agent 喔～", false, true);
     }
 
     // AgentCoordinator.AttachmentImage: an upright picture no longer than AgentUserAttachment.ImageEdge. A small upright PNG,

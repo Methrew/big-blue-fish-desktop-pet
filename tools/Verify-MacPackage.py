@@ -207,6 +207,32 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
             screen = json.loads(subprocess.run([str(payload / "runtime/BigBlueFish.MacScreen"), "find", "windows"], stdout=subprocess.PIPE, check=True, timeout=30).stdout)
             check(isinstance(screen.get("trusted"), bool) and len(screen.get("displays", [])) > 0 and isinstance(screen.get("windows"), list),
                   "bundled screen reader lists the displays and windows")
+
+            # Files dragged from Finder and dropped on the fish: the app's window gets the calls AppKit makes (native-drop,
+            # MacTestDrag.cs). With the Agent off the Standard fish takes them and says where to switch it on; the Safe fish has
+            # no input box and takes none; dragged text is turned away.
+            def native_drop(*items):
+                ok = command("native-drop pet " + "|".join(items))
+                return json.loads((data / "native-drop.json").read_text(encoding="utf-8")) if ok else {}
+            dropped_file = data / "拖放 測試.txt"
+            dropped_file.write_text("drop", encoding="utf-8")
+            dropped = native_drop(str(dropped_file))
+            if args.edition == "Standard":
+                deadline = time.monotonic() + 10
+                while time.monotonic() < deadline:
+                    try:
+                        status = json.loads((data / "test-status.json").read_text(encoding="utf-8"))
+                        if "連線 Agent" in status["text"]:
+                            break
+                    except (FileNotFoundError, json.JSONDecodeError):
+                        pass
+                    time.sleep(.25)
+                check(dropped.get("updated") == 1 and dropped.get("performed") is True, "the fish takes files dropped on her")
+                check(status["bubbleVisible"] and "連線 Agent" in status["text"], "a drop without the Agent says where to switch it on")
+            else:
+                check(dropped.get("updated") == 0 and dropped.get("performed") is False, "the Safe edition's fish takes no dropped files")
+            text_drop = native_drop("text:網頁上的文字")
+            check(text_drop.get("updated") == 0 and text_drop.get("performed") is False, "the fish turns away dragged text")
             (data / "test-command.txt").write_text("exit")
             process.wait(timeout=15)
             check(process.returncode == 0, "application exits normally")

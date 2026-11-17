@@ -192,7 +192,7 @@ info 層級的 `notifications/message` 使用 logger `bigbluefish.interaction`�
 
 雙擊輸入交給內建 Agent 時，直接透過 ACP 發起 user_message，內容是主人送出的原文。Agent 的一般文字不會進入氣泡，回覆要透過 `say` 完成。連線還沒就緒時，傳送按鈕會停用並保留草稿。點選和拖曳是否另外發起 Agent 輪次，由 AgentRespondToClick 與 AgentRespondToDrag 兩個欄位決定。
 
-雙擊輸入框可以用附加按鈕、拖曳或貼上（macOS 是 ⌘V，Windows 與 Linux 是 Ctrl+V）加入最多 10 個圖片、影片或檔案；貼上的圖片會先存成 PNG（macOS 在資料夾的 `attachments/`，Windows 在 `%LOCALAPPDATA%\BigBlueFish\attachments`）。`user_message` 事件的 `detail` 另有 `attachments`，每項含 `path`（本機絕對路徑）、`name`、`kind`（image、video、file）、`mimeType`、`size` 與 `source`（`picker`、`drop`、`clipboard-files` 或 `clipboard`），只有路徑、不含檔案內容；沒有附件時省略這個欄位。交給內建 Agent 時，每個附件另外以 ACP 的 `resource_link`（`file://` URI）附在同一則訊息裡；Agent 支援圖片輸入時，圖片也直接以 `image` 區塊附上（必要時縮小到長邊 1568 像素），Agent 拒收圖片時改成只送連結重試一次。文字的 4000 字上限只算使用者打的字，不含附件。兩邊都不能接收時，傳送按鈕停用並保留草稿與附件。外部 Agent 的氣泡還在顯示時，魚魚不會自己開口把它蓋掉。
+雙擊輸入框可以用附加按鈕、拖曳或貼上（macOS 是 ⌘V，Windows 與 Linux 是 Ctrl+V）加入最多 10 個圖片、影片或檔案；macOS 也可以把檔案直接拖到魚魚身上（Linux 版用同一段程式，但沒有實際測試），輸入框會打開並附加這些檔案（`source` 同樣是 `drop`）；貼上的圖片會先存成 PNG（macOS 在資料夾的 `attachments/`，Windows 在 `%LOCALAPPDATA%\BigBlueFish\attachments`）。`user_message` 事件的 `detail` 另有 `attachments`，每項含 `path`（本機絕對路徑）、`name`、`kind`（image、video、file）、`mimeType`、`size` 與 `source`（`picker`、`drop`、`clipboard-files` 或 `clipboard`），只有路徑、不含檔案內容；沒有附件時省略這個欄位。交給內建 Agent 時，每個附件另外以 ACP 的 `resource_link`（`file://` URI）附在同一則訊息裡；Agent 支援圖片輸入時，圖片也直接以 `image` 區塊附上（必要時縮小到長邊 1568 像素），Agent 拒收圖片時改成只送連結重試一次。文字的 4000 字上限只算使用者打的字，不含附件。兩邊都不能接收時，傳送按鈕停用並保留草稿與附件。外部 Agent 的氣泡還在顯示時，魚魚不會自己開口把它蓋掉。
 
 各版本都有 `user_returned` 事件：使用者離開 5 分鐘以上再回到電腦前時推送，`detail` 含 `breakMinutes`、`since`、`at` 與 `watching`（離開期間大多開著全螢幕程式，可能只是在看影片）。電腦睡眠的時間也算在離開時間裡。這個事件只給 MCP 客戶端，不會讓內建 Agent 開始新的一輪；Hermes 橋接程式依它和 `DailyBriefing`、`WelcomeBackMinutes` 決定要不要說今日簡報或期間發生的事。
 

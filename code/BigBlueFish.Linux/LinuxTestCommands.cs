@@ -104,11 +104,28 @@ internal sealed partial class LinuxPetWindow
                         windowWidth = bubbleWindow.Width, windowHeight = bubbleWindow.Height }, Readable)); break;
                 case "surface-shrink": if (!CompanionNative.ShrinkSurfaceForTest(bubbleWindow)) throw new InvalidOperationException("the bubble has no Metal surface"); break;
                 case "surface-check": bubbleSurfaceCheck = argument != "off"; break;
+                // native-drop <pet|input> <path>[|<path>...]: the calls AppKit makes when files dragged from Finder are dropped
+                // in the middle of that window (MacTestDrag.cs; text:<words> in place of a path drags text); what it would have
+                // got back goes to native-drop.json.
+                case "native-drop":
+                    int dropAt = argument.IndexOf(' ');
+                    if (dropAt < 0) throw new ArgumentException("<pet|input> <path>[|<path>...] expected: " + argument);
+                    Window dropInto = argument[..dropAt] switch {
+                        "pet" => this,
+#if !COMPANION_SAFE
+                        "input" => mcpInput ?? throw new InvalidOperationException("the input is not open"),
+#endif
+                        var other => throw new ArgumentException("pet or input expected: " + other) };
+                    var dropped = CompanionNative.DropForTest(dropInto, argument[(dropAt + 1)..].Split('|'));
+                    File.WriteAllText("native-drop.json", JsonSerializer.Serialize(new { entered = dropped.Entered, updated = dropped.Updated,
+                        prepared = dropped.Prepared, performed = dropped.Performed }, Readable)); break;
 #endif
 #if !COMPANION_SAFE
                 case "render-input": RenderControl(mcpInput ?? throw new InvalidOperationException("the input is not open"), Png("input.png")); break;
                 case "open-input": if (!TryOpenMcpInput()) throw new InvalidOperationException("the input needs the Agent or the MCP chat on"); break;
                 case "attach" when space > 0: AddMcpAttachments(command[7..].Split('|'), "drop"); break;
+                // drop-pet <path>[|<path>...]: what files dropped on the fish do once the drop has returned.
+                case "drop-pet" when space > 0: TakeDroppedFiles(argument.Split('|')); break;
 #endif
                 default: if (ReminderTestCommand(command) || ScreenTestCommand(command) || await BubbleTestCommand(command)) break; throw new ArgumentException("unknown test command: " + command);
             }

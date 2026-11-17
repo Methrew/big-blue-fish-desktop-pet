@@ -132,6 +132,7 @@ internal sealed partial class LinuxPetWindow : Window
         };
         Closed += (_, _) => { DiagnosticLog.Write(DiagnosticEvent.AppStopped, kind: OperatingSystem.IsMacOS() ? "macOS" : "Linux"); closed = true; timer.Stop(); StopMcp(); brain.Dispose(); player.Dispose(); bubbleWindow.Close(); settings?.Close(); Save(); SingleInstance.Release(); (Avalonia.Application.Current!.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)!.Shutdown(); };
         timer.Tick += async (_, _) => await Tick();
+        AcceptFileDrops();
         InitializePlatform();
     }
     CompanionAnimationContext Context() => new(DateTime.Now, BreakfastHour: Preferences.BreakfastHour, LunchHour: Preferences.LunchHour, DinnerHour: Preferences.DinnerHour);
@@ -148,6 +149,8 @@ internal sealed partial class LinuxPetWindow : Window
     partial void ConfigurePlatformWindow(Window window);
     partial void AddPlatformGeneralOptions(Avalonia.Controls.Panel body);
     partial void OpenedSettingsPlatform();
+    // Files dragged onto the fish go into the double-click input box (LinuxMcpAttachments.cs); the Safe app has no input box.
+    partial void AcceptFileDrops();
     void Rescale()
     {
         Width = SpriteSize * 640 / 360; Height = SpriteSize; sprite.Width = Width; sprite.Height = Height;

@@ -94,16 +94,20 @@ internal sealed partial class LinuxPetWindow
                     (cloudModelsListed ?? throw new InvalidOperationException("the model page is not open"))(argument.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Select(id => new CloudModelInfo(id, id)).ToList()); break;
                 case "bubble" when space > 0: ShowText(command[7..], true); break;
 #if COMPANION_MAC
-                // surface <file.json>: the bubble's drawing surface next to its window (pixels); surface-shrink halves the
-                // surface's height as a stale resize leaves it; surface-check on|off switches the repair (KeepSurfacePlatform in MacPetWindow.cs).
+                // surface [input] <file.json>: the drawing surface of the bubble (or the input box) next to its window (pixels);
+                // surface-shrink [input] halves the surface's height and surface-grow [input] makes it half as high again, as a
+                // stale resize leaves it after the window grew or shrank; surface-check on|off switches the repair for both
+                // (KeepSurfacePlatform in MacPetWindow.cs).
                 case "surface":
-                    if (Path.GetFileName(argument) != argument || !argument.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("a .json file name in the data folder expected: " + argument);
-                    var surface = CompanionNative.Surface(bubbleWindow);
-                    File.WriteAllText(argument, JsonSerializer.Serialize(new { visible = bubbleWindow.IsVisible, found = surface != null,
+                    var (surfaceOf, surfaceFile) = argument.StartsWith("input ", StringComparison.Ordinal) ? (SurfaceWindow("input"), argument[6..].Trim()) : (bubbleWindow, argument);
+                    if (Path.GetFileName(surfaceFile) != surfaceFile || !surfaceFile.EndsWith(".json", StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("a .json file name in the data folder expected: " + surfaceFile);
+                    var surface = CompanionNative.Surface(surfaceOf);
+                    File.WriteAllText(surfaceFile, JsonSerializer.Serialize(new { visible = surfaceOf.IsVisible, found = surface != null,
                         drawableWidth = surface?.Drawable.X, drawableHeight = surface?.Drawable.Y, width = surface?.Width, height = surface?.Height,
-                        windowWidth = bubbleWindow.Width, windowHeight = bubbleWindow.Height }, Readable)); break;
-                case "surface-shrink": if (!CompanionNative.ShrinkSurfaceForTest(bubbleWindow)) throw new InvalidOperationException("the bubble has no Metal surface"); break;
-                case "surface-check": bubbleSurfaceCheck = argument != "off"; break;
+                        windowWidth = surfaceOf.Width, windowHeight = surfaceOf.Height }, Readable)); break;
+                case "surface-shrink": if (!CompanionNative.ResizeSurfaceForTest(SurfaceWindow(argument), .5)) throw new InvalidOperationException("the window has no Metal surface"); break;
+                case "surface-grow": if (!CompanionNative.ResizeSurfaceForTest(SurfaceWindow(argument), 1.5)) throw new InvalidOperationException("the window has no Metal surface"); break;
+                case "surface-check": surfaceCheck = argument != "off"; break;
                 // native-drop <pet|input> <path>[|<path>...]: the calls AppKit makes when files dragged from Finder are dropped
                 // in the middle of that window (MacTestDrag.cs; text:<words> in place of a path drags text); what it would have
                 // got back goes to native-drop.json.
@@ -132,6 +136,15 @@ internal sealed partial class LinuxPetWindow
         } catch (Exception error) { File.WriteAllText("test-error.txt", error.ToString()); }
         File.WriteAllText("test-done.txt", command); // the command ran (or failed into test-error.txt); dialogs it opened stay open
     }
+#if COMPANION_MAC
+    // The bubble, or the input box for "input".
+    Window SurfaceWindow(string name) => name switch {
+        "" => bubbleWindow,
+#if !COMPANION_SAFE
+        "input" => mcpInput ?? throw new InvalidOperationException("the input is not open"),
+#endif
+        _ => throw new ArgumentException("nothing or input expected: " + name) };
+#endif
     // A dialog waits for its buttons: run it beside the command loop, so the next command can render or answer it.
     static async void Beside(Task task)
     {

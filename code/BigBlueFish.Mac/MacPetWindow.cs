@@ -37,28 +37,48 @@ internal sealed partial class LinuxPetWindow
     // keychain read to retry once the screen is unlocked (MacSecrets.cs).
     partial void TickPlatform() { CompanionNative.TrackActivation(); CompanionNative.UpdatePointerPassThrough(); WatchSecretUnlock(); }
 
-    // The bubble grows line by line with a streamed reply, and Avalonia's Metal surface can keep an earlier size after such
-    // a resize (CompanionNative.RefreshStaleSurface): the text was then drawn stretched, its last line cut off. Once the
-    // bubble's size has held for 200 ms, each tick compares its surface with the window and asks AppKit for a repaint on
-    // the main thread, which sizes the surface again. If that has not helped after 240 ms, the window is resized by one
-    // point and back, which hands AppKit the size afresh. Reported once per size in the log console. Tick runs it before
-    // its Exit return, so the goodbye bubble shown while the Exit clip plays is kept too.
-    DateTime bubbleResizedAt;
-    int bubbleStaleTicks;
-    double? bubbleNudgedFrom; // the height before the one-point resize, put back on the next tick
-    bool bubbleSurfaceCheck = true; // --test-mode: "surface-check off" leaves a stale surface alone, to see it last
-    partial void BubbleResized() { bubbleResizedAt = DateTime.UtcNow; bubbleStaleTicks = 0; bubbleNudgedFrom = null; }
+    // Windows whose size the app changes while they are shown: the bubble grows line by line with a streamed reply, and the
+    // input box grows when attachments or a two-line notice arrive. Avalonia's Metal surface can keep an earlier size after
+    // such a resize (CompanionNative.RefreshStaleSurface): the bubble's text was then drawn stretched with its last line cut
+    // off, and the input box lost its lower part (the attachments cut off, no 傳送 button) after files were dropped on the
+    // fish, or was squeezed into a strip after it shrank again. Once the bubble's size has held for 200 ms, and at every tick
+    // for the input box (it changes size only now and then, and a box cut in half should not stay so even for a moment),
+    // each tick compares the window's surface with the window and asks AppKit for a repaint on the main thread, which sizes
+    // the surface again. If that has not helped after 240 ms, the window is resized
+    // by one point and back, which hands AppKit the size afresh. The bubble's case is reported once per size in the log
+    // console. Tick runs it before its Exit return, so the goodbye bubble shown while the Exit clip plays is kept too.
+    sealed class SurfaceWatch
+    {
+        internal Size Seen; // the client size last seen: a change starts the settling time and the count before the nudge again
+        internal DateTime ResizedAt;
+        internal int StaleTicks;
+        internal double? NudgedFrom; // the height before the one-point resize, put back on the next tick
+        internal void Resized() { ResizedAt = DateTime.UtcNow; StaleTicks = 0; NudgedFrom = null; }
+    }
+    readonly SurfaceWatch bubbleSurface = new(), inputSurface = new();
+    bool surfaceCheck = true; // --test-mode: "surface-check off" leaves a stale surface alone, to see it last
+    partial void BubbleResized() => bubbleSurface.Resized();
     partial void KeepSurfacePlatform()
     {
-        if (bubbleNudgedFrom is { } before)
+        KeepSurface(bubbleWindow, bubbleSurface, TimeSpan.FromMilliseconds(200), true);
+#if !COMPANION_SAFE
+        if (mcpInput != null) KeepSurface(mcpInput, inputSurface, TimeSpan.Zero, false);
+#endif
+    }
+    void KeepSurface(Window window, SurfaceWatch watch, TimeSpan settle, bool report)
+    {
+        if (watch.NudgedFrom is { } before)
         {
-            if (bubbleWindow.Height == before + 1) bubbleWindow.Height = before;
-            bubbleNudgedFrom = null; return;
+            if (window.Height == before + 1) window.Height = before;
+            // Seen keeps the size from before the nudge: Avalonia applies a new Height at its next layout pass, so the
+            // client size goes to +1 and back after this, and neither counts as a resize (one nudge and one report per size).
+            watch.NudgedFrom = null; return;
         }
-        if (!bubbleSurfaceCheck || !bubbleWindow.IsVisible || DateTime.UtcNow - bubbleResizedAt < TimeSpan.FromMilliseconds(200)) return;
-        if (!CompanionNative.RefreshStaleSurface(bubbleWindow)) { bubbleStaleTicks = 0; return; }
-        if (bubbleStaleTicks++ == 0) DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: "macOS", state: "stale_surface");
-        if (bubbleStaleTicks == 7) { bubbleNudgedFrom = bubbleWindow.Height; bubbleWindow.Height += 1; }
+        if (window.ClientSize != watch.Seen) { watch.Seen = window.ClientSize; watch.Resized(); }
+        if (!surfaceCheck || !window.IsVisible || DateTime.UtcNow - watch.ResizedAt < settle) return;
+        if (!CompanionNative.RefreshStaleSurface(window)) { watch.StaleTicks = 0; return; }
+        if (watch.StaleTicks++ == 0 && report) DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: "macOS", state: "stale_surface");
+        if (watch.StaleTicks == 7) { watch.NudgedFrom = window.Height; window.Height += 1; }
     }
 
     // A left press remembers the app the user was working in; any other press, or a lost drag, forgets it.

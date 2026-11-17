@@ -162,11 +162,12 @@ internal static partial class CompanionNative
         return true;
     }
 
-    // --test-mode only: gives the window's surface half its height, as a frame drawn off the main thread after a resize leaves it.
-    internal static bool ShrinkSurfaceForTest(Avalonia.Controls.TopLevel topLevel)
+    // --test-mode only: gives the window's surface `factor` times its height, as a frame drawn off the main thread after a
+    // resize leaves it: half after the window grew (its lower part cut off), more after it shrank (everything squeezed).
+    internal static bool ResizeSurfaceForTest(Avalonia.Controls.TopLevel topLevel, double factor)
     {
         if (Surface(topLevel) is not { } surface) return false;
-        objc_msgSend_size(surface.Layer, Selector("setDrawableSize:"), new CGPoint { X = surface.Drawable.X, Y = Math.Max(1, Math.Floor(surface.Drawable.Y / 2)) });
+        objc_msgSend_size(surface.Layer, Selector("setDrawableSize:"), new CGPoint { X = surface.Drawable.X, Y = Math.Max(1, Math.Floor(surface.Drawable.Y * factor)) });
         return true;
     }
 

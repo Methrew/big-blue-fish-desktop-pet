@@ -36,7 +36,9 @@ def command(value):
     temporary=data/'test-command.txt.tmp';temporary.write_text(value);temporary.replace(data/'test-command.txt')
 for name in ['test-status.json','test-error.txt','test-command.txt']:
     (data / name).unlink(missing_ok=True)
-(data / 'preferences.json').write_text(json.dumps(dict(ModelEnabled=False,PublicInfo=False,CheckUpdatesOnStartup=False,AgentEnabled=True,AgentHarnessId='opencode',PuppetMode=True)))
+# StopModelOnBattery off: the Agent pipe's calls must not depend on this machine being on AC (the battery pause is checked
+# on its own below, with the power override).
+(data / 'preferences.json').write_text(json.dumps(dict(ModelEnabled=False,PublicInfo=False,CheckUpdatesOnStartup=False,AgentEnabled=True,AgentHarnessId='opencode',PuppetMode=True,StopModelOnBattery=False)))
 log = (data / 'app.log').open('w')
 app = subprocess.Popen([str(payload / 'BigBlueFish.Linux'), '--test-mode'], env=env, stdout=log, stderr=log)
 bridge = fixture = None
@@ -212,6 +214,16 @@ try:
         return next((e for e in events if e.get('id')==consent_id),None)
     cancelled=wait(cancelled_response,5)
     check(cancelled.get('result',{}).get('isError') and not state()['Puppet'],'closing pending notice cancels mode change without disabling pet')
+    # The battery pause (1.1.4) closes only the Agent side: through the Agent's own pipe only reading tools answer on battery.
+    paused='使用電池 · Agent 已暫停'
+    command('power:ac'); content('update_settings',settings={'StopModelOnBattery':True})
+    command('power:battery'); wait(lambda:state().get('agentStatus')==paused,5)
+    refused=request('tools/call',dict(name='say',arguments=dict(text='電池測試')))
+    check(refused.get('isError') and '依供電設定暫停' in json.dumps(refused,ensure_ascii=False) and content('get_settings')['state']['agentStatus']==paused,
+          'on battery the Agent pipe only reads: say is refused, get_settings still answers')
+    command('power:ac'); wait(lambda:state().get('agentStatus')!=paused,5)
+    content('update_settings',settings={'StopModelOnBattery':False})
+    check(True,'back on AC the Agent pipe takes calls again')
     content('update_settings',settings={'Left':420,'Top':220})
     wait(lambda:abs(state()['X']-420)<2 and abs(state()['Y']-220)<2)
     check(True,'MCP coordinate settings move the actual Linux window')

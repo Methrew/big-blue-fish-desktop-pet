@@ -18,8 +18,21 @@ internal sealed class CompanionPreferences
     public bool GpuEnabled { get; set; } = true;
     public bool PublicInfo { get; set; } = true;
     public bool ForegroundEnabled { get; set; } = true;
+    // One switch for the laptop off its charger. The model on this computer pauses and frees its memory
+    // (CompanionBrain.CanRunOnCurrentPower; a remote llama.cpp server or a cloud AI service keeps talking), and in the
+    // edition with the Agent, AiPausedOnBattery pauses the Agent the fish started: its process, its tool calls, the daily
+    // care it writes and what the owner hands it. The MCP interface for other clients is not paused.
     public bool StopModelOnBattery { get; set; } = true;
+    [JsonIgnore] public bool AiPausedOnBattery => StopModelOnBattery && !CompanionNative.OnAC;
+#if COMPANION_SAFE
+    internal const string BatteryPauseLabel = "筆電拔掉電源時暫停本機模型";
+#else
+    internal const string BatteryPauseLabel = "筆電拔掉電源時暫停本機模型和 Agent";
+#endif
     public bool HideOnFullscreen { get; set; } = true;
+    // Leaves the pet, its bubble and the input box out of screenshots and screen recordings (SetWindowDisplayAffinity,
+    // CompanionCaptureVisibility). Windows only; macOS and Linux only keep the value.
+    public bool HideFromCapture { get; set; }
 #if COMPANION_MAC
     // The pet, its bubble and the input box on every desktop Space (Mission Control leaves them in place).
     public bool ShowOnAllSpaces { get; set; } = true;

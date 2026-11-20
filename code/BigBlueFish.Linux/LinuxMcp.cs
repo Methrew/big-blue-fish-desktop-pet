@@ -18,10 +18,12 @@ internal sealed partial class LinuxPetWindow
 #if COMPANION_SAFE
     static bool McpAvailable => false;
     static string? TestAgentPipe => null;
+    static string? TestAgentStatus => null;
     bool AgentDailyActive => false;
     void TickAgent(DateTime now) { }
     void ConfigureAgent() { }
     void AgentLaunchChanged() { }
+    void UpdateAgentPowerPolicy() { }
     bool DispatchAgentDaily() => false;
     void InitializeMcp() { Preferences.McpEnabled = false; Preferences.PuppetMode = false; Preferences.McpWakeEnabled = false; }
     void StopMcp() { }
@@ -34,6 +36,7 @@ internal sealed partial class LinuxPetWindow
     readonly string agentPipe = ControlTools.PipeName + "." + Guid.NewGuid().ToString("N");
     // Linux MCP is only the Agent connection's own pipe; --test-mode reports it so LinuxVerification can attach a bridge.
     string? TestAgentPipe => mcpServer == null ? null : agentPipe;
+    string? TestAgentStatus => agent?.Status;
     bool AgentDailyActive => Preferences.AgentEnabled && Preferences.AgentDailySpeech;
     async Task<AgentSpeechBrief> BuildAgentSpeechBrief(string kind, bool allowImages, CancellationToken token)
     {
@@ -73,7 +76,7 @@ internal sealed partial class LinuxPetWindow
         catch (IOException) { return new(material.Text + "\n本輪未取得有效的前景截圖，請按已有情境自然關心主人。"); }
     }
 
-    void ConfigureAgent() { agent?.Configure(Preferences.AgentHarnessId, new(Preferences.AgentEnabled, Preferences.PuppetMode, Preferences.AgentDailySpeech)); if (!AgentDailyActive) nextWarmup = DateTime.MinValue; }
+    void ConfigureAgent() { UpdateAgentPowerPolicy(); agent?.Configure(Preferences.AgentHarnessId, new(Preferences.AgentEnabled, Preferences.PuppetMode, Preferences.AgentDailySpeech)); if (!AgentDailyActive) nextWarmup = DateTime.MinValue; }
     // Claude Code, Codex CLI or Gemini CLI on an API Key of the cloud AI service (AgentClaudeApiKey, AgentOpenAiApiKey,
     // AgentGeminiApiKey on the 連線 Agent page): the key the cloud AI service keeps goes into the environment of the CLI the
     // fish starts, and nowhere else (BigBlueFish.Agent.ApiKeyLaunch). Without a key nothing starts; the CLI's own sign-in is
@@ -93,21 +96,43 @@ internal sealed partial class LinuxPetWindow
     // The option, the API Key or what the keychain gave may have changed: the Agent compares and starts again only when its
     // launch differs.
     void AgentLaunchChanged() { if (agent != null) _ = agent.LaunchChanged(); }
+    // On battery with StopModelOnBattery on (1.1.4) only the Agent side pauses: the Agent the fish started is closed and
+    // connects again on AC (AgentCoordinator.SetPowerPaused), and calls through its pipe are refused (ExecuteMcp). The fish's
+    // own speech keeps CompanionBrain.CanRunOnCurrentPower (a remote model or a cloud AI service keeps talking), and the MCP
+    // interface (a Hermes bridge) is not paused. Queued actions and sentences stay: the queue cannot tell the Agent's from an
+    // MCP client's. The input box stays too, with its draft and attachments (Follow() would show a hidden box again within
+    // 250 ms, and Close() would discard them); its status line says the Agent is paused.
+    bool agentPowerPaused;
+    void UpdateAgentPowerPolicy()
+    {
+        agentPowerPaused = Preferences.AiPausedOnBattery;
+        agent?.SetPowerPaused(agentPowerPaused);
+    }
+    // Double-click input, dropped files or an Agent-written menu action need the Agent, and no Hermes bridge on the MCP
+    // interface takes the input instead.
+    bool AgentPowerPausedForInput => Preferences.AgentEnabled && Preferences.AiPausedOnBattery && !McpChatAvailable;
+    const string AgentPowerPausedNotice = "魚魚的 Agent 已依供電設定暫停，接上電源後再交給 Agent 喔～";
     void TickAgent(DateTime now)
     {
+        UpdateAgentPowerPolicy();
         agent?.Tick(new DateTimeOffset(now), !hidden && !fullscreenHidden && !dragging && !closed && phase != "Exit");
         if (!generating && !agentWeatherPending) loading.IsVisible = agent?.AwaitingSpeech == true && !hidden && !fullscreenHidden;
     }
     bool DispatchAgentDaily()
     {
         if (!AgentDailyActive) return false;
-        nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random)); agent?.DailyCare(); return true;
+        // Paused on battery (1.1.4) this care is skipped; the clock moves on either way, so Tick does not ask again every frame.
+        nextSpeech = DateTime.UtcNow.Add(Preferences.NextSpeechDelay(random));
+        if (!Preferences.AiPausedOnBattery) agent?.DailyCare();
+        return true;
     }
     Window? mcpInput;
     // The input box holds text or attachments; set while it is open (TryOpenMcpInput).
     Func<bool>? mcpInputHasDraft;
     // Hidden, not closed, while the fish runs (LinuxWalk.StartWalk), so a draft and its pasted pictures survive the walk.
     bool inputHiddenForWalk;
+    // Also on battery while the Agent is paused (1.1.4): the box keeps a draft for later and its status line says why it
+    // cannot be sent yet.
     bool McpInputAvailable => Preferences.AgentEnabled || McpChatAvailable;
     // Starts whatever is switched on and is not running yet: the MCP interface and the Agent connection each by its own switch.
     void InitializeMcp()
@@ -115,8 +140,17 @@ internal sealed partial class LinuxPetWindow
         RefreshMcpInterface();
         if (!Preferences.AgentEnabled) return;
         mcpServer ??= new ControlServer((name, args, token) => ExecuteMcp(name, args, token, true), agentPipe);
-        agent ??= new AgentCoordinator(Path.Combine(Environment.CurrentDirectory, "agent"), Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp"), agentPipe, RequestAgentPermission,
-            App.Args.Contains("--test-mode") ? Path.Combine(Environment.CurrentDirectory, "agent-test-workspace") : null);
+        if (agent == null)
+        {
+            var coordinator = new AgentCoordinator(Path.Combine(Environment.CurrentDirectory, "agent"), Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp"), agentPipe, RequestAgentPermission,
+                App.Args.Contains("--test-mode") ? Path.Combine(Environment.CurrentDirectory, "agent-test-workspace") : null);
+            agent = coordinator;
+            // A turn that ended or failed without say, or a dropped connection (1.1.5): a bubble like an MCP say, kept from the
+            // fish's own speech for a while, that does not count as the Agent's reply (agentChannel false).
+            coordinator.Notice += notice => Dispatcher.UIThread.Post(() => {
+                if (agent == coordinator && coordinator.CanDisplayNotice(notice) && !closed && phase != "Exit") SayFromMcp(notice.Text, false, false);
+            });
+        }
         if (!HarnessCatalog.All.Any(x => x.Id == Preferences.AgentHarnessId)) Preferences.AgentHarnessId = "codex";
         agent.LocalSpeechRequested = token => Dispatcher.UIThread.InvokeAsync(() => RequestAgentLocalSpeech(token));
         agent.SpeechBrief = (kind, allowImages, token) => Dispatcher.UIThread.InvokeAsync(() => BuildAgentSpeechBrief(kind, allowImages, token));
@@ -160,6 +194,8 @@ internal sealed partial class LinuxPetWindow
         using var registration = token.Register(() => Dispatcher.UIThread.Post(() => { speechVersion++; brain.CancelGeneration(); }));
         await Speak(false, true); token.ThrowIfCancellationRequested();
     }
+    // What the paused Agent may still call: tools that only read and never make the fish speak, act or change a setting.
+    static readonly HashSet<string> PausedAgentTools = ["get_settings", "get_context", "list_actions", "capture_foreground", "capture_screen", "find_on_screen", "get_operation_guide", "get_wakeups"];
     Dictionary<string, object?> CurrentSettings()
     {
         var result = typeof(CompanionPreferences).GetProperties()
@@ -172,6 +208,9 @@ internal sealed partial class LinuxPetWindow
         return await Dispatcher.UIThread.InvokeAsync(async () => {
             token.ThrowIfCancellationRequested();
             if (closed || phase == "Exit" || !McpChannelOpen(agentChannel)) throw new InvalidOperationException(agentChannel ? "Agent 連線已關閉或桌寵正在關閉。" : "MCP 介面已關閉或桌寵正在關閉。");
+            UpdateAgentPowerPolicy();
+            // Paused on battery (1.1.4): the Agent the fish started may only look; the MCP interface is not paused.
+            if (agentChannel && agentPowerPaused && !PausedAgentTools.Contains(name)) throw new InvalidOperationException("魚魚的 Agent 已依供電設定暫停，接上電源後再試。");
             switch (name)
             {
                 case "get_settings": return ControlTools.Text(new { settings = CurrentSettings(), state = new { visible = IsVisible, hiddenByUser = hidden, fullscreenHidden, action = currentAction, animationPhase = phase, queuedActions = externalActions.ToArray(), queuedSpeech = nextExternalText, connections = McpConnections, mcpClients = mcpInterface?.Connections ?? 0, inputOpen = mcpInput?.IsVisible == true, inputAvailable = McpInputAvailable, agentConnected = agent?.Connected == true, agentStatus = agent?.Status, agentSession = agent?.SessionId, nextWake = agent?.NextWake, bubbleVisible = bubbleWindow.IsVisible, externalBubble = externalSpeech, speechPending = generating || agentWeatherPending, platform = OperatingSystem.IsMacOS() ? "macos" : "linux", modelAvailable = brain.ModelAvailable, modelBusy = brain.Busy, modelStatus = brain.Status, fullscreen = CompanionNative.IsFullscreen(), idleSeconds = ReminderIdleKnown ? Math.Round(ReminderIdle) : (double?)null, activeMinutes = ReminderIdleKnown ? ReminderActiveMinutes : null, lastBreakMinutes = ReminderIdleKnown ? ReminderLastBreakMinutes : null, walk = WalkSnapshot(), tour = TourSnapshot(), lastWalk, walkBubble = WalkBubbleShown } });
@@ -197,7 +236,8 @@ internal sealed partial class LinuxPetWindow
                 case "say": case "say_next":
                     string text = ControlTools.RequiredText(args, "text");
                     bool transient = name == "say" && ControlTools.OptionalBool(args, "transient", false);
-                    if (name == "say") SayFromMcp(text, agentChannel, transient); else { if (agentChannel) agent?.MarkSpoken(); nextExternalText = text; }
+                    // Only a bubble shown now answers the Agent's turn (1.1.5): say_next is shown later and does not count.
+                    if (name == "say") SayFromMcp(text, agentChannel, transient); else nextExternalText = text;
                     return ControlTools.Text(new { displayed = name == "say", pending = name == "say_next", text });
                 case "get_context":
                     // Asking Finder (macOS) for its windows takes a moment; the UI thread stays free meanwhile.
@@ -206,9 +246,11 @@ internal sealed partial class LinuxPetWindow
                     return ControlTools.Text(CurrentContext(folders.Folders, folders.Note));
 #if COMPANION_MAC
                 case "walk_to":
-                    if (agentChannel && args.ValueKind == JsonValueKind.Object && args.TryGetProperty("say", out var arrival) && arrival.ValueKind == JsonValueKind.String) agent?.MarkSpoken();
+                    // Its say is shown on arrival and answers the Agent's turn once the walk has started, not when the call is
+                    // refused before it (1.1.5).
+                    bool arrivalSay = agentChannel && args.ValueKind == JsonValueKind.Object && args.TryGetProperty("say", out var arrival) && arrival.ValueKind == JsonValueKind.String;
                     // Awaiting the arrival leaves the dispatcher free, so get_settings and say keep working meanwhile.
-                    return ControlTools.Text(await WalkToMcp(args, token));
+                    return ControlTools.Text(await WalkToMcp(args, token, arrivalSay ? () => agent?.MarkSpoken() : null));
                 case "find_on_screen": return ControlTools.Text(await FindOnScreenMcp(args, token));
 #else
                 case "walk_to": case "find_on_screen": throw new NotSupportedException($"Linux 版不支援 {name}。"); // Not offered on Linux (ControlTools.Definitions).
@@ -272,6 +314,7 @@ internal sealed partial class LinuxPetWindow
     bool TryOpenMcpInput()
     {
         if (!McpInputAvailable || closed || phase == "Exit") return false;
+        if (AgentPowerPausedForInput) ShowText(AgentPowerPausedNotice, false, true);
         if (mcpInput != null) { inputHiddenForWalk = false; mcpInput.Show(this); mcpInput.Activate(); return true; }
         const string hint = "透過魚魚和已連線的 Agent 說話";
         var text = new TextBox { AcceptsReturn = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap, MaxLength = 4000,
@@ -316,7 +359,7 @@ internal sealed partial class LinuxPetWindow
             status.Text = (toInterface ? sentToInterface : sentToAgent) + (attachments.Length == 0 ? "" : $"（含 {attachments.Length} 個附件）")
                 + (missing > 0 ? $"，{missing} 個檔案已不存在" : ""); text.Focus();
         }
-        bool CanSend() => (McpChatAvailable || agent?.Connected == true) && tray.Saving == 0 && (!string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0);
+        bool CanSend() => (McpChatAvailable || agent?.Connected == true && !agentPowerPaused) && tray.Saving == 0 && (!string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0);
         var send = ActionButton("傳送", Send); send.MinWidth = 58; send.Padding = new Thickness(12, 5); send.FontSize = 12;
         var attach = McpAttachButton(dialog, text, tray);
         var actions = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*,Auto") }; actions.Children.Add(attach); actions.Children.Add(status); actions.Children.Add(send); Grid.SetColumn(status, 1); Grid.SetColumn(send, 2); panel.Children.Add(actions);
@@ -365,7 +408,7 @@ internal sealed partial class LinuxPetWindow
             Follow();
             send.IsEnabled = CanSend();
             // Nothing can take a message: say why, keeping the draft and its attachments for later.
-            bool connected = agent?.Connected == true;
+            bool connected = agent?.Connected == true && !agentPowerPaused;
             // A failed connection names its reason (a CLI not installed, a login needed) after the state.
             string? state = McpChatAvailable ? null : connected ? (agent!.Busy ? "Agent 正在處理…" : null)
                 : Preferences.AgentEnabled ? (agent?.Status ?? "Agent 尚未連線") + (agent?.Detail is { Length: > 0 } detail ? "：" + detail : "")

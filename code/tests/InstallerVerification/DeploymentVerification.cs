@@ -82,6 +82,21 @@ internal static partial class DeploymentVerification
         using var missing = new HttpClient(new Transport(_ => new HttpResponseMessage(HttpStatusCode.NotFound)));
         try { await UpdateService.Check("1.1.3-tw.1", client: missing); throw new Exception("missing release accepted"); }
         catch (IOException error) { Check(error.Message.Contains("還沒有發布"), "no release yet is reported in words, not as an HTTP error"); }
+        int metadataRequests = 0;
+        using var metadataOnly = new HttpClient(new Transport(r => {
+            metadataRequests++;
+            Check(r.RequestUri!.AbsolutePath == "/latest", "update does not request a separate checksum file");
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(release) };
+        }));
+        Check((await UpdateService.Check("0.5.0", client: metadataOnly, apiUrl: "http://fixture/latest"))?.Sha256 == hash && metadataRequests == 1,
+            "release with installer digest and no checksum asset is usable");
+        foreach (var digest in new string?[] { null, "", "sha256:bad", "sha512:" + hash }) {
+            var asset = JsonSerializer.SerializeToElement(new { name = "package.deb", digest });
+            bool rejected = false; try { ReleaseAssetDigest.Sha256(asset); } catch (InvalidDataException) { rejected = true; }
+            Check(rejected, "missing or malformed digest is rejected without unverified installation");
+        }
+        Check(ReleaseAssetDigest.Sha256(JsonSerializer.SerializeToElement(new { digest = "SHA256:" + hash.ToUpperInvariant() })) == hash,
+            "Windows and Linux share normalized GitHub SHA256 digest parsing");
         var transaction = Path.Combine(root, "transaction"); Directory.CreateDirectory(Path.Combine(transaction, "models"));
         File.WriteAllText(Path.Combine(transaction, "main.bin"), "old program");
         File.WriteAllText(Path.Combine(transaction, "preferences.json"), "user settings");

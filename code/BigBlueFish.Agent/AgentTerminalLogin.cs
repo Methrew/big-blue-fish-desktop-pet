@@ -4,6 +4,11 @@ using System.Diagnostics;
 namespace BigBlueFish.Agent;
 
 internal sealed class AgentAuthenticationCancelledException() : IOException("Agent 驗證已取消；按「重新連線」可以再試一次。");
+// The login terminal was given five minutes (AgentCoordinator.Connect) and the login did not finish in them. Terminal.app
+// keeps its window and the login in it; on Windows and Linux, Run has closed the login window.
+internal sealed class AgentLoginTimeoutException() : IOException(OperatingSystem.IsMacOS()
+    ? "等了 5 分鐘還沒完成 Agent 的登入，已停止等待；在「終端機」完成登入後，按「重新連線」。"
+    : "等了 5 分鐘還沒完成 Agent 的登入，登入視窗已經關閉；按「重新連線」可以再試一次。");
 
 internal static class AgentTerminalLogin
 {

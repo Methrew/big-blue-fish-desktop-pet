@@ -319,6 +319,12 @@ static class LaunchVerification
             check(host.SendUser("hello while waiting for a key"), "a message while waiting is taken but starts nothing");
             await Task.Delay(800);
             check(Starts() == 4 && !host.Connected && host.Status == "尚未啟動 · Claude Code", "no Claude Code starts on the subscription in its place, not even on retry");
+            // On battery the wait shows the power pause; AC power brings the wait back and starts nothing.
+            host.SetPowerPaused(true);
+            check(host.Status == "使用電池 · Agent 已暫停" && host.Detail == "魚魚啟動的 Agent 程式已經關閉，接上電源後會恢復連線。", "on battery the wait for a key shows the power pause");
+            host.SetPowerPaused(false);
+            await Task.Delay(800);
+            check(Starts() == 4 && !host.Connected && host.Status == "尚未啟動 · Claude Code" && host.Detail == Missing, "AC power brings the wait for a key back and starts nothing");
 
             keys["claude"] = FakeKey;
             check(await host.LaunchChanged(), "saving the key ends the wait");
@@ -347,6 +353,10 @@ static class LaunchVerification
             check(host.SendUser("rejected key"), "a turn with a rejected key accepted");
             await until(() => !host.Busy && host.Status == "驗證失敗 · Claude Code" && host.Detail == claude.CredentialNote, "a rejected key shows the note, not a sign-in", 15);
             check(Starts() == 7 && permissions == 0, "a rejected key is not retried through another process or the Agent's sign-in");
+            host.SetPowerPaused(true); host.SetPowerPaused(false);
+            await Task.Delay(800);
+            check(Starts() == 7 && permissions == 0 && host.Status == "驗證失敗 · Claude Code" && host.Detail == claude.CredentialNote,
+                "AC power brings a rejected key's note back instead of trying the key again");
             File.Delete(Path.Combine(workspace, "fixture-prompt-auth"));
             File.WriteAllText(Path.Combine(workspace, "fixture-auth-methods"), "");
             int resumed = Mark();
@@ -405,9 +415,12 @@ static class LaunchVerification
             check(host.SendUser("hello while waiting for the OpenAI key"), "a message while waiting for the OpenAI API Key is taken");
             await Task.Delay(800);
             check(Starts() == before + 2 && !host.Connected, "Codex CLI's own sign-in is never used in the key's place");
+            // A key saved on battery starts nothing until AC power, which starts Codex CLI with it.
+            host.SetPowerPaused(true);
             keys["codex"] = OpenAiFakeKey;
-            check(await host.LaunchChanged(), "saving the OpenAI API Key ends the wait");
-            await until(() => host.Connected && !host.Busy && Starts() == before + 3 && host.SessionId == codexApiSession, "Codex CLI resumes the OpenAI API Key's conversation", 15);
+            check(!await host.LaunchChanged() && Starts() == before + 2, "an OpenAI API Key saved on battery starts nothing while paused");
+            host.SetPowerPaused(false);
+            await until(() => host.Connected && !host.Busy && Starts() == before + 3 && host.SessionId == codexApiSession, "AC power starts Codex CLI with the key saved meanwhile and resumes its conversation", 15);
             // A key OpenAI turns down comes back as ACP's Authentication required: the note, no sign-in, no retry.
             File.WriteAllText(Path.Combine(workspace, "fixture-prompt-auth"), ""); File.Delete(Path.Combine(workspace, "fixture-prompt-auth-used"));
             check(host.SendUser("rejected OpenAI key"), "a turn with a rejected OpenAI API Key accepted");

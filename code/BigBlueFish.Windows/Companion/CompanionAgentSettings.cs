@@ -41,7 +41,8 @@ public partial class MainWindow
         }
         Detect(); extra.Children.Add(select);
         var detectRow = new WrapPanel();
-        detectRow.Children.Add(ModernUI.Button("重新偵測", Detect));
+        // Detecting again reads the PATH and the installed desktop apps (DeepSeek Harness Desktop) afresh.
+        detectRow.Children.Add(ModernUI.Button("重新偵測", () => { HarnessEnvironment.Refresh(); HarnessDesktopLocator.Refresh(); Detect(); }));
         detectRow.Children.Add(ModernUI.Button("安裝與登入說明", () => {
             Process.Start(new ProcessStartInfo(HarnessCatalog.Get(preferences.AgentHarnessId).Website) { UseShellExecute = true });
         }));
@@ -114,7 +115,10 @@ public partial class MainWindow
             // The other page or MCP may have changed it meanwhile; a click still being confirmed keeps its own state.
             if (puppet.IsEnabled) puppet.IsChecked = preferences.PuppetMode;
             RefreshApiKey();
-            state.Text = agent?.Status ?? "尚未連線";
+            // The battery pause closes the Agent the fish started (AgentCoordinator.SetPowerPaused) until power is back; a
+            // connection the user turned off keeps saying so.
+            bool paused = preferences.AgentEnabled && preferences.AiPausedOnBattery;
+            state.Text = paused ? "使用電池 · Agent 已暫停" : agent?.Status ?? "尚未連線";
             description.Text = agent?.Detail ?? "選擇已安裝的 Agent，連線後雙擊魚魚即可對話。";
             string signIn = ApiKeyLaunch.ForProfile(agent?.LaunchProfile)?.SignInDetail ?? "Agent 自己的登入";
             details.Text = $"程式：{agent?.ExecutablePath ?? "尚未啟動"}\nAgent 版本：{agent?.Version}\n登入：{signIn}\n模型：{agent?.CurrentModel}\n對話編號：{agent?.SessionId}\n內部工具連線：{mcpServer?.Connections ?? 0}\n輸入會發起對話；點選回應：{OnOff(preferences.AgentRespondToClick)}；拖曳回應：{OnOff(preferences.AgentRespondToDrag)}（可由 Agent 調整）";
@@ -122,7 +126,9 @@ public partial class MainWindow
                 ? "下一次日常關心：" + (agent?.NextWake ?? "等待 Agent 安排")
                 : preferences.PuppetMode ? "Agent 安排日常關心的時機，由模型編寫要說的話。下一次關心：" + (agent?.NextWake ?? "等待 Agent 預約")
                 : preferences.AgentDailySpeech ? "魚魚決定何時關心主人，Agent 編寫關心的話。" : "魚魚按自己的節奏關心主人，日常說話使用「模型與供電」頁的模型。";
-            if (preferences.PuppetMode && agent?.Connected != true) wake.Text += "\nAgent 未連線，魚魚保持待機；關閉第二個開關可恢復魚魚自己的安排。";
+            // The care the Agent arranges or writes waits for power; the fish's own rhythm and model are not paused by it.
+            if (paused && (preferences.PuppetMode || preferences.AgentDailySpeech)) wake.Text += "\nAgent 已依供電設定暫停，接上電源後恢復。";
+            else if (preferences.PuppetMode && agent?.Connected != true) wake.Text += "\nAgent 未連線，魚魚保持待機；關閉第二個開關可恢復魚魚自己的安排。";
         }
         select.SelectionChanged += (_, _) => {
             if (updating || select.SelectedItem is not ComboBoxItem { Tag: string id }) return;

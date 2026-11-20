@@ -798,7 +798,7 @@ internal static class Program
 
     // Two flows, one per way of handing the fish to an agent. By default the MCP interface (開啟 MCP 介面): a client on
     // the fixed pipe, as the Hermes bridge connects, with chat, attachments, walk_to and the reminders. With --agent
-    // (implied by --speech-routing-settings and --workspace-settings) the Agent connection through the ACP fixture,
+    // (implied by --speech-routing-settings, --workspace-settings and --agent-notices) the Agent connection through the ACP fixture,
     // with a client on that connection's private pipe, as the harness's own MCP bridge connects.
     [STAThread] static int Main(string[] args)
     {
@@ -822,11 +822,13 @@ internal static class Program
         }
         string sandbox = Path.GetFullPath(args[0]); Directory.CreateDirectory(sandbox); Environment.CurrentDirectory = sandbox;
         File.Copy(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico"), Path.Combine(sandbox, "BigBlueFish.ico"), true);
-        File.WriteAllText("preferences.json", "{\"ModelEnabled\":false,\"CheckUpdatesOnStartup\":false,\"PublicInfo\":false}");
+        // StopModelOnBattery off: on a laptop off its charger the battery pause would hold the Agent these flows drive
+        // (CompanionPreferences.AiPausedOnBattery); AnimationUiVerification --ai-power tests that pause.
+        File.WriteAllText("preferences.json", "{\"ModelEnabled\":false,\"CheckUpdatesOnStartup\":false,\"PublicInfo\":false,\"StopModelOnBattery\":false}");
         var remembered = Path.Combine("cache", "reminders.json"); if (File.Exists(remembered)) File.Delete(remembered); // what an earlier run's reminders said today
         if (File.Exists("chat-log.json")) File.Delete("chat-log.json"); // an earlier run's lines would repeat the owner message the history checks find once
         App.Args = ["--test-mode"]; var app = new System.Windows.Application { ShutdownMode = ShutdownMode.OnExplicitShutdown }; Environment.CurrentDirectory = sandbox;
-        bool agentFlow = args.Contains("--agent") || args.Contains("--speech-routing-settings") || args.Contains("--workspace-settings");
+        bool agentFlow = args.Contains("--agent") || args.Contains("--speech-routing-settings") || args.Contains("--workspace-settings") || args.Contains("--agent-notices");
         try
         {
             pet = new MainWindow(); pet.Show(); Wait(() => (bool)Read("companionReady"), 20, "Actual video initialized");
@@ -850,7 +852,7 @@ internal static class Program
         Wait(() => Member("mcpInput") != null, 4, opened);
         var inputWindow = (Window)Read("mcpInput"); Pump(150);
         var input = Descendants<TextBox>(inputWindow).Single();
-        const string hint = "透過魚魚和已連線的Agent說話";
+        const string hint = "透過魚魚和已連線的 Agent 說話";
         var placeholder = Descendants<TextBlock>(inputWindow).Single(t => t.Text == hint);
         Check(inputWindow.WindowStyle == System.Windows.WindowStyle.None && !inputWindow.ShowInTaskbar && inputWindow.Owner == pet && inputWindow.Topmost, "Input is a frameless pet attachment, without independent title bar or taskbar button");
         Check(inputWindow.Width <= 354 && inputWindow.Height <= 120 && placeholder.IsVisible && placeholder.Foreground == Brushes.Gray, "Compact input shows the exact gray placeholder while empty");
@@ -1068,6 +1070,30 @@ internal static class Program
         Check(Member("mcpInterface") == null && Member("mcpInput") == null, "Switching the MCP interface off stops its server and closes the input");
         return Finish($"MCP interface actual WPF integration ({sandbox})");
     }
+    // A turn that ends without say, one answered only with say_next, and a dropped connection: the host's own notice
+    // types out in the ordinary bubble, stays in the chat history and never counts as the Agent's speech (1.1.5).
+    static void VerifyAgentNotices()
+    {
+        var coordinator = (AgentCoordinator)Member("agent")!;
+        string fixtureMode = Path.Combine(coordinator.Workspaces.Current, "fixture-notice-mode");
+        var text = (TextBlock)Read("bubbleText");
+        var bubble = (Border)Read("bubble");
+        long Spoken() => (long)coordinator.GetType().GetField("spoken", Access)!.GetValue(coordinator)!;
+        long spoken = Spoken();
+        File.WriteAllText(fixtureMode, "silent"); coordinator.SendUser("silent task");
+        Wait(() => !coordinator.Busy && text.Text == "主人，Agent 結束工作了，但沒有回覆。", 15, "Stopped silent Agent produces the actual typed bubble");
+        Check(Spoken() == spoken, "Host notice does not count as Agent speech");
+        Check(bubble.Visibility == Visibility.Visible, "Notice is visible through the normal bubble path");
+        Render(bubble, "agent-missing-reply.png", (int)bubble.ActualWidth, (int)bubble.ActualHeight);
+        Check(File.ReadAllText("chat-log.json").Contains("Agent"), "Notice is recorded in persistent fish chat history");
+        File.WriteAllText(fixtureMode, "pending"); coordinator.SendUser("pending only");
+        Wait(() => !coordinator.Busy && coordinator.Detail.Contains("沒有呼叫說話工具"), 15, "Delayed-only answer is not counted as an immediate reply");
+        Check(Spoken() == spoken, "say_next does not advance immediate speech counter");
+        File.WriteAllText(fixtureMode, "disconnect"); coordinator.SendUser("disconnect task");
+        Wait(() => !coordinator.Busy && text.Text == "主人，Agent 的連線中斷了。", 15, "Actual process disconnect displays the distinct typed bubble");
+        Render(bubble, "agent-disconnected.png", (int)bubble.ActualWidth, (int)bubble.ActualHeight);
+        File.Delete(fixtureMode);
+    }
     // The Agent connection through the ACP fixture; its MCP client sits on the connection's private pipe.
     static int VerifyAgentConnection(System.Windows.Application app, Window settings, string[] args, string sandbox)
     {
@@ -1097,6 +1123,7 @@ internal static class Program
         acceptPrivacy.Start(); toggle.IsChecked = true; toggle.RaiseEvent(new RoutedEventArgs(CheckBox.ClickEvent));
         Wait(() => Member("agent") is AgentCoordinator { Connected: true }, 15, "Actual fixture ACP connection ready");
         Check(Member("mcpInterface") == null, "The Agent connection opens no MCP interface for other clients");
+        if (args.Contains("--agent-notices")) { VerifyAgentNotices(); return Finish("Agent notice actual WPF"); }
         if (args.Contains("--speech-routing-settings")) { VerifySpeechRoutingSettings(settings); return Finish("Speech routing/settings actual WPF"); }
         if (args.Contains("--workspace-settings")) { VerifyAgentWorkspaceSettings(settings); return Finish("Agent workspace/settings actual WPF"); }
         settings.Close(); Pump();

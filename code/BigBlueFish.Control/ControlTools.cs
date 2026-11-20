@@ -31,7 +31,7 @@ public static class ControlTools
         new { type = "image", mimeType = dataUrl[5..dataUrl.IndexOf(';')], data = dataUrl[(dataUrl.IndexOf(',') + 1)..] } } };
     // ShowOnAllSpaces exists on macOS only (CompanionPreferences under COMPANION_MAC); elsewhere update_settings refuses it by name.
     public static readonly string[] SettingNames = [.. new[] { "ModelEnabled", "GpuEnabled", "PublicInfo", "ForegroundEnabled", "StopModelOnBattery",
-        "HideOnFullscreen", "CheckUpdatesOnStartup", "ChatLogShowAll", "WeatherRegionCode", "Scale", "BubbleScale", "SpeechMinMinutes",
+        "HideOnFullscreen", "HideFromCapture", "CheckUpdatesOnStartup", "ChatLogShowAll", "WeatherRegionCode", "Scale", "BubbleScale", "SpeechMinMinutes",
         "BubbleDurationIndex", "AnimationIntervalSeconds", "BreakfastHour", "LunchHour", "DinnerHour", "Left", "Top", "LastBrushDate", "StartupEnabled", "PuppetMode", "McpChatEnabled",
         "AgentDailySpeech", "AgentRespondToClick", "AgentRespondToDrag",
         "SitReminderMinutes", "MealReminder", "LateReminder", "LateReminderHour", "BatteryReminder", "RainReminder", "DailyBriefing", "WelcomeBackMinutes", "EventReminderMinutes" },
@@ -59,8 +59,9 @@ public static class ControlTools
           "GpuEnabled":{"type":"boolean","description":"本機推論使用 GPU；切換會停止目前模型任務。"},
           "PublicInfo":{"type":"boolean","description":"內建天氣和科技新聞。"},
           "ForegroundEnabled":{"type":"boolean","description":"內建模型是否讀取螢幕；不是 MCP 截圖的權限開關。"},
-          "StopModelOnBattery":{"type":"boolean","description":"拔掉電源時暫停內建模型並釋放記憶體；不限制外部文字。"},
-          "HideOnFullscreen":{"type":"boolean","description":"外部全螢幕時隱藏桌寵；不限制 MCP 截圖。"},@ShowOnAllSpaces@
+          "StopModelOnBattery":{"type":"boolean","description":"設定頁的「筆電拔掉電源時暫停本機模型和 Agent」：使用電池時暫停本機模型並釋放記憶體，同時關閉魚魚自己啟動的Agent程式，暫停交給它的對話與由它編寫的日常說話，接上電源後恢復連線；遠端模型、雲端AI服務與MCP介面照常，不限制外部文字。"},
+          "HideOnFullscreen":{"type":"boolean","description":"外部全螢幕時隱藏桌寵；不限制 MCP 截圖。"},
+          "HideFromCapture":{"type":"boolean","description":"Windows版設定頁的「截圖與錄影時隱藏桌寵」：螢幕截圖與錄影會排除角色、氣泡和輸入框，桌面上照樣看得到。只有Windows版有這個效果，macOS與Linux版只記下這個設定。"},@ShowOnAllSpaces@
           "CheckUpdatesOnStartup":{"type":"boolean","description":"啟動時檢查更新。"},
           "ChatLogShowAll":{"type":"boolean","description":"對話輸入框的聊天記錄是否顯示魚魚說過的所有話；false時只列出主人的訊息及前後相鄰的魚魚話語。目前只有Windows版的輸入框有聊天記錄，macOS與Linux版只記下這個設定。"},
           "WeatherRegionCode":{"type":"string","pattern":"^([0-9]{6}|[0-9]{9}|TW-[0-9]{3}-[0-9]{2}|[A-Z]{2}-[0-9]+)$","description":"內建地區表中最下層地點的代碼，不是地名，也不是縣市、省、州或一級行政區代碼：中國為6位區縣代碼，如340104（含原有清單的臺灣省各區，如710101，天氣為縣市層級的Open-Meteo估計、北京時間），部分直轄縣級行政區為9位代碼，如419001000；國家「臺灣」為鄉鎮市區代碼TW-三位資料集編號-兩位序號，如臺北市中正區TW-061-01；美國為US-加5位郡FIPS代碼，如US-06037；其他國家為國家代碼-GeoNames城市ID，如JP-1850147。新安裝與無效代碼使用TW-061-01，已儲存的有效地點不會被改動。國家「臺灣」的鄉鎮在Windows與macOS版填了中央氣象署授權碼時使用氣象署鄉鎮預報；沒有授權碼時（以及Linux版）為Open-Meteo在鄉鎮市區中心的估計。"},
@@ -135,7 +136,7 @@ public static class ControlTools
              "limit":{"type":"integer","minimum":1,"maximum":50,"default":20,"description":"最多列出幾筆。"}}
             """.Replace("資源回收筒|回收", OperatingSystem.IsWindows() ? "資源回收筒|回收" : "垃圾桶|Trash")
             .Replace("與檔案總管的檔案類型也會比對。", OperatingSystem.IsMacOS() ? "也會比對，檔案夾也可以用「資料夾」或folder找到。" : "與檔案總管的檔案類型也會比對。"), ["query"]),
-        Tool("say", "立即按約28個組合字元/秒顯示傳入text原文（台灣版會先把其中的簡體字轉成繁體），替換目前氣泡並取消目前本機生成；不呼叫模型，不改寫內容、朗讀或解析Markdown。不能全為空白，執行時最多4000個UTF-16單元。無需本機模型或插電；不自動恢復隱藏角色，不清除say_next待說原文。displayed=true表示進入顯示流程，並非使用者已看見或文字已顯示完畢。", """{"text":{"type":"string","minLength":1,"maxLength":4000},"transient":{"type":"boolean","default":false,"description":"true表示這是進度或一時的提示（例如「正在上網搜尋…」），只顯示在氣泡，不寫進輸入框的聊天記錄；省略為false。"}}""", ["text"]),
+        Tool("say", "立即按約28個組合字元/秒顯示傳入text原文（台灣版會先把其中的簡體字轉成繁體），替換目前氣泡並取消目前本機生成；不呼叫模型，不改寫內容、朗讀或解析Markdown。不能全為空白，執行時最多4000個UTF-16單元。不需要本機模型；「筆電拔掉電源時暫停本機模型和 Agent」暫停時只拒絕內建Agent連線的呼叫，MCP介面照常；不自動恢復隱藏角色，不清除say_next待說原文。displayed=true表示進入顯示流程，並非使用者已看見或文字已顯示完畢。", """{"text":{"type":"string","minLength":1,"maxLength":4000},"transient":{"type":"boolean","default":false,"description":"true表示這是進度或一時的提示（例如「正在上網搜尋…」），只顯示在氣泡，不寫進輸入框的聊天記錄；開始和進度的回報用true，最後的結果不要用；省略為false。"}}""", ["text"]),
         Tool("say_next", "僅儲存一條待說原文，新呼叫覆蓋舊呼叫。下次滿足正常說話倒數計時、可見、未拖曳、未開設定/安裝視窗、鍵盤滑鼠閒置8–600秒等條件時顯示；不要求本機模型可用。pending=true只表示已儲存，不保證何時顯示。提線木偶模式暫停該節奏，此時要立即說話請用say；說話測試不會用掉它；MCP介面與內建Agent連線都關閉或桌寵關閉時清除，單純中斷連線仍保留。", """{"text":{"type":"string","minLength":1,"maxLength":4000}}""", ["text"]),
         Tool("request_local_speech", "立即呼叫魚魚自己的模型（本機模型，或設定的遠端模型、雲端AI服務）讀取目前情境並產生日常關心，沿用正常的載入與逐字顯示流程。適用於Agent決定時機、魚魚自己的模型編寫要說的話；需要AgentDailySpeech=false且模型可用，隱藏、忙碌或供電暫停時回傳錯誤。無需傳入文字。", "{}"),
         Tool("get_operation_guide", "讀取大肥魚操作技能全文與使用者目前的人設；只供內建Agent連線使用，經MCP介面呼叫會回錯誤。", "{}"),

@@ -9,6 +9,7 @@ public sealed record AgentMode(bool Enabled, bool Puppet, bool DailyCare);
 // Profile: the AgentLaunch profile the conversation was made under (empty for the Agent's own setup); a conversation is
 // resumed only under the same one, since the Agent may keep each profile's conversations apart.
 public sealed record AgentSession(string SessionId, string Executable, string Workspace, string? Profile = null);
+public sealed record AgentNotice(long Epoch, long Turn, string Text);
 internal sealed record PetEvent(string Kind, object Detail, bool Fresh, long Epoch, TaskCompletionSource<bool>? Completion = null);
 
 /// <summary>One fish-owned ACP session per harness. The host clock executes reservations; the Agent chooses them.</summary>
@@ -40,9 +41,13 @@ public sealed class AgentCoordinator : IDisposable
     private long epoch;
     private volatile bool changingWorkspace;
     private bool authenticationPending;
+    private volatile bool powerPaused;
+    private (string Status, string Detail)? parkedBeforePause;
+    public bool PowerPaused => powerPaused;
     private static readonly JsonSerializerOptions EventJson = new() { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
     private long spoken, turnStartSpoken;
     private long toolActivity;
+    private long turnSerial, notifiedTurn = -1;
     public AgentWakeups Wakeups { get; }
     public AgentWorkspaceStore Workspaces { get; }
     public AgentSessionConfiguration Configuration { get; } = new();
@@ -63,6 +68,18 @@ public sealed class AgentCoordinator : IDisposable
     public string? NextWake => Wakeups.List(harnessId, sessionId).FirstOrDefault()?.Due.ToLocalTime().ToString("MM-dd HH:mm:ss");
     public event Action? Changed;
     public event Action<string, JsonElement>? ProtocolEvent;
+    public event Action<AgentNotice>? Notice;
+    public bool CanDisplayNotice(AgentNotice notice) => disposed == 0 && mode.Enabled && !powerPaused && !changingWorkspace
+        && notice.Epoch == Interlocked.Read(ref epoch) && notice.Turn == Interlocked.Read(ref turnSerial);
+    private void NotifyNoReply(long expectedEpoch, bool disconnected)
+    {
+        long serial = Interlocked.Read(ref turnSerial);
+        var notice = new AgentNotice(expectedEpoch, serial, disconnected ? "主人，Agent 的連線中斷了。" : "主人，Agent 結束工作了，但沒有回覆。");
+        if (!CanDisplayNotice(notice) || Interlocked.Exchange(ref notifiedTurn, serial) == serial) return;
+        DiagnosticLog.Write(DiagnosticEvent.AgentNotice, state: disconnected ? "stopped" : "empty");
+        Notice?.Invoke(notice);
+    }
+    private static bool ExpectsReply(string kind) => kind is "user_message" or "daily_care" or "speech_test" or "weather_request" or "wakeup";
     public Func<CancellationToken, Task>? LocalSpeechRequested { get; set; }
     /// <summary>Host-built persona, random tone and material for an event whose line the Agent writes.</summary>
     public Func<string, bool, CancellationToken, Task<AgentSpeechBrief>>? SpeechBrief { get; set; }
@@ -93,6 +110,35 @@ public sealed class AgentCoordinator : IDisposable
         foreach (var secret in launchSecrets) text = text.Replace(secret, "***", StringComparison.Ordinal);
         return text;
     }
+    private void ReportPowerPaused() => Report("使用電池 · Agent 已暫停", "魚魚啟動的 Agent 程式已經關閉，接上電源後會恢復連線。");
+    /// <summary>
+    /// The host's power setting on battery: pausing closes the process this coordinator started and drops everything queued
+    /// for it; AC power connects again. A state that was waiting for the user when the pause began (尚未啟動, 驗證失敗,
+    /// 需要登入: retryAfter is MaxValue) comes back as it was, and starts again only when the launch settings changed meanwhile.
+    /// </summary>
+    public void SetPowerPaused(bool paused)
+    {
+        if (powerPaused == paused || disposed != 0) return;
+        if (paused) parkedBeforePause = retryAfter == DateTimeOffset.MaxValue && activeTurn == null ? (status, detail) : null;
+        var parked = paused ? null : parkedBeforePause;
+        if (!paused) parkedBeforePause = null;
+        powerPaused = paused;
+        Interlocked.Increment(ref epoch);
+        connectionLifetime.Cancel(); connectionLifetime = new();
+        var previous = Interlocked.Exchange(ref connection, null);
+        if (previous != null) { DiagnosticLog.Write(DiagnosticEvent.AgentDisconnected, state: "power"); _ = previous.DisposeAsync(); }
+        sessionId = ""; guideFingerprint = null; CurrentModel = "由 Agent 設定"; Configuration.Reset();
+        lock (gate) { while (events.Reader.TryRead(out var abandoned)) abandoned.Completion?.TrySetCanceled(); coalesced.Clear(); }
+        // A connection the user turned off keeps saying so.
+        if (!mode.Enabled) Changed?.Invoke();
+        else if (paused) ReportPowerPaused();
+        else
+        {
+            initialCare = mode.Puppet;
+            if (parked is { } held) { Report(held.Status, held.Detail); _ = LaunchChanged(); }
+            else { retryAfter = DateTimeOffset.MinValue; Report("正在恢復 Agent 連線…"); Enqueue("connect", new { }); }
+        }
+    }
     public void Configure(string selected, AgentMode updated)
     {
         HarnessCatalog.Get(selected);
@@ -105,6 +151,7 @@ public sealed class AgentCoordinator : IDisposable
         if (startsCare) initialCare = true;
         if (!updated.Enabled || !updated.DailyCare && activeKind is "daily_care" or "speech_test" or "weather_request" || !updated.Puppet && activeKind is "wakeup" or "start_care") activeTurn?.Cancel();
         if (!updated.Enabled) { Report("連線已關閉"); return; }
+        if (powerPaused) { ReportPowerPaused(); return; }
         if (reconnect && !changingWorkspace) Enqueue("connect", new { });
         else if (startsCare) Enqueue("start_care", new { purpose = "開始接管日常關心；請檢查已有的預約，安排之後的喚醒。" });
         Changed?.Invoke();
@@ -132,7 +179,8 @@ public sealed class AgentCoordinator : IDisposable
     /// </summary>
     public async Task<bool> LaunchChanged()
     {
-        if (!mode.Enabled || disposed != 0 || changingWorkspace) return false;
+        // On battery the paused Agent asks the settings again when it connects on AC power (SetPowerPaused).
+        if (!mode.Enabled || powerPaused || disposed != 0 || changingWorkspace) return false;
         string harness = harnessId; long seen = Interlocked.Read(ref epoch);
         string? fingerprint;
         try { fingerprint = (await AskLaunch(harness, lifetime.Token)).Fingerprint; }
@@ -140,7 +188,7 @@ public sealed class AgentCoordinator : IDisposable
         // Settings the host cannot give now (a folder it cannot create) count as changed: the start reports why.
         catch (Exception) { fingerprint = null; }
         // A harness switch, a workspace change or another restart meanwhile already starts with the current settings.
-        if (fingerprint == launchFingerprint || harness != harnessId || seen != Interlocked.Read(ref epoch) || !mode.Enabled || disposed != 0 || changingWorkspace) return false;
+        if (fingerprint == launchFingerprint || harness != harnessId || seen != Interlocked.Read(ref epoch) || !mode.Enabled || powerPaused || disposed != 0 || changingWorkspace) return false;
         DiagnosticLog.Write(DiagnosticEvent.AgentDisconnected, kind: harness, state: "changed");
         Abandon();
         if (mode.Puppet) initialCare = true;
@@ -157,6 +205,8 @@ public sealed class AgentCoordinator : IDisposable
         var previous = Interlocked.Exchange(ref connection, null); if (previous != null) _ = previous.DisposeAsync();
         sessionId = ""; guideFingerprint = null; ExecutablePath = null; CurrentModel = "由 Agent 設定"; RestoresSessions = false; Configuration.Reset();
         lock (gate) { while (events.Reader.TryRead(out var abandoned)) abandoned.Completion?.TrySetCanceled(); coalesced.Clear(); }
+        // What waited for the user belonged to the dropped start; AC power then starts the new one.
+        parkedBeforePause = null;
     }
     private async Task<AgentLaunch> AskLaunch(string harness, CancellationToken token)
         => Launch == null ? AgentLaunch.Default : await Launch(harness, token).WaitAsync(token) ?? AgentLaunch.Default;
@@ -209,13 +259,15 @@ public sealed class AgentCoordinator : IDisposable
         finally
         {
             changingWorkspace = false; workspaceOperations.Release();
-            if (mode.Enabled && disposed == 0) Enqueue("connect", new { });
+            // On battery the new workspace is connected on AC power, as a switch made then would be.
+            if (powerPaused) parkedBeforePause = null;
+            if (mode.Enabled && disposed == 0) { if (powerPaused) ReportPowerPaused(); else Enqueue("connect", new { }); }
             Changed?.Invoke();
         }
     }
     public void Tick(DateTimeOffset now, bool canDeliver)
     {
-        if (!mode.Enabled || !canDeliver || disposed != 0 || changingWorkspace) return;
+        if (!mode.Enabled || powerPaused || !canDeliver || disposed != 0 || changingWorkspace) return;
         if (!Connected && now >= retryAfter) { retryAfter = now.AddSeconds(30); Enqueue("connect", new { }); }
         if (!mode.Puppet || !Connected) return;
         var due = Wakeups.PeekDue(harnessId, sessionId, now);
@@ -225,6 +277,7 @@ public sealed class AgentCoordinator : IDisposable
     {
         lock (gate)
         {
+            if (powerPaused) { completion?.TrySetException(new InvalidOperationException("Agent 已依供電設定暫停。")); return false; }
             bool combine = kind is "connect" or "reconnect" or "new_conversation" or "daily_care" or "wakeup" or "start_care";
             if (combine && !coalesced.Add(kind)) return true;
             if (events.Writer.TryWrite(new(kind, data, fresh, Interlocked.Read(ref epoch), completion))) return true;
@@ -240,14 +293,19 @@ public sealed class AgentCoordinator : IDisposable
             await foreach (var request in events.Reader.ReadAllAsync(lifetime.Token))
             {
                 lock (gate) coalesced.Remove(request.Kind);
-                if (!mode.Enabled || changingWorkspace || request.Epoch != Interlocked.Read(ref epoch)) { request.Completion?.TrySetCanceled(); continue; }
+                if (!mode.Enabled || powerPaused || changingWorkspace || request.Epoch != Interlocked.Read(ref epoch)) { request.Completion?.TrySetCanceled(); continue; }
                 if (request.Kind is "speech_test" or "weather_request" && !mode.DailyCare
                     || request.Kind is "daily_care" && (!mode.DailyCare || mode.Puppet)
                     || request.Kind is "wakeup" or "start_care" && !mode.Puppet) continue;
                 using var turn = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token, connectionLifetime.Token);
+                // Automatic reconnect is maintenance, not a newer user turn; it must not erase the disconnect notice.
+                if (request.Kind != "connect") Interlocked.Increment(ref turnSerial);
+                Interlocked.Exchange(ref turnStartSpoken, Interlocked.Read(ref spoken));
+                bool promptDispatched = false;
                 activeTurn = turn; activeKind = request.Kind;
                 try
                 {
+                    if (powerPaused || request.Epoch != Interlocked.Read(ref epoch)) throw new OperationCanceledException();
                     if (request.Kind == "reconnect") await DropConnection();
                     await Connect(request.Fresh, turn.Token);
                     turn.Token.ThrowIfCancellationRequested();
@@ -294,7 +352,9 @@ public sealed class AgentCoordinator : IDisposable
                     text += mode.Puppet && !mode.DailyCare
                         ? "\n日常關心由你安排時機、由魚魚自己的模型編寫。用 schedule_wakeup 預約，預約到期時魚魚會呼叫自己的模型；要現在觸發就用 request_local_speech。主人主動跟你說話時，仍然用 say 回答。"
                         : "\n日常關心由目前設定的編寫者負責；由你編寫的話透過 say 顯示。";
-                    text += "\nsay 的文字是一行、少於 100 字的小反應，不含程式碼、路徑或清單；工作的結果留在一般的回答裡。";
+                    text += "\nsay 的文字是一行、少於 100 字的自然話語，不含程式碼、路徑或清單。詳細的工作成果留在工作區或 Agent 對話裡，但一定要透過 say 簡短告訴主人結果，不能只寫在一般的回答裡。";
+                    if (request.Kind == "user_message")
+                        text += "\n主人主動跟你說話時，一定要透過 say 回覆。完成工作、儲存偏好、回答問題或無法完成時，結束本輪前都要呼叫 say 說明結果或原因。較長的工作開始前，先用 say 告訴主人你要做什麼；進行中有實際進展或需要讓主人知道時，以適當的頻率用 say 回報，不要洗版；完成後再用 say 回報一次。開始和進度的回報請在 say 加上 transient: true，最後的結果不要加。開始或進度的回報不能取代最後的回覆。一般的 ACP 回答主人在桌寵上看不到，不能取代 say；say_next 也不能取代這次的即時回覆。";
                     text += "\nsay、say_next 與 walk_to 的 say 文字請使用台灣繁體中文與台灣用語。";
                     // The paths stay in the event itself too, for Agents that pass resource_link blocks over.
                     if (attached.Length > 0)
@@ -377,6 +437,7 @@ public sealed class AgentCoordinator : IDisposable
                                 if (image != null && !current.SupportsImages)
                                     await ApplySpeechBrief(false, "unsupported");
                                 if (!current.SupportsImages) DropPictures("unsupported");
+                                promptDispatched = true;
                                 result = await current.Request("session/prompt", new { sessionId, prompt = Prompt() }, turn.Token, TimeSpan.FromMinutes(5));
                                 break;
                             }
@@ -405,6 +466,8 @@ public sealed class AgentCoordinator : IDisposable
                         string completion = Interlocked.Read(ref spoken) == Interlocked.Read(ref turnStartSpoken)
                             ? "本輪結束，沒有呼叫說話工具。" : "本輪處理完成；雙擊魚魚就能對話。";
                         Report("已連線 · " + HarnessCatalog.Get(harnessId).Name, reason.GetString() == "end_turn" ? completion : "本輪已停止：" + reason.GetString());
+                        if (!turn.IsCancellationRequested && ExpectsReply(request.Kind) && Interlocked.Read(ref spoken) == Interlocked.Read(ref turnStartSpoken))
+                            NotifyNoReply(request.Epoch, !current.Alive);
                     }
                     catch (Exception) when (turn.IsCancellationRequested)
                     {
@@ -418,7 +481,17 @@ public sealed class AgentCoordinator : IDisposable
                         await DropConnection(); throw;
                     }
                 }
-                catch (OperationCanceledException) { DiagnosticLog.Write(DiagnosticEvent.AgentCancelled, kind: request.Kind); request.Completion?.TrySetCanceled(); if (authenticationPending) retryAfter = DateTimeOffset.MaxValue; if (mode.Enabled) Report("要求已取消"); }
+                // A pause, a switch or a restart that came after the worker took this request ends it as a cancellation, whatever
+                // the exception: the connection it cancelled and closed can fail with a disposed object, a null connection or a
+                // broken pipe instead. A cancellation thrown before the request starts, when the turn is not cancelled yet, counts too.
+                catch (Exception error) when (error is OperationCanceledException
+                    ? turn.IsCancellationRequested || powerPaused || request.Epoch != Interlocked.Read(ref epoch)
+                    : turn.IsCancellationRequested && (powerPaused || request.Epoch != Interlocked.Read(ref epoch)))
+                {
+                    DiagnosticLog.Write(DiagnosticEvent.AgentCancelled, kind: request.Kind); request.Completion?.TrySetCanceled();
+                    if (authenticationPending) retryAfter = DateTimeOffset.MaxValue;
+                    if (mode.Enabled) { if (powerPaused) ReportPowerPaused(); else Report("要求已取消"); }
+                }
                 catch (Exception error)
                 {
                     bool unavailable = error is AgentLaunchUnavailableException;
@@ -432,9 +505,15 @@ public sealed class AgentCoordinator : IDisposable
                     // A start the host's settings refuse waits for them to change (LaunchChanged) or for 重新連線; so does a
                     // credential the host supplies and the Agent turned down, whose note says what to do.
                     retryAfter = authentication || unavailable ? DateTimeOffset.MaxValue : DateTimeOffset.Now.AddMinutes(2);
+                    bool rejected = !unavailable && authentication && launchCredentialNote != null;
                     if (unavailable) Report("尚未啟動 · " + name, error.Message);
-                    else if (authentication && launchCredentialNote != null) Report("驗證失敗 · " + name, launchCredentialNote);
-                    else Report(authentication ? "需要登入 · " + name : "連線或要求失敗", error.Message);
+                    else if (rejected) Report("驗證失敗 · " + name, launchCredentialNote!);
+                    // A cancellation that is not this turn's (a pipe closed under a write) has only .NET's English message.
+                    else Report(authentication ? "需要登入 · " + name : "連線或要求失敗", error is OperationCanceledException ? "Agent 的要求被中斷了。" : error.Message);
+                    // The status already tells a start the settings refused, a key the Agent turned down and a login left unfinished.
+                    if (!unavailable && !rejected && error is not AgentLoginTimeoutException && !turn.IsCancellationRequested && ExpectsReply(request.Kind)
+                        && (promptDispatched || request.Kind == "user_message") && Interlocked.Read(ref spoken) == Interlocked.Read(ref turnStartSpoken))
+                        NotifyNoReply(request.Epoch, !Connected);
                 }
                 finally { authenticationPending = false; Busy = false; activeTurn = null; activeKind = ""; Changed?.Invoke(); }
             }
@@ -465,7 +544,7 @@ public sealed class AgentCoordinator : IDisposable
             launchSecrets = launch.Secrets;
             if (launch.Unavailable != null) throw new AgentLaunchUnavailableException(launch.Unavailable);
             var adapters = new AgentAdapterStore(root);
-            string executable = adapters.FindExecutable(harness) ?? (harness.Id == "antigravity" ? "" : throw new IOException("找不到 " + harness.Name + "，請先依官方說明安裝，並確認程式在 PATH 中。"));
+            string executable = adapters.FindExecutable(harness) ?? (harness.Id == "antigravity" ? "" : throw new IOException(HarnessDesktopLocator.NotFoundMessage(harness)));
             if (!File.Exists(bridge)) throw new IOException("安裝套件缺少內部的 MCP 元件，請重新安裝完整的標準版。");
             ExecutablePath = executable;
             Workspaces.EnsureCurrent(); Workspaces.Open(Workspaces.Current);
@@ -476,8 +555,10 @@ public sealed class AgentCoordinator : IDisposable
             token.ThrowIfCancellationRequested();
             var start = AgentProcess.StartInfo(command.Path, command.Arguments, skills.Workspace);
             // The actual installed CLI is preferred by adapters when they spawn it.
-            start.Environment["PATH"] = Path.GetDirectoryName(executable) + Path.PathSeparator + Environment.GetEnvironmentVariable("PATH");
+            start.Environment["PATH"] = Path.GetDirectoryName(executable) + Path.PathSeparator + HarnessEnvironment.SearchPath;
             if (harness.Id == "codex") start.Environment["CODEX_PATH"] = executable;
+            // The desktop application's Electron binary runs the bundled CLI only in Node mode.
+            if (harness.DesktopBundle != null) start.Environment["ELECTRON_RUN_AS_NODE"] = "1";
             if (harness.Id == "antigravity" && AgentAdapterStore.AntigravityHelper(command.Path) is { } helper)
                 start.Environment["ANTIGRAVITY_HARNESS_PATH"] = helper;
             // The host's variables go to this process only (and the processes it starts), never into a message or a file.
@@ -518,7 +599,10 @@ public sealed class AgentCoordinator : IDisposable
                             loginDeadline.CancelAfter(TimeSpan.FromMinutes(5));
                             var loginBase = methodChoice.ReplaceArguments ? AgentProcess.StartInfo(command.Path, [], skills.Workspace) : start;
                             foreach (var pair in start.Environment) loginBase.Environment[pair.Key] = pair.Value;
-                            await AgentTerminalLogin.Run(loginBase, methodChoice, loginDeadline.Token);
+                            try { await AgentTerminalLogin.Run(loginBase, methodChoice, loginDeadline.Token); }
+                            // The five minutes ran out, not the turn: an unfinished login, which waits for 重新連線.
+                            catch (OperationCanceledException) when (loginDeadline.IsCancellationRequested && !token.IsCancellationRequested)
+                            { throw new AgentLoginTimeoutException(); }
                             client = CreateConnection(start); await client.Initialize(token);
                         }
                         else await client.Request("authenticate", new { methodId = selected }, token, TimeSpan.FromMinutes(5));
@@ -556,9 +640,10 @@ public sealed class AgentCoordinator : IDisposable
                     Report("正在建立魚魚專用的對話…");
                     var result = await SessionRequest("session/new", new { cwd = skills.Workspace, mcpServers = servers });
                     token.ThrowIfCancellationRequested();
-                    sessionId = result.GetProperty("sessionId").GetString() ?? throw new IOException("Agent 沒有回傳對話編號。");
-                    if (sessionId.Length == 0) throw new IOException("Agent 回傳了空的對話編號。");
-                    AtomicText.Write(stateFile, JsonSerializer.Serialize(new AgentSession(sessionId, executable, skills.Workspace, launch.Profile)));
+                    string createdSession = result.GetProperty("sessionId").GetString() ?? throw new IOException("Agent 沒有回傳對話編號。");
+                    if (createdSession.Length == 0) throw new IOException("Agent 回傳了空的對話編號。");
+                    AtomicText.Write(stateFile, JsonSerializer.Serialize(new AgentSession(createdSession, executable, skills.Workspace, launch.Profile)));
+                    sessionId = createdSession;
                     guideFingerprint = null;
                 }
                 token.ThrowIfCancellationRequested();
@@ -584,7 +669,12 @@ public sealed class AgentCoordinator : IDisposable
             }
             ProtocolEvent?.Invoke(method, data);
         };
-        client.Disconnected += reason => { if (connection == client) { sessionId = ""; DiagnosticLog.Write(DiagnosticEvent.AgentDisconnected, state: "failed"); Report("Agent 已中斷連線", reason); } };
+        client.Disconnected += reason => {
+            if (connection != client) return;
+            bool idleSession = sessionId.Length > 0 && activeTurn == null;
+            sessionId = ""; DiagnosticLog.Write(DiagnosticEvent.AgentDisconnected, state: "failed"); Report("Agent 已中斷連線", reason);
+            if (idleSession) NotifyNoReply(Interlocked.Read(ref epoch), true);
+        };
         return client;
     }
     private async Task DropConnection()

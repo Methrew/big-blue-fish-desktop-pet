@@ -8,11 +8,11 @@
 > - 台灣版：acer1204（[acer1204/big-blue-fish-desktop-pet 的 taiwan-edition 分支](https://github.com/acer1204/big-blue-fish-desktop-pet/tree/taiwan-edition)）
 > - 台灣 macOS 版整合：Methrew（[Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet)）
 >
-> 本版以原作者的藍色大肥魚 1.1.3（含官方 macOS 版）為基礎，整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.3-tw.3`，意思是「原版 1.1.3 的台灣版第 3 次修訂」。acer1204 認可本版整合其台灣版；本版不是由原作者或 acer1204 維護，內容也未經原作者審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
+> 本版以原作者的藍色大肥魚 1.1.5 為基礎（原作者的 1.1.4、1.1.5 只發布 Windows 與 Linux 版，官方 macOS 版仍是 1.1.3；本版的 Mac 版用 1.1.5 的原始碼建置），整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.3-tw.3`，意思是「原版 1.1.3 的台灣版第 3 次修訂」。acer1204 認可本版整合其台灣版；本版不是由原作者或 acer1204 維護，內容也未經原作者審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
 
 藍色大肥魚是一款住在電腦桌面上的 AI 桌寵軟體。她是一位藍髮的小鯨魚娘，形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」。軟體內建 4B 本機語言模型，透過 OCR 讀懂主人正在桌面上做的事情，每隔一段時間就從文字氣泡裡送來一句可愛的話，陪伴和關心主人；她也會看看天氣、瀏覽科技新聞，再用自己的方式講給主人聽。
 
-魚魚準備了一百多種可愛的動作表情，平常會在桌面上呼吸、哼歌、伸懶腰、吃零食、玩耍，到了吃飯時間會認真吃飯，到了節日會換上應景的小活動，被點一下、被拎起來時也有專門設計的反應。每次啟動，她都會提起裙擺向主人行禮請安；關閉時，也會用同樣的禮儀和主人道別。標準版還能透過 ACP 一鍵連線 21 款主流 CLI Agent，陪主人進行穩定的長對話。
+魚魚準備了一百多種可愛的動作表情，平常會在桌面上呼吸、哼歌、伸懶腰、吃零食、玩耍，到了吃飯時間會認真吃飯，到了節日會換上應景的小活動，被點一下、被拎起來時也有專門設計的反應。每次啟動，她都會提起裙擺向主人行禮請安；關閉時，也會用同樣的禮儀和主人道別。標準版還能透過 ACP 一鍵連線 22 款主流 CLI Agent（包括 DeepSeek Harness 桌面版內附的 CLI），陪主人進行穩定的長對話。
 
 本版以 macOS（Apple Silicon）為主要平台，在 Mac 上建置與測試。
 
@@ -70,6 +70,7 @@
   - Hermes 對話橋接：把雙擊輸入的文字交給本機的 [Hermes Agent](https://github.com/NousResearch/hermes-agent)，另有每日簡報、回來時的摘要、排程回報與 Google 日曆提醒。標準版 App 已內附橋接程式。
   - 外部 MCP 介面：讓 Hermes 橋接程式等本機的 MCP 客戶端透過 `BigBlueFish.Mcp` 控制魚魚，預設關閉；雙擊輸入只會交給一方，不會讓兩個 Agent 各回答一次。
   - 輸入框附件：用迴紋針按鈕、拖曳或 ⌘V 貼上，一次最多附加 10 個圖片、影片或檔案，以 ACP 的 `resource_link` 交給 Agent。
+- **原作者 1.1.4、1.1.5 的功能也帶到 Mac**：原作者這兩版只發布 Windows 與 Linux 版，本版的 Mac 版也有：Agent 這一輪結束卻沒有回覆、或連線意外中斷時，魚魚會告訴主人；Agent 接到較長的工作時會先說要做什麼、適度回報進度，最後再回報結果；可以連線 DeepSeek Harness Desktop 內附的 CLI（Mac 上還沒有實際測試）；筆電拔掉電源時，除了暫停本機模型，也會關閉魚魚啟動的 Agent 程式，接上電源後再恢復連線（遠端模型、雲端 AI 服務和外部 MCP 介面照常）；原作者重新壓縮的高畫質動畫，檔案小了約 55%。截圖與錄影時隱藏魚魚、滑鼠移到魚魚身上時的手掌游標只有 Windows 版有。
 - **Mac 版的改進**：改用 Mac 的硬體解碼（VideoToolbox）播放原作者提升到 1280×720、每秒 60 格的動畫（原版 Mac 版一直只播 640×360、每秒 24 格的相容動畫），想省電可以在「設定 › 桌寵與顯示」關閉；修正原版 Mac 版讀不到真正的閒置時間、導致自動說話與 Agent 日常關心不會觸發的問題；桌寵會跟著切換桌面空間，點一下或拖曳後鍵盤焦點會回到原本的 App；點選和拖曳的動作會預先解碼開頭，反應更即時；第一次偵測 GPU 時等待更久，能用 Metal；從 Finder 開啟時也會讀取登入 shell 的 PATH，找得到 npm 或 Homebrew 安裝的 Agent CLI；可以把 Finder 裡的檔案直接拖到魚魚身上，打開輸入框並附加給 Agent。
 
 ## 認識魚魚
@@ -94,7 +95,7 @@
 
 內建模型每次只產生一段單獨的回覆，沒有對話歷史，也不保留記憶。使用本機模型時，讀到的螢幕內容只在這台電腦上交給模型，不會上傳到雲端，也不會存到磁碟；改用遠端模型時，前景視窗的文字或截圖會傳送到主人自己填寫的伺服器，詳見 [macOS 說明](docs/MACOS.md#遠端模型)；改用雲端 AI 服務時，同樣的內容會傳送到主人選的 Anthropic、OpenAI 或 Google，詳見 [macOS 說明](docs/MACOS.md#雲端-ai-服務)。
 
-筆電拔掉電源時，魚魚可以自動暫停模型並把模型移出記憶體，幫主人照顧續航；其他程式全螢幕時，她會自動躲起來，結束後再回到桌面。這些行為都可以在設定中依自己的習慣調整。
+筆電拔掉電源時，魚魚可以自動暫停本機模型並把模型移出記憶體；標準版也會關閉她自己啟動的 Agent 程式，接上電源後再恢復連線，幫主人照顧續航。使用遠端模型或雲端 AI 服務時，用電池也照常說話。其他程式全螢幕時，她會自動躲起來，結束後再回到桌面。這些行為都可以在設定中依自己的習慣調整，詳見 [macOS 說明](docs/MACOS.md#筆電拔掉電源時)。
 
 除此之外，魚魚還會自己提醒主人起來走走、記得吃飯、早點睡覺、插上電源和帶傘。這些提醒由魚魚依規則判斷，不需要模型或 Agent；主人不在電腦前、有程式全螢幕或正在拖曳魚魚時，提醒會先等等。
 
@@ -153,7 +154,7 @@ Hugging Face 來源是 [Biomanticus/Qwen3.5-4B-heretic-gguf](https://huggingface
 
 從 1.1.0 起，標準版的藍色大肥魚透過 ACP（Agent Client Protocol）連線主人電腦上已經安裝的 CLI Agent。連線只需要在設定裡點一次：魚魚會在背景啟動所選的 Agent，為自己開一個專用對話，並自動接好動作、截圖、說話等工具。接上之後，主人可以和魚魚長時間聊天，也可以藉助 Agent 的能力，做到操控電腦、和雲端的大型語言模型對話、自訂陪伴和動作邏輯等各種玩法。
 
-魚魚目前支援 21 款 CLI Agent，其中有 Claude Code、Codex CLI、Gemini CLI、DeepSeek Harness、Kimi Code、Qwen Code、GitHub Copilot CLI、Cursor CLI、OpenCode、Hermes Agent 等。全部支援的 Agent 和各自的啟動方式見[連線本機 CLI Harness](docs/ACP.md)。
+魚魚目前支援 22 款 CLI Agent，其中有 Claude Code、Codex CLI、Gemini CLI、DeepSeek Harness（命令列版，以及桌面版 DeepSeek Harness Desktop 內附的 CLI）、Kimi Code、Qwen Code、GitHub Copilot CLI、Cursor CLI、OpenCode、Hermes Agent 等。全部支援的 Agent 和各自的啟動方式見[連線本機 CLI Harness](docs/ACP.md)。
 
 ### 連線方法
 
@@ -168,7 +169,11 @@ Claude Code、Codex CLI 和 Pi 需要經過 ACP 轉接器連線。電腦上還�
 
 連上之後，雙擊魚魚，她身邊會展開一個小輸入框。寫下想說的話，按「傳送」或 ⌘↩（Windows 與 Linux 是 Ctrl+Enter），Agent 的回覆就會出現在魚魚的氣泡裡。輸入框也可以附加圖片、影片或檔案。第一次連線時，魚魚會替 Agent 裝上「藍色大肥魚操作」技能（`big-blue-fish`），裡面寫著她的鯨魚娘人設，還有播放動作、截圖、說話這些操作的用法；人設也可以在設定裡隨時改成主人喜歡的樣子。
 
+交代比較長的工作時，Agent 會先透過魚魚說要做什麼，進行中適度回報進度，做完或做不到時再告訴主人結果。Agent 這一輪已經結束、卻沒有透過魚魚回覆時，魚魚會說「主人，Agent 結束工作了，但沒有回覆。」；連線意外中斷時，會說「主人，Agent 的連線中斷了。」。
+
 魚魚在每個 Agent 那裡都有一個專屬對話。說完一輪，下一句話還在同一個對話裡繼續，前面聊過的內容都留在上下文中，所以能聊得很長、很穩。Agent 支援恢復對話時，關掉魚魚再打開，或斷線後重新連線，她都會先把原來的對話接回來；登入過期、網路不穩這類情況也會保留原本的對話，恢復後繼續聊。想換個話題從頭開始，按「開始新對話」就好。
+
+筆電拔掉電源、而且「筆電拔掉電源時暫停本機模型和 Agent」開著時，魚魚會關閉她啟動的 Agent 程式，輸入框裡的草稿和附件會留著，接上電源後再接回原本的對話；Hermes 橋接程式等外部 MCP 介面照常運作。詳見 [macOS 說明](docs/MACOS.md#筆電拔掉電源時)。
 
 ### 魚魚的工作區
 
@@ -238,9 +243,9 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET �
 
 ## 授權與第三方
 
-本專案以 [Apache License 2.0](LICENSE) 發布，原作者的著作權聲明（Copyright 2026 Bai-Cute）和授權條款維持不變，本版的修改同樣以 Apache-2.0 授權發布。依授權條款第 4 條，修改過的原始碼檔案開頭會註明修改者與日期；和原作者 1.1.3 版的完整差異，可以在本儲存庫用 `git diff 75cd217` 檢視。魚魚的形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」；專案使用的動畫、模型、執行環境、字型和資料分別來自以下專案，各自遵循其原有授權：
+本專案以 [Apache License 2.0](LICENSE) 發布，原作者的著作權聲明（Copyright 2026 Bai-Cute）和授權條款維持不變，本版的修改同樣以 Apache-2.0 授權發布。依授權條款第 4 條，修改過的原始碼檔案開頭會註明修改者與日期；和原作者 1.1.5 版的完整差異，可以在本儲存庫用 `git diff aebf9cc` 檢視。魚魚的形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」；專案使用的動畫、模型、執行環境、字型和資料分別來自以下專案，各自遵循其原有授權：
 
-- 角色動畫：106 段透明 WebM 動畫來自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT 授權；播放素材經原作者提升到 1280×720、每秒 60 格，並保留原始解析度與影格率的相容素材（macOS 版兩套都內含：能用 VideoToolbox 硬體解碼時播放 1280×720，否則播放相容素材），動作的選擇與觸發邏輯為本專案自訂。dsh-pet 的 README 另外規定素材禁止商用、角色形象採 CC BY-NC-SA 4.0，並要求衍生作品附上 dsh-pet 的網址；這些限制由 acer1204 的台灣版補充說明，詳見[第三方聲明](code/THIRD-PARTY.md)。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象。
+- 角色動畫：106 段透明 WebM 動畫來自 [PC2005-cloud/dsh-pet](https://github.com/PC2005-cloud/dsh-pet)，MIT 授權；播放素材經原作者提升到 1280×720、每秒 60 格（原作者 1.1.4 重新壓縮過，檔案小了約 55%），並保留原始解析度與影格率的相容素材（macOS 版兩套都內含：能用 VideoToolbox 硬體解碼時播放 1280×720，否則播放相容素材），動作的選擇與觸發邏輯為本專案自訂。dsh-pet 的 README 另外規定素材禁止商用、角色形象採 CC BY-NC-SA 4.0，並要求衍生作品附上 dsh-pet 的網址；這些限制由 acer1204 的台灣版補充說明，詳見[第三方聲明](code/THIRD-PARTY.md)。本專案的 Apache-2.0 只適用於程式碼，不涵蓋這些動畫與角色形象。
 - 本機模型：Qwen3.5-4B 及其衍生的 heretic 版本與 GGUF 轉換，Apache-2.0 授權，模型檔由使用者另外下載；
 - 推論與執行環境：llama.cpp（MIT）、.NET 10 執行環境（MIT）、Microsoft Visual C++ 執行階段程式庫（Windows，依 Microsoft 再散布條款）；
 - 動畫解碼：macOS 與 Windows 版使用隨附的 GStreamer 元件，Linux 版使用系統的 GStreamer；
@@ -248,6 +253,7 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh   # 這台 Mac 裝了多個 .NET �
 - 文字辨識：macOS 使用系統的 Apple Vision，Windows 使用系統提供的 Windows.Media.Ocr，Linux 使用 Tesseract；
 - 氣泡字型：jf open 粉圓 2.1（SIL Open Font License 1.1），取代原版的「乐米小奶泡体」；本版不散布原版字型；
 - 繁簡轉換：[OpenCC](https://github.com/BYVoid/OpenCC) 1.4.2 字典（Apache-2.0）；
+- 游標圖示（只有 Windows 版使用）：[Lucide](https://lucide.dev/) 的 `hand` 與 `hand-grab`，ISC 授權；
 - 雲端 AI 服務：Claude 透過 Anthropic 官方的 C# SDK（[anthropic-sdk-csharp](https://github.com/anthropics/anthropic-sdk-csharp) 13.8.0，Apache-2.0，改授權前合併的部分仍適用 MIT）與它使用的 Microsoft.Extensions.AI.Abstractions 10.5.1（MIT）；Claude API、OpenAI API、Gemini API 由使用者以自己的帳戶與 API Key 連線，適用各服務自己的條款，本程式沒有經過 Anthropic、OpenAI 或 Google 推薦或背書；
 - 天氣資料：[Open-Meteo](https://open-meteo.com/)，CC BY 4.0；臺灣鄉鎮天氣預報：中央氣象署開放資料，依政府資料開放授權條款第 1 版使用，中央氣象署並未推薦或背書本程式；科技新聞：[IT之家 RSS](https://www.ithome.com/rss/)；
 - 行政區資料：[AreaCity-JsSpider-StatsGov](https://github.com/xiangyuecn/AreaCity-JsSpider-StatsGov)，MIT 授權，只內嵌層級與近似中心座標；美國州郡、全球城市與國名分別來自美國人口普查局 Gazetteer、GeoNames 與 Unicode CLDR；臺灣鄉鎮市區中心依內政部國土測繪中心的鄉（鎮、市、區）界線計算，依政府資料開放授權條款第 1 版使用。

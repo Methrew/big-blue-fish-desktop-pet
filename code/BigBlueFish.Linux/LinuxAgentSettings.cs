@@ -30,10 +30,21 @@ internal sealed partial class LinuxPetWindow
         Detect(); extra.Children.Add(select);
 #if COMPANION_MAC
         // CLIs that npm, Homebrew or a version manager installed are found only once the login shell's PATH is in (MacLoginPath).
-        if (!MacLoginPath.Ready.IsCompleted)
-            _ = MacLoginPath.Ready.ContinueWith(_ => Dispatcher.UIThread.Post(() => { if (TopLevel.GetTopLevel(select) != null) Detect(); }), TaskScheduler.Default);
+        void DetectOnceReady() => _ = MacLoginPath.Ready.ContinueWith(_ => Dispatcher.UIThread.Post(() => { if (TopLevel.GetTopLevel(select) != null) Detect(); }), TaskScheduler.Default);
+        if (!MacLoginPath.Ready.IsCompleted) DetectOnceReady();
 #endif
-        var buttons = new WrapPanel(); buttons.Children.Add(ActionButton("重新偵測", Detect));
+        // 重新偵測 forgets the cached shell PATH and desktop apps (1.1.4, 1.1.5) first. HarnessEnvironment keeps the inherited PATH
+        // on macOS, so there the login shell's PATH is read again in the background (MacLoginPath), for a CLI installed since.
+        void Redetect()
+        {
+            HarnessEnvironment.Refresh(); HarnessDesktopLocator.Refresh(); Detect();
+#if COMPANION_MAC
+            if (!MacLoginPath.Ready.IsCompleted) return;
+            MacLoginPath.Start(state => DiagnosticLog.Write(DiagnosticEvent.AgentFailed, kind: "terminal", state: state));
+            DetectOnceReady();
+#endif
+        }
+        var buttons = new WrapPanel(); buttons.Children.Add(ActionButton("重新偵測", Redetect));
         buttons.Children.Add(ActionButton("安裝與登入說明", () => OpenUrl(HarnessCatalog.Get(Preferences.AgentHarnessId).Website)));
         extra.Children.Add(buttons);
         // Claude Code, Codex CLI and Gemini CLI only: the CLI the fish starts runs on the cloud AI service's API Key of its
@@ -98,12 +109,18 @@ internal sealed partial class LinuxPetWindow
             if (select.SelectedItem is ComboBoxItem { Tag: "antigravity" } selected)
                 selected.Content = "Antigravity CLI" + (adapters.FindExecutable(HarnessCatalog.Get("antigravity")) == null ? " · 連線時準備官方元件" : " · 已偵測到");
             RefreshApiKey();
-            state.Text = (agent?.Status ?? "尚未連線") + "\n" + (agent?.Detail ?? "選擇後連線，雙擊魚魚即可對話。");
+            // On battery with the pause on (1.1.4) the Agent the fish started is closed; the fish's own model is not part of it.
+            // A connection the user turned off keeps saying so (AgentCoordinator.SetPowerPaused).
+            bool paused = Preferences.AgentEnabled && Preferences.AiPausedOnBattery;
+            state.Text = paused ? "使用電池 · Agent 已暫停\n魚魚啟動的 Agent 程式已經關閉，接上電源後會恢復連線。"
+                : (agent?.Status ?? "尚未連線") + "\n" + (agent?.Detail ?? "選擇後連線，雙擊魚魚即可對話。");
             string signIn = ApiKeyLaunch.ForProfile(agent?.LaunchProfile)?.SignInDetail ?? "Agent 自己的登入";
             details.Text = $"程式：{agent?.ExecutablePath}\n版本：{agent?.Version}\n登入：{signIn}\n模型：{agent?.CurrentModel}\n對話編號：{agent?.SessionId}\n內部工具連線：{mcpServer?.Connections ?? 0}\n點選回應：{(Preferences.AgentRespondToClick ? "開" : "關")}；拖曳回應：{(Preferences.AgentRespondToDrag ? "開" : "關")}（可由 Agent 調整）";
             wake.Text = Preferences.PuppetMode && Preferences.AgentDailySpeech ? "下一次日常關心：" + (agent?.NextWake ?? "等待 Agent 安排")
                 : Preferences.PuppetMode ? "Agent 安排日常關心的時機，由模型編寫要說的話。下一次關心：" + (agent?.NextWake ?? "等待 Agent 預約") : Preferences.AgentDailySpeech ? "魚魚決定何時關心主人，Agent 編寫關心的話。" : "魚魚按自己的節奏關心主人，日常說話使用魚魚自己的模型。";
-            if (Preferences.PuppetMode && agent?.Connected != true) wake.Text += "\nAgent 未連線，魚魚保持待機；關閉第二個開關可恢復魚魚自己的安排。";
+            // Only what the Agent arranges or writes waits for AC; the fish's own care keeps its own model.
+            if (paused && (Preferences.AgentDailySpeech || Preferences.PuppetMode)) wake.Text = "魚魚啟動的 Agent 已依供電設定暫停，交給 Agent 的日常關心會在接上電源後恢復。";
+            else if (Preferences.PuppetMode && agent?.Connected != true) wake.Text += "\nAgent 未連線，魚魚保持待機；關閉第二個開關可恢復魚魚自己的安排。";
         }
         select.SelectionChanged += (_, _) => { if (!refreshing && select.SelectedItem is ComboBoxItem { Tag: string id }) { Preferences.AgentHarnessId = id; ConfigureAgent(); Save(); RefreshApiKey(); } };
         daily.Click += (_, _) => { Preferences.AgentDailySpeech = daily.IsChecked == true; ApplySettings(); Refresh(); };

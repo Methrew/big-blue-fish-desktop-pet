@@ -5,7 +5,7 @@
 
 ## 支援清單
 
-下表列出內建支援的 Harness。程式會從 PATH 尋找對應的指令；Windows 同時檢查程式本身的 PATH 與目前使用者、系統的 PATH，優先尋找 exe、cmd、bat、ps1。macOS 從 Finder 開啟 App 時，系統只給最基本的 PATH，所以魚魚會在背景讀取登入 shell 的 PATH（最多等 5 秒），找得到 npm、Homebrew 或版本管理工具安裝的指令。軟體不會在偵測時啟動所有產品，也不會安裝所選 Harness 本身。各產品需要先完成自己的登入、模型和執行環境設定。
+下表列出內建支援的 Harness。程式會從 PATH 尋找對應的指令；Windows 同時檢查程式本身的 PATH 與目前使用者、系統的 PATH，優先尋找 exe、cmd、bat、ps1。macOS 從 Finder 開啟 App 時，系統只給最基本的 PATH，所以魚魚會在背景讀取登入 shell 的 PATH（最多等 5 秒），找得到 npm、Homebrew 或版本管理工具安裝的指令。軟體不會在偵測時啟動所有產品，也不會安裝所選 Harness 本身。各產品需要先完成自己的登入、模型和執行環境設定。Linux 版另外會讀取使用者互動式 shell 的 PATH（結果保留 60 秒，按「重新偵測」會重新讀取）。
 
 | 名稱 | 指令 | ACP 啟動方式 |
 | --- | --- | --- |
@@ -13,6 +13,7 @@
 | Codex CLI | codex | codex-acp 轉接器，使用找到的 Codex 路徑 |
 | Gemini CLI | gemini | --acp --allowed-tools mcp_big-blue-fish_* |
 | DeepSeek Harness | dsh | --profile acp |
+| DeepSeek Harness Desktop | 已安裝的桌面版 App | 以 ELECTRON_RUN_AS_NODE=1 執行 app.asar 內建的 CLI，傳入 --profile acp |
 | Kimi Code | kimi | acp |
 | Qwen Code | qwen | --acp |
 | Antigravity CLI | agy 或 agy_acp_server | Google 官方的 agy_acp_server |
@@ -31,9 +32,11 @@
 | OpenClaw | openclaw | acp，連線到它已設定的 Gateway |
 | MiniMax Code | mcode | acp |
 
+DeepSeek Harness Desktop 不需要 dsh 指令：魚魚會找已安裝的桌面版（Windows 的安裝資料夾與解除安裝資訊裡記錄的位置、macOS 的 `/Applications` 或 `~/Applications` 裡的 `DeepSeek Harness.app`、Linux 的 `/opt`），也會看正在執行的桌面版，只讀取 `app.asar` 的檔案索引，確認裡面有內建的 dsh 與 ACP 元件，偵測時不會啟動它。連線時魚魚另外啟動一個執行內建 CLI 的程式，不會接管你開著的桌面版視窗。這個方式在 macOS 上還沒有實測過。
+
 Claude、Codex 與 Pi 的 ACP 轉接器會先從 PATH 尋找；找不到時安裝到魚魚資料夾的 `agent/adapters/<id>`，使用 `HarnessCatalog` 中固定的 npm 版本。安裝需要 Node.js 與 npm，從官方 npm registry 下載，快取放在 `agent/adapter-cache`。Antigravity 使用已安裝、附有搭配執行程式的 ACP 元件，或下載 Google 官方的發布套件（macOS 為 `darwin-aarch64`）並核對 SHA256，同時準備 `agy_acp_server` 與 `localharness_external`，沿用官方的啟動參數。已下載的元件會參與偵測，尚未準備時也可以直接連線並下載。原有的 CLI 不會被升級或解除安裝。
 
-Agent 要求驗證時，魚魚會列出它公布的登入方式。通訊協定內的驗證透過 ACP 的 `authenticate` 完成；終端機驗證會打開互動式的登入終端機，成功後重新連線並繼續原本的對話請求。也相容 Kimi 等產品舊式的 `_meta.terminal-auth` 格式，使用偵測到的本機程式和它公布的登入參數。沿用既有的登入由官方元件處理。驗證最多等 5 分鐘，也可以取消。Antigravity 的一般互動入口已經登入時，第一次 ACP 連線仍可能需要選擇 Google 帳號等驗證方式。
+Agent 要求驗證時，魚魚會列出它公布的登入方式。通訊協定內的驗證透過 ACP 的 `authenticate` 完成；終端機驗證會打開互動式的登入終端機，成功後重新連線並繼續原本的對話請求。也相容 Kimi 等產品舊式的 `_meta.terminal-auth` 格式，使用偵測到的本機程式和它公布的登入參數。沿用既有的登入由官方元件處理。驗證最多等 5 分鐘，也可以取消；在終端機登入超過 5 分鐘還沒完成時，連線頁顯示「需要登入」和原因：macOS 的「終端機」視窗會保留，完成登入後按「重新連線」；Windows 與 Linux 的登入視窗會關閉，按「重新連線」重新開啟。Antigravity 的一般互動入口已經登入時，第一次 ACP 連線仍可能需要選擇 Google 帳號等驗證方式。
 
 Windows 用可以直接啟動的程式入口打開登入終端機；macOS 打開「終端機」App，按了 Control-C 或關閉終端機視窗時會馬上顯示登入被中斷；Linux 使用系統已有的 GNOME Terminal、Konsole 或 xterm。登入方式和參數來自 Agent，驗證視窗會顯示終端機參數與環境變數。沒有公布驗證方式的產品，沿用它自己的設定、登入方式和「安裝與登入說明」入口。開始產生回覆之前憑證就失效時，魚魚可以恢復連線並繼續原本那一輪；已經呼叫過工具或說過話的那一輪不會自動重送。
 
@@ -141,7 +144,7 @@ MCP 的 `get_settings` 會列出 `AgentGeminiApiKey`（true 表示開啟），`u
 
 ## 文字與工具
 
-Agent 準備讓主人看到的話，透過 `say` 或 `say_next` 的 text 參數交給魚魚。一般的 ACP 回答、思考、工作記錄和恢復時重播的歷史都不會進入氣泡。氣泡顯示前會把簡體字轉成台灣繁體，Agent 也應該直接用台灣繁體中文寫。內部 MCP 連線會隨 ACP 對話自動設定，工具參數見[內部工具參考](MCP.md)。
+主人主動跟魚魚說話時，Agent 一定要用 `say` 即時回覆，`say_next` 不能取代這次的回覆。較長的工作開始時先說要做什麼，進行中有實際進展或需要讓主人知道時以適當的頻率回報，完成或無法完成時用 `say` 說明結果；開始和進度的回報加上 `transient: true`（只顯示在氣泡，不寫進聊天記錄），最後的結果不加。詳細的工作成果留在工作區或 Agent 對話裡，魚魚用一行、少於 100 字的自然話語告訴主人。Agent 準備讓主人看到的話，透過 `say` 或 `say_next` 的 text 參數交給魚魚。一般的 ACP 回答、思考、工作記錄和恢復時重播的歷史都不會進入氣泡。氣泡顯示前會把簡體字轉成台灣繁體，Agent 也應該直接用台灣繁體中文寫。內部 MCP 連線會隨 ACP 對話自動設定，工具參數見[內部工具參考](MCP.md)。
 
 開啟連線時確認的權限包括魚魚自己的設定、動作、文字、截圖與使用者狀況（`get_context`）工具，Windows 與 macOS 另有 `find_on_screen` 與 `walk_to`。能辨識為魚魚自有工具的 ACP 權限請求，可以用單次授權回應；其他請求會顯示操作內容和對方提供的選項，由使用者選擇。取消、中斷連線或結束程式時會結束等待。
 
@@ -168,6 +171,10 @@ Windows 版的對話輸入框可以往上捲動檢視本機的記錄，往下捲
 
 ## 連線狀態與資料
 
-連線頁會區分未偵測到、正在安裝轉接器、啟動中、恢復中、建立中、已連線、處理中、等待權限、需要登入、尚未啟動（例如 Claude Code、Codex CLI 或 Gemini CLI 改用 API Key 卻還沒有 Key）、驗證失敗和失敗。詳細資訊包含程式路徑、Agent 版本、登入方式（Agent 自己的登入，或 Claude API Key、OpenAI API Key、Gemini API Key）、模型、對話編號和內部工具的連線數，另外顯示下一次預約的時間。一輪結束卻沒有呼叫說話工具時，狀態會明確顯示沒有呼叫說話工具。Agent 的錯誤訊息裡如果出現魚魚交給它的 API Key，狀態一律以 `***` 代替。
+連線頁會區分未偵測到、正在安裝轉接器、啟動中、恢復中、建立中、已連線、處理中、等待權限、需要登入、尚未啟動（例如 Claude Code、Codex CLI 或 Gemini CLI 改用 API Key 卻還沒有 Key）、驗證失敗、使用電池時暫停和失敗。詳細資訊包含程式路徑、Agent 版本、登入方式（Agent 自己的登入，或 Claude API Key、OpenAI API Key、Gemini API Key）、模型、對話編號和內部工具的連線數，另外顯示下一次預約的時間。一輪結束卻沒有呼叫說話工具時，狀態會明確顯示沒有呼叫說話工具。Agent 的錯誤訊息裡如果出現魚魚交給它的 API Key，狀態一律以 `***` 代替。
 
 魚魚會儲存所選的 Harness、設定、對話編號、技能、人設、預約和轉接器檔案（macOS 在 `~/Library/Application Support/bigbluefish-tw/agent/`）；改用 API Key 時，Claude Code、Codex CLI、Gemini CLI 自己的設定與對話分別放在同一處的 `claude-api`、`codex-api`、`gemini-api` 資料夾。Agent 自己怎麼儲存對話依它的設定而定，可能把輸入或截圖傳送給設定的模型服務。魚魚不會把一般的 ACP 回答自動存成聊天記錄。無MCP版在編譯時就排除了 ACP、內部工具與對話頁面。
+
+主人的對話、日常關心、手動天氣播報、說話測試，以及由 Agent 編寫的預約關心，在這一輪已經結束或要求回傳錯誤、卻還沒有即時說話時，魚魚會在氣泡顯示「主人，Agent 結束工作了，但沒有回覆。」；連線中斷時顯示「主人，Agent 的連線中斷了。」。已連線但閒置的對話意外中斷，也會顯示中斷的提示。同一輪只提示一次；一般的 ACP 回答和 `say_next` 不算即時說話，帶 `say` 的 `walk_to` 開始移動後就算。主動取消、結束程式、切換連線或工作區，以及依供電設定暫停時，不顯示這些提示；設定還不能啟動（尚未啟動）、Key 被拒（驗證失敗）或等登入超過 5 分鐘時，連線頁的狀態已經寫明原因，也不再跳提示。之後的新一輪會讓還沒顯示的舊提示失效。
+
+設定頁的「筆電拔掉電源時暫停本機模型和 Agent」開著時（預設開啟），筆電改用電池會關閉魚魚啟動的 Agent 程式，並清掉還沒送出的 Agent 請求，連線頁顯示「使用電池 · Agent 已暫停」。暫停期間，交給 Agent 的對話、檔案、由 Agent 編寫的日常說話和預約都會暫停；雙擊輸入框不會收起，草稿和附件會保留，只是不能傳給 Agent，需要 Agent 接手時魚魚會說「魚魚的 Agent 已依供電設定暫停，接上電源後再交給 Agent 喔～」。接上電源（或關閉這個開關）後顯示「正在恢復 Agent 連線…」並重新連線，沿用原本的對話。暫停前停在「尚未啟動」「驗證失敗」或「需要登入」這類等你處理的狀態時，接上電源後會回到原本的狀態，不會自動重試；暫停期間改了 API Key 等啟動設定時，接上電源後才用新的設定重新啟動。魚魚自己的說話照原本的規則：本機模型依這個設定暫停，遠端模型和雲端 AI 服務照常說話。你自己開的 Agent 程式和 MCP 介面（例如 Hermes 橋接程式）也不受影響。

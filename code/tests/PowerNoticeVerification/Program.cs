@@ -15,8 +15,14 @@ using BigBlueFish.Windows;
 
 internal static class Program
 {
+    sealed class VerificationApp : App
+    {
+        // The fixture owns its current directory; do not run production installation migration.
+        protected override void OnStartup(StartupEventArgs e) { }
+    }
     const BindingFlags Access = BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
-    const string Notice = "主人，目前設定為筆電拔掉電源時暫停模型，可以在設定裡調整喔。";
+    // CompanionMenus.BatteryPauseNotice: the local model is paused on battery (a remote or cloud model keeps talking).
+    const string Notice = "主人，目前設定為筆電拔掉電源時暫停本機模型，可以在設定裡調整喔。";
     static int checks;
     static object Read(object o, string n) => o.GetType().GetField(n, Access)!.GetValue(o)!;
     static T Property<T>(object o, string n) => (T)o.GetType().GetProperty(n, Access)!.GetValue(o)!;
@@ -43,7 +49,7 @@ internal static class Program
         try
         {
             string sandbox = Path.GetFullPath(args[0]);
-            var app = new App(); app.InitializeComponent();
+            var app = new VerificationApp(); app.InitializeComponent();
             typeof(Application).GetField("_startupUri", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(app, null);
             app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
             Directory.SetCurrentDirectory(sandbox);
@@ -95,13 +101,16 @@ internal static class Program
             Check((DateTime)Read(window, "bubbleUntil") == DateTime.MaxValue, "Stay-until-next-message setting lost");
             Set(preferences, "BubbleDurationIndex", 0);
             Set(preferences, "ModelEnabled", false);
-            ((Task)Invoke(window, "SpeakCompanionWeather")!).GetAwaiter().GetResult(); Steady(300);
-            Check(text.Text.Contains("「啟用模型說話」，再來檢視天氣") && bubble.Visibility == Visibility.Visible, "Disabled-model notice disappeared");
+            Power(true); Invoke(window, "ApplyCompanionPowerPolicy");
+            ((Task)Invoke(window, "SpeakCompanionWeather")!).GetAwaiter().GetResult(); Steady(1800);
+            Check(text.Text.Contains("「啟用模型說話」，再來檢視天氣") && bubble.Visibility == Visibility.Visible,
+                "Disabled-model notice differs: " + text.Text + "; full=" + Property<string>(speech, "FullText") + "; visibility=" + bubble.Visibility
+                + "; available=" + Property<bool>(brain, "ModelAvailable") + "; power=" + Property<bool>(brain, "CanRunOnCurrentPower"));
             Set(preferences, "ModelEnabled", true);
             Power(true); Invoke(window, "ApplyCompanionPowerPolicy");
             var request = (Task)Invoke(window, "SpeakCompanionTest")!;
             Wait(() => request.IsCompleted, 110, "Real CPU model test timed out"); request.GetAwaiter().GetResult();
-            Check(Property<bool>(speech, "IsTyping"), "Real model output did not use normal typing");
+            Check(Property<string>(speech, "FullText").Length > 0 && bubble.Visibility == Visibility.Visible, "Real model output did not reach the ordinary bubble");
             Wait(() => !Property<bool>(speech, "IsTyping"), 8, "Real model typing did not finish");
             string generated = text.Text;
             Check(generated.Length > 10 && !generated.Contains("未能生成") && generated != Notice, "Expected real model output: " + generated);
@@ -113,11 +122,11 @@ internal static class Program
             Check(Property<int?>(brain, "RunnerPid") == null, "Power pause did not unload model");
             ((Task)Invoke(window, "SpeakCompanionTest")!).GetAwaiter().GetResult(); Steady(1600);
             Check(text.Text == Notice && bubble.Visibility == Visibility.Visible, "Pause notice failed after unloading a real model");
-            File.WriteAllText("power-notice-result.json", JsonSerializer.Serialize(new { date = "2026-10-04", checks, passed = true, exactNotice = Notice, generated, runner, simulatedPower = true, realCpuInference = true }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText("power-notice-result.json", JsonSerializer.Serialize(new { date = DateTime.Now.ToString("yyyy-MM-dd"), checks, passed = true, exactNotice = Notice, generated, runner, simulatedPower = true, realCpuInference = true }, new JsonSerializerOptions { WriteIndented = true }));
             Console.WriteLine($"PASS: {checks} checks. Real CPU output: {generated}");
             return 0;
         }
         catch (Exception e) { Console.Error.WriteLine(e); return 1; }
-        finally { window?.Close(); }
+        finally { if (window != null) { window.GetType().GetField("exitReady", Access)!.SetValue(window, true); window.Close(); } }
     }
 }

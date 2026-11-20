@@ -47,7 +47,7 @@ $DOTNET build code/BigBlueFish.Mac/BigBlueFish.Mac.csproj -c Release -r osx-arm6
 - 鎖定檔：Mac 專案的標準版用 `packages.lock.json`，無MCP版用 `packages.safe.lock.json`；`BigBlueFish.Control`、`BigBlueFish.Mcp`、`BigBlueFish.Agent`、`BigBlueFish.Diagnostics` 與 `BigBlueFish.HermesBridge` 依 RID 分開，使用 `obj/<rid>/` 與 `packages.<rid>.lock.json`。
 - Mac、Linux、Windows 三個 App 專案和 `tests/RemoteModelVerification` 都參考 Anthropic 官方的 C# SDK（NuGet `Anthropic` 13.8.0，雲端 AI 服務的 Claude 用）。改版本時，要一起重新產生這些專案（Windows 另有 `packages.vision.lock.json`）與編譯 Windows 版的測試專案的鎖定檔，`-p:RestoreLockedMode=true` 的建置才會成功；新的套件也要寫進[第三方聲明](THIRD-PARTY.md)。
 - 橋接程式在 Mac 上要用 `-f net10.0 -r osx-arm64` 編譯，否則產生的 dll 無法在 Apple Silicon 的 dotnet 上載入。
-- `--test-mode` 的魚魚會讀取資料夾裡的 `test-command.txt`（一次一個指令，執行完寫出內容相同的 `test-done.txt`，出錯時另外寫出 `test-error.txt`）並寫出 `test-status.json` 等狀態檔，可用的指令分散在 `BigBlueFish.Linux/` 的 `LinuxTestCommands.cs`、`LinuxBubbleText.cs`、`LinuxProactive.cs` 與 `LinuxWalk.cs`（例如 `bubble <文字>`、`stream <文字>`、`walk:x,y`、`find:查詢文字`、`reminder-clock:…`、`open-input`、`attach <路徑>`）。用測試模式時請搭配 `BIGBLUEFISH_DATA` 指定暫存資料夾；魚魚同一時間只能執行一隻（原版也算），測試前請先關閉正在執行的魚魚。
+- `--test-mode` 的魚魚會讀取資料夾裡的 `test-command.txt`（一次一個指令，執行完寫出內容相同的 `test-done.txt`，出錯時另外寫出 `test-error.txt`）並寫出 `test-status.json` 等狀態檔（標準版的 `agentStatus` 是 Agent 連線的狀態文字），可用的指令分散在 `BigBlueFish.Linux/` 的 `LinuxTestCommands.cs`、`LinuxBubbleText.cs`、`LinuxProactive.cs` 與 `LinuxWalk.cs`（例如 `bubble <文字>`、`stream <文字>`、`walk:x,y`、`find:查詢文字`、`reminder-clock:…`、`open-input`、`attach <路徑>`）。用測試模式時請搭配 `BIGBLUEFISH_DATA` 指定暫存資料夾；魚魚同一時間只能執行一隻（原版也算），測試前請先關閉正在執行的魚魚。
   - 檢查畫面用的指令（`LinuxTestCommands.cs`）：`settings-page <導覽按鈕文字>`、`settings-size <寬>x<高>`、`settings-scroll <位置|end>`、`render-settings-full [檔名.png]`（目前設定頁從頭到尾，不受捲動範圍限制）、`list-windows`（寫出 `windows.json`）、`render-window <標題的一部分> <檔名.png>`、`texts <標題的一部分> <檔名.json>`（視窗顯示的文字，不必 OCR）、`close-window <標題的一部分>`、`render-bubble`、`open-menu` 與 `render-menu`、`click <按鈕或核取方塊的文字>`、`select <目前顯示的選項>=<新選項>`、`type <提示文字>=<內容>`、`install-model`、`check-updates [網址]`（網址代替 GitHub 的最新版本 API，可以測試發現新版本的對話框）。圖片以兩倍解析度存在資料夾裡，`render`、`render-settings` 等也可以在後面指定檔名；開啟對話框的指令不會等對話框關閉，接著可以用 `render-window` 或 `click` 處理它。`type` 只能填測試用的值：在設定頁儲存的授權碼和 API Key 會寫進這台 Mac 真正的鑰匙圈。
 
 ### 在 Mac 上執行主控台測試
@@ -76,7 +76,7 @@ DOTNET_ROOT=~/.dotnet "/tmp/bbf-tests/$name/$name" [參數]
 | `MacLogicVerification` | 推論裝置名稱、只有相容動畫時的動畫規則、登入 shell 的 PATH（慢速、卡住的 shell）、前景視窗規則、終端機登入指令稿 | `[儲存庫根目錄]` |
 | `MacSystemVerification` | 這台 Mac 的閒置時間、睡眠也計時的時鐘、電池、鎖定與前景程式讀數 | `--finder`：實際詢問 Finder（可能跳出「自動化」權限詢問） |
 | `McpProtocolVerification` | 真正的 stdio 橋接程式與通訊協定、依平台的工具清單（Linux 15 個，Windows 與 macOS 17 個）、唯讀設定與金鑰被拒絕的原因（包括雲端 AI 服務的欄位） | 輸出資料夾裡 `BigBlueFish.Mcp` 的路徑 |
-| `AgentVerification` | ACP 連線、對話恢復、工作區、輸入框附件（`resource_link`、圖片區塊與兩種退回）；Claude Code、Codex CLI、Gemini CLI 改用 API Key（`LaunchVerification.cs`：環境變數只給選定的 Harness、拿掉原本登入的權杖與轉址變數、Gemini CLI 的變數設成空值、Codex CLI 的 `config.toml` 與 Gemini CLI 的 `settings.json`、換設定時重新啟動、沒有 Key 不啟動、Key 被拒絕時顯示處理方式、Key 不進記錄與對話檔、兩種登入的對話分開恢復） | 工作資料夾（可省略） |
+| `AgentVerification` | ACP 連線、對話恢復、工作區、輸入框附件（`resource_link`、圖片區塊與兩種退回）；DeepSeek Harness Desktop 的 app.asar 檢查（用假的桌面版）；拔掉電源時暫停 Agent 與恢復連線；Agent 沒有回覆或連線中斷時的提示；Claude Code、Codex CLI、Gemini CLI 改用 API Key（`LaunchVerification.cs`：環境變數只給選定的 Harness、拿掉原本登入的權杖與轉址變數、Gemini CLI 的變數設成空值、Codex CLI 的 `config.toml` 與 Gemini CLI 的 `settings.json`、換設定時重新啟動、沒有 Key 不啟動、Key 被拒絕時顯示處理方式、Key 不進記錄與對話檔、兩種登入的對話分開恢復） | 工作資料夾（可省略） |
 | `AnimationVerification` | 動作權重、日期與農曆節日規則 | `[動畫資料夾]`（預設從儲存庫根目錄找） |
 | `OcrLayoutVerification` | OCR 文字依版面整理 | 無 |
 
@@ -84,7 +84,9 @@ Python 測試（Python 3.9 以上）：
 
 - `python3 code/tests/HermesBridgeVerification/fake_e2e.py [BigBlueFish.HermesBridge.dll] <BigBlueFish.Mcp>`：用假的魚魚與假的 Hermes 檢查整條橋接路徑（macOS／Linux）。先用 `code/run-hermes-bridge.sh --build` 與 `dotnet publish code/BigBlueFish.Mcp -r osx-arm64` 建置。
 - `python3 code/tests/HermesScenarioVerification/scenarios.py`：需要正在執行的魚魚、Hermes gateway 與模型（Windows、macOS、Linux），魚魚沒有的工具對應的情境會略過。
-- `python3 tools/Verify-MacPackage.py <App 路徑> --edition Standard|Safe --output <資料夾>`：檢查建置好的 App，會以測試模式短暫啟動它。
+- `python3 tools/Verify-MacPackage.py <App 路徑> --edition Standard|Safe --output <資料夾>`：檢查建置好的 App，會以測試模式短暫啟動它。標準版另外以 `--test-battery`（模擬使用電池）再啟動一次，確認魚魚啟動的 Agent 停在「使用電池 · Agent 已暫停」、不會執行任何 CLI，拖到魚魚身上的檔案仍留在輸入框，魚魚也會說明 Agent 已暫停；這一輪的記錄和狀態寫在輸出資料夾的 `battery.log` 與 `battery-status.json`。
+
+原作者 1.1.4 用 `python3 tools/Compress-Animations.py <輸出資料夾> [--apply]` 重新壓縮了 106 段高畫質動畫（libvpx-vp9、CRF 34、`yuva420p`，仍是 1280×720、每秒 60 格），每段都核對影格數、長度和透明度後才取代原檔；相容動畫沒有改變。這個腳本需要 Python 3.11 以上與 FFmpeg（含 ffprobe），只有要重新壓縮動畫時才用得到。
 
 ### 台灣繁體檢查
 
@@ -170,7 +172,7 @@ OCR 版的輸出資料夾是 `BigBlueFish.Windows/bin/x64/Release/net10.0-window
 
 發布腳本產生 `BigBlueFish-TW-v<版本>-OCR-Setup.exe` 一鍵安裝程式；Vision 的建置入口保留給歷史維護，不隨公開的 Release 一起發布。安裝程式包含附 .NET 執行環境的 Windows x64 程式，以及已核對的 llama.cpp `b10809` Vulkan 執行環境；模型可以從 Hugging Face 或 ModelScope 的固定來源下載並核對，也支援手動安裝或無模型啟動。模型選擇記錄在安裝資料夾的 `data/model-selection.json`。
 
-根目錄的 `Version.props` 統一管理專案版本。主程式、安裝程式和解除安裝程式的產品版本由它產生；Windows 的檔案版本採用對應的四段格式（`1.1.3.0`）。建置腳本預設讀取這個檔案，也可以用 `-Version` 指定建置版本。
+根目錄的 `Version.props` 統一管理專案版本。主程式、安裝程式和解除安裝程式的產品版本由它產生；Windows 的檔案版本採用對應的四段格式（`1.1.3.0`）。建置腳本預設讀取這個檔案，也可以用 `-Version` 指定建置版本。`Version.props` 也依原作者 1.1.4 把 `CetCompat` 設為 `false`，讓 Windows 的主程式、MCP 橋接程式、安裝程式和解除安裝程式關閉 CET 相容標記，避免部分沒有更新的舊版 Windows 一啟動就結束；這個設定只影響 Windows 的執行檔。發布出來的 Windows 執行檔可以用 `python3 tools/Verify-WindowsHosts.py <exe 路徑…>` 檢查是否已關閉 CET。
 
 專案提供 Vision 與 Ocr 兩種輸入路線，預設建置 Ocr，用 `-InputMode Vision` 建置視覺版。Vision 直接把前景截圖交給多模態模型；Ocr 辨識前景視窗的文字，依位置整理成文字再交給本機模型。`tools/Build-LocalVariant.ps1 -InputMode Ocr -SdkPath <SDK 絕對路徑>` 產生自包含的程式，改成 Vision 就能建置視覺版；`code/build.ps1` 和 `code/run.ps1` 也接受 `-InputMode`。
 

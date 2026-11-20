@@ -296,6 +296,8 @@ internal sealed partial class LinuxPetWindow : Window
         if (now >= bubbleUntil) bubbleWindow.Hide();
         if (ExternalSpeechHeld(now)) return;
         if (Remind(now)) return;
+        // The battery pause (1.1.4) holds only the Agent here (DispatchAgentDaily); the fish's own model asks
+        // brain.CanRunOnCurrentPower, so a remote model or a cloud AI service keeps talking on battery.
         if (Puppet || dragging || settings != null || modelInstalling || now < nextSpeech) return;
         if (nextExternalText == null && !AgentDailyActive && (generating || brain.Busy || !Preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower)) return;
         // Not while the user types (or is away); with no idle time known (some Wayland desktops) the clock alone decides.
@@ -330,6 +332,11 @@ internal sealed partial class LinuxPetWindow : Window
     async Task SpeakManual(bool weather)
     {
         if (closed || phase == "Exit") return;
+#if !COMPANION_SAFE
+        // The Agent writes the weather and the speech test (AgentDailySpeech) and is paused on battery (1.1.4); the fish's own
+        // model is checked in Speak, where a remote model or a cloud AI service still speaks.
+        if (AgentDailyActive && Preferences.AiPausedOnBattery) { UpdateAgentPowerPolicy(); ShowText(AgentPowerPausedNotice, false); return; }
+#endif
         if (weather && agentWeatherPending) return;
         DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: weather ? "weather" : "test");
         if (hidden || fullscreenHidden) { hidden = false; fullscreenHidden = false; Show(); }

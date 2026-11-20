@@ -209,10 +209,15 @@ internal sealed partial class LinuxPetWindow
 
     // A box already open takes them even while nothing can receive it (its status line says why), as a drop on the box itself
     // would. Without one, and without the Agent connection or a Hermes bridge to take the input, the fish says what is missing.
+    // On battery with the Agent paused (1.1.4) the box keeps them for later and the fish says so (TryOpenMcpInput).
     void TakeDroppedFiles(IEnumerable<string> paths)
     {
         if (closed || phase == "Exit") return;
-        if (mcpInput is { } open) { inputHiddenForWalk = false; open.Show(this); open.Activate(); AddMcpAttachments(paths, "drop"); return; }
+        if (mcpInput is { } open)
+        {
+            if (AgentPowerPausedForInput) ShowText(AgentPowerPausedNotice, false, true);
+            inputHiddenForWalk = false; open.Show(this); open.Activate(); AddMcpAttachments(paths, "drop"); return;
+        }
         if (TryOpenMcpInput()) { AddMcpAttachments(paths, "drop"); return; }
         ShowText(McpChatOn && !Preferences.AgentEnabled ? "雙擊輸入交給了 MCP 介面，但 Hermes 橋接程式沒有在執行，魚魚現在收不了檔案喔～"
             : "要先在「設定 › 連線 Agent」開啟連線，魚魚才能把檔案交給 Agent 喔～", false, true);

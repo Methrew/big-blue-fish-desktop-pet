@@ -136,7 +136,13 @@ internal sealed partial class LinuxPetWindow
             deviceStatus.AttachedToVisualTree += (_, _) => { UpdateDevice(); deviceClock.Start(); };
             deviceStatus.DetachedFromVisualTree += (_, _) => deviceClock.Stop();
             body.Children.Add(deviceStatus);
-            LocalModelOnly(Toggle("筆電拔掉電源時暫停模型（只對本機模型有效）", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); }));
+#if COMPANION_SAFE
+            LocalModelOnly(Toggle("筆電拔掉電源時暫停本機模型", Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); }));
+#else
+            // Also pauses the Agent the fish starts (1.1.4), so it stays switchable with a remote model or a cloud AI service.
+            Toggle(CompanionPreferences.BatteryPauseLabel, Preferences.StopModelOnBattery, value => { Preferences.StopModelOnBattery = value; ApplySettings(); });
+            body.Children.Add(Paragraph("使用電池時暫停本機模型和魚魚啟動的 Agent，接上電源後恢復；遠端模型和雲端 AI 服務不在這台電腦上運算，照常說話。"));
+#endif
             Toggle("連網取得天氣和科技新聞", Preferences.PublicInfo, value => Preferences.PublicInfo = value);
             Toggle(OperatingSystem.IsMacOS() ? "感知目前使用的 App" : "感知目前使用的程式", Preferences.ForegroundEnabled, value => Preferences.ForegroundEnabled = value);
 #if COMPANION_SAFE

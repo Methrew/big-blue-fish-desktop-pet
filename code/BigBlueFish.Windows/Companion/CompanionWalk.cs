@@ -81,7 +81,9 @@ public partial class MainWindow
     private bool Walking => walk != null;
     private bool Touring => tour != null;
 
-    private async Task<object> WalkToMcp(JsonElement args, CancellationToken token)
+    // started: called once a single walk has begun (its say then answers the Agent's turn, CompanionMcp); a tour shows its stop
+    // labels instead of say.
+    private async Task<object> WalkToMcp(JsonElement args, CancellationToken token, Action? started = null)
     {
         double? seenWidth = ControlTools.OptionalNumber(args, "image_width", 1, 100_000), seenHeight = ControlTools.OptionalNumber(args, "image_height", 1, 100_000);
         var captureId = ControlTools.OptionalNumber(args, "capture_id", 1, int.MaxValue);
@@ -131,6 +133,7 @@ public partial class MainWindow
         if (!touring)
         {
             var plan = StartWalk(targets[0], side, arriveAction, say ?? label);
+            started?.Invoke();
             if (plan.Done.Task.IsCompleted) return await plan.Done.Task; // Already standing there.
             if (!wait) return WalkReport(plan, true);
             using (token.Register(() => Dispatcher.BeginInvoke(() => { if (walk == plan || walkPressed == plan) CancelWalk("request_cancelled"); })))

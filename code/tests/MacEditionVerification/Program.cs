@@ -30,6 +30,9 @@ Directory.CreateDirectory(root);
 static ReleaseVersion V(string text) => ReleaseVersion.TryParse(text, out var version) ? version : throw new Exception("unparsed " + text);
 Check(V("v1.1.3-tw.1") > V("1.1.3") && V("1.1.3-tw.2") > V("v1.1.3-tw.1") && V("1.1.4") > V("1.1.3-tw.9") && V("1.1.3-tw.10") > V("1.1.3-tw.9"), "Taiwan revisions order after their base version and before the next one");
 Check(!(V("1.1.3-tw.1") > V("1.1.3-tw.1")) && V("1.1.3-tw.1") == V("v1.1.3-tw.1+abc"), "equal versions and build metadata never look like an update");
+// The edition on the original's 1.1.5 (Windows and Linux 1.1.4 and 1.1.5 merged in) is offered to every 1.1.3 release before it.
+Check(V("v1.1.5-tw.1") > V("1.1.3-tw.3") && V("1.1.5-tw.1") > V("1.1.4") && V("1.1.5-tw.1") > V("1.1.5") && V("1.1.5-tw.2") > V("1.1.5-tw.1") && !(V("1.1.3-tw.3") > V("1.1.5-tw.1")),
+    "1.1.5-tw.1 comes after 1.1.3-tw.3 and the original's 1.1.4 and 1.1.5");
 Check(!ReleaseVersion.TryParse("v1.1.3-beta.1", out _) && !ReleaseVersion.TryParse("latest", out _) && !ReleaseVersion.TryParse("1.1", out _), "other tags are not releases of this edition");
 Check(V("v1.1.3-tw.1").ToString() == "1.1.3-tw.1" && V("1.1.3").ToString() == "1.1.3", "asset names use the canonical version");
 using (var props = typeof(ReleaseVersion).Assembly.GetManifestResourceStream("Version.props")!)

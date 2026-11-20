@@ -18,8 +18,8 @@ public enum DiagnosticEvent
     RunnerStarting, RunnerReady, RunnerStopped, RunnerFailed, RunnerCpuFallback,
     WeatherRefresh, WeatherCached, WeatherFailed, NewsFetch, NewsSelected, NewsFailed,
     AgentConnecting, AgentConnected, AgentDisconnected, AgentRequest, AgentMaterials, AgentReply,
-    AgentCancelled, AgentFailed, AgentPermission, AgentConfiguration, AgentWorkspace, McpTool,
-    LogExported, LogExportFailed
+    AgentCancelled, AgentFailed, AgentPermission, AgentConfiguration, AgentWorkspace, AgentNotice, McpTool,
+    LogExported, LogExportFailed, CaptureVisibility
 }
 
 public sealed record DiagnosticEntry(long Sequence, DateTimeOffset Time, string Level, string Code, string Message, string Details)
@@ -43,7 +43,7 @@ public static class DiagnosticLog
         + "Standard Safe OCR Vision Windows Linux macOS Preview timeout first_content hardware_fallback notice manual busy power model_missing puppet "
         + "get_settings get_context update_settings list_actions capture_foreground capture_screen play_action interrupt_action walk_to find_on_screen say say_next request_local_speech "
         + "get_operation_guide get_wakeups schedule_wakeup cancel_wakeup terminal oauth restored created "
-        + "claude codex gemini dsh kimi qwen antigravity copilot cursor opencode cline codebuddy qoder trae kiro pi devin grok hermes openclaw minimax "
+        + "claude codex gemini dsh dsh-desktop kimi qwen antigravity copilot cursor opencode cline codebuddy qoder trae kiro pi devin grok hermes openclaw minimax "
         // The cloud model source: its kind, its providers and the kinds of failure it reports (never a message or a key).
         + "cloud openai no_key invalid_key forbidden billing rate_limited overloaded model_not_found bad_request refused truncated interrupted network server daily_limit "
         // The Agent's launch profiles: Claude Code, Codex CLI and Gemini CLI on an API Key of the cloud AI service (never the key).
@@ -52,7 +52,7 @@ public static class DiagnosticLog
         + "stale_surface").Split(' ', StringSplitOptions.RemoveEmptyEntries), StringComparer.Ordinal);
     static readonly HashSet<string> actions = LoadActions();
     static readonly Dictionary<string, string> previousSettings = new();
-    static readonly HashSet<string> settingNames = new(("ModelEnabled GpuEnabled PublicInfo ForegroundEnabled StopModelOnBattery HideOnFullscreen CheckUpdatesOnStartup "
+    static readonly HashSet<string> settingNames = new(("ModelEnabled GpuEnabled PublicInfo ForegroundEnabled StopModelOnBattery HideOnFullscreen HideFromCapture CheckUpdatesOnStartup "
         + "AgentEnabled AgentHarnessId AgentClaudeApiKey AgentOpenAiApiKey AgentGeminiApiKey AgentDailySpeech PuppetMode AgentRespondToClick AgentRespondToDrag WeatherRegionCode Scale BubbleScale SpeechMinMinutes BubbleDurationIndex "
         + "AnimationIntervalSeconds BreakfastHour LunchHour DinnerHour LastBrushDate Left Top StartupEnabled "
         + "McpEnabled McpDoubleClickChat McpWakeEnabled McpWakeOnText McpWakeOnClick McpWakeOnDrag AgentWorkspaceId "
@@ -179,7 +179,9 @@ public static class DiagnosticLog
         DiagnosticEvent.AgentConnecting => "開始連線 Agent", DiagnosticEvent.AgentConnected => "Agent 工作階段已連線", DiagnosticEvent.AgentDisconnected => "Agent 連線已關閉",
         DiagnosticEvent.AgentRequest => "向 Agent 提交事件", DiagnosticEvent.AgentMaterials => "準備或送交 Agent 資料", DiagnosticEvent.AgentReply => "Agent 本輪處理結束",
         DiagnosticEvent.AgentCancelled => "Agent 要求已取消", DiagnosticEvent.AgentFailed => "Agent 要求失敗", DiagnosticEvent.AgentPermission => "Agent 要求權限或驗證",
+        DiagnosticEvent.AgentNotice => "Agent 沒有回覆或連線中斷，顯示提示",
         DiagnosticEvent.AgentConfiguration => "調整 Agent 工作階段設定", DiagnosticEvent.AgentWorkspace => "Agent 工作區狀態變化", DiagnosticEvent.McpTool => "收到 MCP 工具呼叫",
-        DiagnosticEvent.LogExported => "疑難排解記錄已儲存成 TXT", DiagnosticEvent.LogExportFailed => "疑難排解記錄儲存失敗", _ => code.ToString()
+        DiagnosticEvent.LogExported => "疑難排解記錄已儲存成 TXT", DiagnosticEvent.LogExportFailed => "疑難排解記錄儲存失敗",
+        DiagnosticEvent.CaptureVisibility => "截圖與錄影隱藏狀態", _ => code.ToString()
     };
 }

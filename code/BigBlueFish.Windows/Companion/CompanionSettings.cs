@@ -155,7 +155,9 @@ public partial class MainWindow
                 nextSpeech = DateTime.UtcNow.AddSeconds(20);
             }
         });
-        Toggle("拔掉電源時暫停模型並釋放記憶體", preferences.StopModelOnBattery, v =>
+        // The same switch pauses the Agent the fish started (CompanionPreferences.AiPausedOnBattery); always available,
+        // whichever model source is chosen.
+        Toggle(CompanionPreferences.BatteryPauseLabel, preferences.StopModelOnBattery, v =>
         {
             preferences.StopModelOnBattery = v;
             ApplyCompanionPowerPolicy();
@@ -173,6 +175,13 @@ public partial class MainWindow
             preferences.HideOnFullscreen = v;
             UpdateCompanionVisibility();
         });
+        Toggle("截圖與錄影時隱藏桌寵", preferences.HideFromCapture, v =>
+        {
+            preferences.HideFromCapture = v;
+            CompanionCaptureVisibility.Refresh();
+        });
+        p.Children.Add(new TextBlock { Text = "在支援 Windows 擷取排除功能的截圖與螢幕錄影中，隱藏角色、文字氣泡和對話輸入框；桌面上仍正常顯示。",
+            FontSize = 11, Foreground = Brushes.SlateGray, TextWrapping = TextWrapping.Wrap });
         Toggle("開機時啟動", StartupEnabled(), SetCompanionStartup);
         Toggle("啟動時檢查更新", preferences.CheckUpdatesOnStartup, v => preferences.CheckUpdatesOnStartup = v);
         p = pages[1];
@@ -344,10 +353,14 @@ public partial class MainWindow
                 : AgentDailyActive ? "魚魚仍按此間隔觸發日常關心，由 Agent 編寫要說的話。" : "魚魚按此間隔觸發日常關心，由模型編寫要說的話。";
             bool available = brain.ModelAvailable;
             installModel.Visibility = available ? Visibility.Collapsed : Visibility.Visible;
-            // A remote model keeps running on battery; only the local runner pauses.
+            // On battery the switch pauses the model on this computer (a remote or cloud model keeps running) and the Agent
+            // the fish started; the daily care that Agent writes waits for power too.
+            bool agentPaused = preferences.AgentEnabled && preferences.AiPausedOnBattery;
             status.Text = (CompanionNative.OnAC ? "已插電" :
-                preferences.StopModelOnBattery && !brain.UseRemote ? "使用電池 · 已按設定暫停模型" : "使用電池 · 允許模型執行")
-                + "\n" + (AgentDailyActive ? "日常說話由 Agent 編寫，模型不會自動載入。\n" : PuppetActive ? "Agent 決定日常關心的時機，由模型編寫要說的話。\n" : "")
+                (preferences.StopModelOnBattery && !brain.UseRemote ? "使用電池 · 已按設定暫停模型" : "使用電池 · 允許模型執行")
+                + (agentPaused ? "，Agent 已暫停" : ""))
+                + "\n" + (AgentDailyActive ? (agentPaused ? "日常說話由 Agent 編寫，接上電源後才會恢復。\n" : "日常說話由 Agent 編寫，模型不會自動載入。\n")
+                    : PuppetActive ? "Agent 決定日常關心的時機，由模型編寫要說的話。\n" : "")
                 + (available ? brain.Status : "尚未安裝模型")
                 + "\n推論裝置：" + brain.ExecutionDevice;
         }

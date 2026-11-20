@@ -1,7 +1,7 @@
 // Fork-original file of the Taiwan Traditional Chinese edition by Methrew (2026-11-15); not part of upstream Bai-Cute/big-blue-fish-desktop-pet.
 // macOS edition logic that needs no window, permission or bundled runtime: inference device reporting, the
-// animation check against compat/ (the set macOS always needs), the login-shell PATH import under slow or hanging shells, the foreground
-// window rules and the Terminal login script. Usage: dotnet MacLogicVerification.dll [repository root]
+// animation check against compat/ (the set macOS always needs), the login-shell PATH import under slow or hanging shells (and the
+// Agent search keeping it), the foreground window rules and the Terminal login script. Usage: dotnet MacLogicVerification.dll [repository root]
 // (found from the program or the current folder when left out).
 using System.Diagnostics;
 using System.Reflection;
@@ -20,6 +20,7 @@ try
     if (!OperatingSystem.IsWindows())
     {
         await LoginPath();
+        if (OperatingSystem.IsMacOS()) HarnessPath();
         await TerminalScript();
     }
     Console.WriteLine($"RESULT {checks} macOS logic checks passed");
@@ -118,6 +119,26 @@ async Task LoginPath()
     string real = Environment.GetEnvironmentVariable("SHELL") is { Length: > 0 } configured && File.Exists(configured) ? configured : "/bin/zsh";
     var clock = Stopwatch.StartNew(); var (realPath, realState) = await MacLoginPath.Read(real, MacLoginPath.Limit, MacLoginPath.Drain);
     Console.WriteLine($"INFO {real} -ilc: {realState} in {clock.Elapsed.TotalSeconds:0.00} s, {realPath?.Split(':').Length ?? 0} PATH entries");
+}
+
+// HarnessEnvironment (1.1.4) reads an interactive shell's PATH on Linux. On macOS MacLoginPath has already merged the login
+// shell's PATH into the process in the background, so the Agent search keeps the inherited PATH and never runs a shell on the
+// calling thread (the settings page asks it every 500 ms). A shell that would take 3 s and add /from/shell shows if it ran.
+void HarnessPath()
+{
+    string? saved = Environment.GetEnvironmentVariable("SHELL");
+    string slow = Path.Combine(scratch, "slow-shell");
+    File.WriteAllText(slow, "#!/bin/sh\nsleep 3\nprintf '\\n<bbf-path>/from/shell</bbf-path>\\n'\n");
+    File.SetUnixFileMode(slow, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+    Environment.SetEnvironmentVariable("SHELL", slow);
+    try
+    {
+        BigBlueFish.Agent.HarnessEnvironment.Refresh();
+        var clock = Stopwatch.StartNew(); string path = BigBlueFish.Agent.HarnessEnvironment.SearchPath;
+        Check(path == (Environment.GetEnvironmentVariable("PATH") ?? "") && clock.Elapsed.TotalSeconds < 1,
+            $"the Agent search keeps the PATH MacLoginPath merged and runs no login shell ({clock.Elapsed.TotalSeconds:0.00} s)");
+    }
+    finally { Environment.SetEnvironmentVariable("SHELL", saved); BigBlueFish.Agent.HarnessEnvironment.Refresh(); }
 }
 
 async Task TerminalScript()

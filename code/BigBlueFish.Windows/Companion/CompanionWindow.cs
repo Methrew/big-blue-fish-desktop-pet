@@ -67,6 +67,7 @@ public partial class MainWindow
         singleClickTimer?.Stop();
         lastClickAt = DateTime.MinValue;
         if (IsMouseCaptured) ReleaseMouseCapture();
+        SetSpritePressed(false);
         dragging = false;
         CancelMovement();
         if (videoPlayer != null && !companionClosed && !exitAnimation)
@@ -103,6 +104,7 @@ public partial class MainWindow
     internal Border CompanionBubble => bubble;
     internal TextBlock CompanionBubbleText => bubbleText;
     internal double CompanionBubbleScale => preferences.BubbleScale;
+    internal bool HideFromCapture => preferences.HideFromCapture;
     internal string CompanionBubbleLayoutText => speech?.FullText ?? bubbleText.Text;
 
     private void InitializeCompanion()
@@ -231,6 +233,7 @@ public partial class MainWindow
         Top = preferences.Top ?? (a.Bottom - Height + 15);
         ClampCompanion();
         anchor = new Point(Left, Top);
+        CompanionCaptureVisibility.Track(this, () => preferences.HideFromCapture);
         SourceInitialized += (_, _) => InstallCompanionHook();
         Loaded += async (_, _) =>
         {
@@ -258,6 +261,7 @@ public partial class MainWindow
         PreviewMouseLeftButtonUp += CompanionUp;
         LostMouseCapture += (_, _) =>
         {
+            SetSpritePressed(false);
             if (dragging) { dragging = false; CancelWalk(dragged ? "drag" : "click"); if (dragged) PublishMcpInteraction("drag_end", new { Left, Top, cancelled = true }); FinishDragAnimation(); }
         };
         Closing += CompanionClosing;
@@ -349,6 +353,7 @@ public partial class MainWindow
     {
         if (brain == null || preferences == null) return;
         brain.StopOnBattery = preferences.StopModelOnBattery;
+        UpdateAgentPowerPolicy();
         if (!brain.CanRunOnCurrentPower)
         {
             InvalidateSpeechRequests(true);
@@ -429,6 +434,8 @@ public partial class MainWindow
             singleClickTimer?.Stop(); lastClickAt = DateTime.MinValue;
             CancelWalk("click");
             PublishMcpInteraction("click", new { button = "left", count = 2, Left, Top });
+            // The input still opens, with its draft and the Agent's status; the bubble says why nothing goes to the Agent now.
+            if (AgentInputPaused) ShowCompanionNotice(AgentBatteryPauseNotice, true, true);
             return;
         }
         dragging = true;
@@ -439,6 +446,17 @@ public partial class MainWindow
         dragStart = new Point(p.X, p.Y);
         windowStart = new Point(Left, Top);
         CaptureMouse();
+        SetSpritePressed(true);
+    }
+
+    private void SetSpritePressed(bool pressed)
+    {
+        // Dragging captures the mouse on the window, and WPF resolves the pointer from the
+        // capturing element rather than the image under it; without a window cursor the drag
+        // fell back to the arrow. Clearing it on release hands control back to the image.
+        Cursor = pressed ? CompanionSpriteImage.PalmGrab : null;
+        // The image owns its own cursor and refreshes the pointer once both are set.
+        (videoImage as CompanionSpriteImage)?.SetPressed(pressed);
     }
 
     internal void TraceCompanionPointer(uint message, uint buttons)
@@ -477,6 +495,7 @@ public partial class MainWindow
         e.Handled = true;
         dragging = false;
         ReleaseMouseCapture();
+        SetSpritePressed(false);
         ClampCompanion();
         anchor = new Point(Left, Top);
         SaveCompanion();
@@ -547,8 +566,8 @@ public partial class MainWindow
         DiagnosticLog.Write(DiagnosticEvent.BubbleShown, kind: "local", chars: text.Length);
         ShowCompanionPartial(text, agentTriggered: agentTriggered, final: true);
         ResetBubbleDeadline();
-        // FullText is the converted reply, so it is compared with the converted text and recorded as shown.
-        if (speech.FullText == CompanionTraditional.Convert(text)) chatLog.Add(false, speech.FullText);
+        // FullText is the converted reply, so it is compared with the converted text and recorded (and voiced) as shown.
+        if (speech.FullText == CompanionTraditional.Convert(text)) { chatLog.Add(false, speech.FullText); CompanionVoice.Queue(speech.FullText); }
     }
 
     private void BeginModelSpeech()
@@ -727,7 +746,11 @@ public partial class MainWindow
             return;
         if (Remind(now))
             return;
-        if (PuppetActive || now < nextSpeech || companionSettings != null || modelInstaller != null
+        // The battery pause holds back the daily care the Agent writes (CompanionPreferences.AiPausedOnBattery), after the
+        // reminders, which need no AI; a line queued with say_next still comes, and the fish's own model is checked below
+        // (CompanionBrain.CanRunOnCurrentPower: a remote or cloud model keeps talking on battery).
+        if (preferences.AiPausedOnBattery && AgentDailyActive && !HasScheduledMcpSpeech
+            || PuppetActive || now < nextSpeech || companionSettings != null || modelInstaller != null
             || !HasScheduledMcpSpeech && !AgentDailyActive && (speechRequestPending || brain.Busy || weatherRequestPending || !preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower))
             return;
         if (CompanionNative.IdleSeconds < 8 || CompanionNative.IdleSeconds > 600)

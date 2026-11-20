@@ -247,6 +247,68 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
+# The battery pause (1.1.4) of the Standard edition, without unplugging: --test-battery makes the app see battery power from
+# the start, so the Agent the fish would start is paused before it is ever launched and no CLI on this Mac runs. Only the
+# Agent side pauses (CompanionPreferences.AiPausedOnBattery); a drop on the fish still opens the input box, which keeps the
+# files for later, and the fish says why. The Safe edition has no Agent; its battery switch pauses only the local model.
+if args.edition == "Standard":
+    with tempfile.TemporaryDirectory(prefix="bbf-macos-battery-") as temporary:
+        data = pathlib.Path(temporary)  # command() and native_drop() above read the data folder of this run
+        (data / "preferences.json").write_text(json.dumps({"ModelEnabled": False, "PublicInfo": False, "CheckUpdatesOnStartup": False,
+            "HideOnFullscreen": False, "Left": 300, "Top": 250, "StopModelOnBattery": True, "AgentEnabled": True, "AgentDailySpeech": True}))
+        (data / "model-selection.json").write_text('{"Source":"none"}')
+        env = {**os.environ, "BIGBLUEFISH_DATA": str(data), "DOTNET_ROOT": "/nonexistent",
+               "DOTNET_MULTILEVEL_LOOKUP": "0", "DYLD_LIBRARY_PATH": "", "DYLD_FALLBACK_LIBRARY_PATH": ""}
+        paused_status = "使用電池 · Agent 已暫停"
+        paused_notice = "Agent 已依供電設定暫停，接上電源後再交給 Agent"
+
+        def battery_status(condition, timeout):
+            deadline = time.monotonic() + timeout
+            current = {}
+            while time.monotonic() < deadline:
+                if process.poll() is not None:
+                    raise RuntimeError("application exited: " + (args.output / "battery.log").read_text())
+                try:
+                    current = json.loads((data / "test-status.json").read_text(encoding="utf-8"))
+                    if condition(current):
+                        break
+                except (FileNotFoundError, json.JSONDecodeError):
+                    pass
+                time.sleep(.25)
+            return current
+
+        with (args.output / "battery.log").open("w") as log:
+            process = subprocess.Popen([str(payload / "BigBlueFish.Mac"), "--test-mode", "--test-battery"], env=env,
+                                       stdout=log, stderr=subprocess.STDOUT)
+            try:
+                status = battery_status(lambda s: s["phase"] != "Startup" and s.get("agentStatus") == paused_status, 60)
+                (args.output / "battery-status.json").write_text(json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8")
+                check(status.get("agentStatus") == paused_status, "on battery the Agent the fish would start stays paused and is never launched")
+                dropped_file = data / "電池 測試.txt"
+                dropped_file.write_text("battery", encoding="utf-8")
+                dropped = native_drop(str(dropped_file))
+                status = battery_status(lambda s: paused_notice in s["text"], 10)
+                check(dropped.get("performed") is True and status["bubbleVisible"] and paused_notice in status["text"],
+                      "a drop on battery is taken and the fish says the Agent is paused")
+                time.sleep(.5)  # the input box's clock writes the Agent's state to its status line every 250 ms
+                shown = json.loads((data / "battery-input.json").read_text(encoding="utf-8")) if command("texts · 輸入 battery-input.json") else []
+                check(any(paused_status in (item.get("text") or "") for item in shown), "the input box's status line says the Agent is paused")
+                # The tile in the attachment row: its label (McpAttachmentTray.TileName) keeps the start of the name and its
+                # extension, here 電….txt. The status line cannot show the file: on battery the clock above overwrites the
+                # tray's 已附加 notice. The tile is added in the same UI-thread call that shows the paused notice waited for.
+                check(any((item.get("text") or "").startswith(dropped_file.name[0]) and (item.get("text") or "").endswith(dropped_file.suffix)
+                          for item in shown), "the file dropped on battery is attached in the input box")
+                (data / "test-command.txt").write_text("exit")
+                process.wait(timeout=15)
+                check(process.returncode == 0, "application on battery exits normally")
+            finally:
+                if process.poll() is None:
+                    process.terminate()
+                    try:
+                        process.wait(timeout=10)
+                    except subprocess.TimeoutExpired:
+                        process.kill()
+                        process.wait()
 # Taiwan edition: no string a bundled assembly carries may contain a Simplified-only character (animation ids and the
 # allowlisted markers aside); Mainland wording is reported in traditional-strings.json but does not fail the package.
 assemblies = sorted(str(p) for p in payload.glob("BigBlueFish.*.dll"))

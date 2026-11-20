@@ -2,7 +2,6 @@
 using System.Diagnostics;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Media;
@@ -231,8 +230,6 @@ internal sealed partial class LinuxPetWindow
             var root = json.RootElement; string tag = root.GetProperty("tag_name").GetString() ?? "";
             if (!ReleaseVersion.TryParse(tag, out var latest) || !(latest > ReleaseVersion.Current(typeof(LinuxPetWindow).Assembly))) { if (manual) await Inform("檢查更新", "目前已經是最新版本。"); return; }
             var assets = root.GetProperty("assets").EnumerateArray().ToArray();
-            string? Url(string name) => assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name) is { ValueKind: JsonValueKind.Object } found
-                && found.TryGetProperty("browser_download_url", out var value) ? value.GetString() : null;
 #if COMPANION_SAFE
             string edition = "-Safe";
 #else
@@ -240,6 +237,8 @@ internal sealed partial class LinuxPetWindow
 #endif
             string app = CompanionEdition.AppName; // the app the user runs and has to quit
 #if COMPANION_MAC
+            string? Url(string name) => assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name) is { ValueKind: JsonValueKind.Object } found
+                && found.TryGetProperty("browser_download_url", out var value) ? value.GetString() : null;
             // A DMG release: the app is never replaced from inside; the user downloads the DMG and replaces the app.
             string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-macOS-arm64.dmg";
             if (Url(asset) == null) { if (manual) await Inform("發現新版本", app + " " + latest + " 已經發布，但 macOS 安裝檔還沒準備好，請稍後再檢查一次。"); return; }
@@ -247,11 +246,13 @@ internal sealed partial class LinuxPetWindow
                 + "，打開 DMG 後把新版拖到「應用程式」檔案夾，取代舊版。設定和模型存放在資料夾「" + Environment.CurrentDirectory + "」，不會受影響；取代後如果讀不到畫面，請到「系統設定 › 隱私權與安全性 › " + CompanionNative.ScreenRecordingPane + "」重新允許。", "開啟發布頁面", reject: "稍後再說"))
                 OpenUrl(root.GetProperty("html_url").GetString() ?? CompanionEdition.ReleasesPage);
 #else
+            // The package is checked against the SHA-256 digest GitHub keeps for the release asset (1.1.5), no longer a .sha256 asset.
             string asset = CompanionEdition.AssetPrefix + "-v" + latest + edition + "-Linux-x64.deb";
-            string? url = Url(asset), checksum = Url(asset + ".sha256"); if (url == null || checksum == null) throw new IOException("這個版本的 Linux 安裝套件還沒準備好，請稍後再試一次。");
+            var packageAsset = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == asset);
+            if (packageAsset.ValueKind != JsonValueKind.Object) throw new IOException("這個版本的 Linux 安裝套件還沒準備好，請稍後再試一次。");
+            string url = packageAsset.GetProperty("browser_download_url").GetString()!;
+            string hash = ReleaseAssetDigest.Sha256(packageAsset);
             if (!await Confirm("發現新版本", app + " " + latest + " 已經發布，要下載並安裝更新嗎？", "下載更新", reject: "稍後再說")) return;
-            string hash = (await client.GetStringAsync(checksum)).Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries)[0].ToLowerInvariant();
-            if (!Regex.IsMatch(hash, "^[a-f0-9]{64}$")) throw new IOException("更新的檢查碼資訊無效。");
             string package = Path.Combine(Environment.CurrentDirectory, "cache/updates", asset);
             await ArtifactDownload.Download(url, package, hash);
             var start = new ProcessStartInfo("/usr/bin/pkexec") { UseShellExecute = false };

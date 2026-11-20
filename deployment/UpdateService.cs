@@ -5,7 +5,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -45,19 +44,8 @@ internal static class UpdateService
         var assets = release.GetProperty("assets").EnumerateArray().ToArray();
         var installer = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name);
         if (installer.ValueKind == JsonValueKind.Undefined) throw new IOException("新版本的安裝程式還沒準備好，請稍後再試一次。");
-        string digest = installer.TryGetProperty("digest", out var value) ? value.GetString() ?? "" : "";
-        string hash = digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase) ? digest[7..] : "";
-        if (!Regex.IsMatch(hash, "^[a-fA-F0-9]{64}$"))
-        {
-            var checksum = assets.FirstOrDefault(a => a.GetProperty("name").GetString() == name.Replace(".exe", ".sha256"));
-            if (checksum.ValueKind == JsonValueKind.Undefined) throw new IOException("新版本的檢查碼檔案還沒準備好。");
-            using var checksumRequest = new HttpRequestMessage(HttpMethod.Get, checksum.GetProperty("browser_download_url").GetString());
-            checksumRequest.Headers.UserAgent.ParseAdd("BigBlueFish/" + typeof(UpdateService).Assembly.GetName().Version!.ToString(3));
-            using var checksumResponse = await http.SendAsync(checksumRequest, token); checksumResponse.EnsureSuccessStatusCode();
-            var line = await checksumResponse.Content.ReadAsStringAsync(token);
-            hash = line.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
-            if (!Regex.IsMatch(hash, "^[a-fA-F0-9]{64}$")) throw new InvalidDataException("更新檔的檢查碼資訊無效。");
-        }
+        // Only the digest GitHub gives the asset is trusted (1.1.4); a separate .sha256 asset is no longer read.
+        string hash = ReleaseAssetDigest.Sha256(installer);
         return new AvailableUpdate(version, name, installer.GetProperty("browser_download_url").GetString()!, hash.ToLowerInvariant(),
             release.GetProperty("body").GetString() ?? "");
     }

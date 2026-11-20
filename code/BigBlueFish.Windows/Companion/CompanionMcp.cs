@@ -28,8 +28,10 @@ public partial class MainWindow
 #if COMPANION_SAFE
     private bool AgentDailyActive => false;
     private void TickAgent(DateTime now) { }
+    private void UpdateAgentPowerPolicy() { }
     private bool DispatchAgentDaily() => false;
     private bool McpInputAvailable => false;
+    private bool AgentInputPaused => false;
     private bool AgentAwaitingSpeech => false;
     private bool PuppetActive => false;
     private bool HasScheduledMcpSpeech => false;
@@ -68,7 +70,11 @@ public partial class MainWindow
     // Only a client that listens for the interaction events (the Hermes bridge) takes typed input; one that only calls tools never would.
     private bool McpChatAvailable => McpChatOn && (mcpInterface?.Listeners ?? 0) > 0;
     private bool McpInputEnabled => preferences.AgentEnabled || McpChatOn;
+    // The battery pause (CompanionPreferences.AiPausedOnBattery) leaves the input available: it keeps its draft and
+    // attachments and shows the Agent's status, and only sending to the paused Agent waits for power.
     private bool McpInputAvailable => preferences.AgentEnabled || McpChatAvailable;
+    // What the owner types would go to the Agent the fish started, and the battery pause holds that Agent.
+    private bool AgentInputPaused => preferences.AgentEnabled && preferences.AiPausedOnBattery && !McpChatAvailable;
     private bool PuppetActive => preferences.AnyAgentControl && preferences.PuppetMode;
     private bool HasScheduledMcpSpeech => mcpNextSpeech != null;
     private bool McpInputOpen => mcpInput?.IsVisible == true;
@@ -131,6 +137,7 @@ public partial class MainWindow
 
     private void ConfigureAgent()
     {
+        UpdateAgentPowerPolicy();
         agent?.Configure(preferences.AgentHarnessId, new(preferences.AgentEnabled, preferences.PuppetMode, preferences.AgentDailySpeech));
         if (!AgentDailyActive) nextWarmup = DateTime.MinValue;
     }
@@ -152,8 +159,18 @@ public partial class MainWindow
     // The option or the API Key may have changed: the Agent compares and starts again only when its launch differs.
     private void AgentLaunchChanged() { if (agent != null) _ = agent.LaunchChanged(); }
     private bool agentLoading;
+    // On battery with the switch on, the Agent the fish started is closed, and connects again on power (SetPowerPaused).
+    // The fish's own speech follows CompanionBrain.CanRunOnCurrentPower and the MCP interface keeps working. The queued
+    // actions and say_next line stay: the queue cannot tell which server put them there. The input box stays open too,
+    // with its draft, showing the Agent's status (TryOpenMcpInput); hiding it would only flicker against Follow.
+    private void UpdateAgentPowerPolicy() => agent?.SetPowerPaused(preferences.AiPausedOnBattery);
+    // The tools the Agent's channel still answers during the battery pause: they only read, and the fish neither speaks
+    // nor moves for them.
+    private static readonly HashSet<string> AgentPauseReadTools = new(StringComparer.Ordinal)
+        { "get_settings", "get_context", "list_actions", "capture_foreground", "capture_screen", "find_on_screen", "get_operation_guide", "get_wakeups" };
     private void TickAgent(DateTime now)
     {
+        UpdateAgentPowerPolicy();
         agent?.Tick(new DateTimeOffset(now), !hiddenByUser && !fullscreenHidden && !dragging && !exitAnimation && !companionClosed);
         bool loading = agent?.AwaitingSpeech == true && !hiddenByUser && !fullscreenHidden;
         if (loading != agentLoading || loading && loadingIndicator.Visibility != Visibility.Visible)
@@ -165,6 +182,7 @@ public partial class MainWindow
     private bool DispatchAgentDaily()
     {
         if (!AgentDailyActive) return false;
+        if (preferences.AiPausedOnBattery) return true;
         nextSpeech = DateTime.UtcNow.Add(preferences.NextSpeechDelay(companionRandom));
         agent?.DailyCare(); return true;
     }
@@ -175,9 +193,19 @@ public partial class MainWindow
         if (preferences.AgentEnabled)
         {
             mcpServer ??= new ControlServer((name, args, token) => ExecuteMcp(name, args, token, true), agentPipe);
-            agent ??= new AgentCoordinator(Path.Combine(Environment.CurrentDirectory, "agent"),
-                Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp.exe"), agentPipe, RequestAgentPermission,
-                App.Args.Contains("--test-mode") ? Path.Combine(Environment.CurrentDirectory, "agent-test-workspace") : null);
+            if (agent == null)
+            {
+                var coordinator = new AgentCoordinator(Path.Combine(Environment.CurrentDirectory, "agent"),
+                    Path.Combine(AppContext.BaseDirectory, "BigBlueFish.Mcp.exe"), agentPipe, RequestAgentPermission,
+                    App.Args.Contains("--test-mode") ? Path.Combine(Environment.CurrentDirectory, "agent-test-workspace") : null);
+                agent = coordinator;
+                // A turn that ended without say, or a dropped connection, is told in the ordinary bubble and kept in the
+                // chat history (transient: false); the host's notice never counts as the Agent's speech.
+                coordinator.Notice += notice => Dispatcher.BeginInvoke(() => {
+                    if (agent == coordinator && coordinator.CanDisplayNotice(notice) && !companionClosed && !exitAnimation)
+                        ShowMcpSpeech(notice.Text, transient: false);
+                });
+            }
             if (!HarnessCatalog.All.Any(x => x.Id == preferences.AgentHarnessId)) preferences.AgentHarnessId = "codex";
             agent.LocalSpeechRequested = token => Dispatcher.InvokeAsync(() => RequestAgentLocalSpeech(token)).Task.Unwrap();
             agent.SpeechBrief = (kind, allowImages, token) => Dispatcher.InvokeAsync(() => BuildAgentSpeechBrief(kind, allowImages, token)).Task.Unwrap();
@@ -263,8 +291,10 @@ public partial class MainWindow
         if (companionContextMenu != null) foreach (int index in new[] { 1, 2 }) if (companionContextMenu.Items[index] is MenuItem item) item.IsEnabled = true;
         if (notifyIcon?.ContextMenuStrip != null) foreach (int index in new[] { 2, 3 }) notifyIcon.ContextMenuStrip.Items[index].Enabled = true;
     }
-    // The Agent's turn counts as spoken when it calls say, say_next or walk_to with say (ExecuteMcp marks it), not
-    // when a client of the MCP interface speaks meanwhile.
+    // The Agent's turn counts as answered when it calls say, or walk_to with say once its single walk has started
+    // (ExecuteMcp / WalkToMcp mark it; not a tour, nor a call refused before the walk): not say_next,
+    // which is a later line rather than a reply (1.1.5), not a client of the MCP interface speaking meanwhile, and not
+    // the host's own notices (AgentCoordinator.Notice).
     // transient: a progress line (say with transient=true, as the Hermes bridge sends them), kept out of the chat history.
     private void ShowMcpSpeech(string text, bool transient = false)
     {
@@ -294,6 +324,11 @@ public partial class MainWindow
             token.ThrowIfCancellationRequested();
             if (!McpChannelOpen(agentChannel) || companionClosed || exitAnimation)
                 throw new InvalidOperationException(agentChannel ? "Agent 連線已關閉或桌寵正在關閉。" : "MCP 介面已關閉或桌寵正在關閉。");
+            UpdateAgentPowerPolicy();
+            // The battery pause holds the Agent the fish started: a late call on its channel only reads. The MCP interface
+            // (the Hermes bridge and other clients) is not paused.
+            if (agentChannel && preferences.AiPausedOnBattery && !AgentPauseReadTools.Contains(name))
+                throw new InvalidOperationException("魚魚的 Agent 已依供電設定暫停，接上電源後再試。");
             switch (name)
             {
                 case "get_settings":
@@ -352,13 +387,16 @@ public partial class MainWindow
                 case "say": case "say_next":
                     var text = ControlTools.RequiredText(args, "text");
                     bool transient = name == "say" && ControlTools.OptionalBool(args, "transient", false);
-                    if (agentChannel) agent?.MarkSpoken();
+                    // Only say answers the Agent's turn now; say_next is a later line, not a reply (1.1.5).
+                    if (agentChannel && name == "say") agent?.MarkSpoken();
                     if (name == "say") ShowMcpSpeech(text, transient); else mcpNextSpeech = text;
                     return ControlTools.Text(new { displayed = name == "say", pending = name == "say_next", text });
                 case "walk_to":
-                    if (agentChannel && args.ValueKind == JsonValueKind.Object && args.TryGetProperty("say", out var arrival) && arrival.ValueKind == JsonValueKind.String) agent?.MarkSpoken();
+                    // Its say is shown on arrival and answers the Agent's turn once the walk has started, not when the call is
+                    // refused before it (1.1.5).
+                    bool arrivalSay = agentChannel && args.ValueKind == JsonValueKind.Object && args.TryGetProperty("say", out var arrival) && arrival.ValueKind == JsonValueKind.String;
                     // Awaiting the arrival leaves the dispatcher free, so get_settings and say keep working meanwhile.
-                    return ControlTools.Text(await WalkToMcp(args, token));
+                    return ControlTools.Text(await WalkToMcp(args, token, arrivalSay ? () => agent?.MarkSpoken() : null));
                 case "find_on_screen":
                     return ControlTools.Text(await FindOnScreenMcp(args, token));
                 case "get_operation_guide": case "get_wakeups": case "schedule_wakeup": case "cancel_wakeup":
@@ -437,6 +475,7 @@ public partial class MainWindow
         brain.UseGpu = preferences.GpuEnabled; brain.WeatherRegionCode = preferences.WeatherRegionCode;
         if (oldRegion != preferences.WeatherRegionCode) InvalidateSpeechRequests();
         ApplyCompanionPowerPolicy(); ApplyCompanionScale(false); ApplyCompanionBubbleScale(false);
+        CompanionCaptureVisibility.Refresh();
         if (values.TryGetValue("Left", out var left) && left is double x) Left = x;
         if (values.TryGetValue("Top", out var top) && top is double y) Top = y;
         // A walk still under way keeps its path; the 14 DIP edge snap would read as an outside move and stop it.
@@ -573,6 +612,7 @@ public partial class MainWindow
         var window = new Window { Title = CompanionEdition.DisplayName + " · 輸入", Width = 354, Height = 120, WindowStyle = WindowStyle.None,
             AllowsTransparency = true, Background = Brushes.Transparent, ResizeMode = ResizeMode.NoResize,
             ShowInTaskbar = false, ShowActivated = false, Topmost = true, Owner = this, Content = frame, FontFamily = new FontFamily("Microsoft JhengHei UI") };
+        CompanionCaptureVisibility.Track(window, () => preferences.HideFromCapture);
         using (var theme = typeof(ModernWindow).Assembly.GetManifestResourceStream("BigBlueFish.ModernTheme.xaml")!)
         {
             var resources = (ResourceDictionary)System.Windows.Markup.XamlReader.Load(theme);
@@ -587,7 +627,8 @@ public partial class MainWindow
         var tray = new McpAttachmentTray(window, blue, notice => status.Text = notice);
         content.Children.Add(tray.View);
         // To the clients of the MCP interface while the input is handed to them and one is connected; otherwise to the Agent's ACP session.
-        bool AgentReady() => agent?.Connected == true;
+        // The battery pause holds the Agent even before its process has closed (UpdateAgentPowerPolicy).
+        bool AgentReady() => agent?.Connected == true && !preferences.AiPausedOnBattery;
         bool CanSend() => (AgentReady() || McpChatAvailable) && tray.Saving == 0 && (!string.IsNullOrWhiteSpace(text.Text) || tray.Items.Count > 0);
         void Send()
         {
@@ -702,8 +743,10 @@ public partial class MainWindow
             if (historyView.Visibility == Visibility.Visible) FillHistory();
             send.IsEnabled = CanSend();
             // Nothing can take a message: say why, keeping the draft and its attachments for later.
-            var link = agent is { Connected: true } connected ? connected : null;
+            bool paused = preferences.AgentEnabled && preferences.AiPausedOnBattery;
+            var link = !paused && agent is { Connected: true } connected ? connected : null;
             string? state = McpChatAvailable ? null
+                : paused ? "使用電池 · Agent 已暫停"
                 : link != null ? (link.Busy ? "Agent 正在處理…" : null)
                 : preferences.AgentEnabled ? agent?.Status ?? "Agent 尚未連線"
                 : "Agent 已中斷連線，重新連線後可傳送。";

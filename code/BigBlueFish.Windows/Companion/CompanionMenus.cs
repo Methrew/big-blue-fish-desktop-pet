@@ -11,7 +11,11 @@ namespace BigBlueFish.Windows;
 
 public partial class MainWindow
 {
-    private const string BatteryPauseNotice = "主人，目前設定為筆電拔掉電源時暫停模型，可以在設定裡調整喔。";
+    // The model on this computer is paused on battery (CompanionBrain.CanRunOnCurrentPower); a remote or cloud model is not.
+    private const string BatteryPauseNotice = "主人，目前設定為筆電拔掉電源時暫停本機模型，可以在設定裡調整喔。";
+    // What would go to the Agent the fish started while the same switch pauses it (CompanionPreferences.AiPausedOnBattery):
+    // double-click input, or the weather and speech test while the Agent writes the daily care.
+    private const string AgentBatteryPauseNotice = "魚魚的 Agent 已依供電設定暫停，接上電源後再交給 Agent 喔～";
 
     private void BuildCompanionContextMenu()
     {
@@ -49,7 +53,10 @@ public partial class MainWindow
     private async Task SpeakCompanionWeather()
     {
         if (weatherRequestPending || companionClosed || exitAnimation) return;
+        // The tray menu reaches here while the fish is hidden; bring it back first so the notice below can be seen.
         if (hiddenByUser || fullscreenHidden) RestoreCompanion();
+        // Only the Agent pauses here; the fish's own model is checked below (a remote or cloud model keeps talking on battery).
+        if (preferences.AiPausedOnBattery && AgentDailyActive) { ApplyCompanionPowerPolicy(); ShowCompanionNotice(AgentBatteryPauseNotice, true, true); return; }
         if (await TryManualAgentSpeech(true)) return;
         if (!brain.ModelAvailable) { OpenModelInstaller(); return; }
         if (hiddenByUser || fullscreenHidden) RestoreCompanion();
@@ -106,7 +113,8 @@ public partial class MainWindow
     private async Task SpeakCompanionTest()
     {
         if (companionClosed || exitAnimation) return;
-        if (hiddenByUser || fullscreenHidden) RestoreCompanion();
+        if (hiddenByUser || fullscreenHidden) RestoreCompanion(); // As in SpeakCompanionWeather: shown before any notice.
+        if (preferences.AiPausedOnBattery && AgentDailyActive) { ApplyCompanionPowerPolicy(); ShowCompanionNotice(AgentBatteryPauseNotice, true, true); return; }
         if (await TryManualAgentSpeech(false)) return;
         if (!preferences.ModelEnabled)
         {

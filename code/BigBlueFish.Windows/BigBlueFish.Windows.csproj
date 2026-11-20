@@ -33,6 +33,9 @@
     <!-- The official Anthropic C# SDK, for the cloud model source's Claude (Companion/CompanionCloud.cs). -->
     <PackageReference Include="Anthropic" Version="13.8.0" />
     <Resource Include="Res/Font/jf-openhuninn-2.1.ttf" />
+    <!-- The open and closed palm over the pet (CompanionSpriteImage); Windows only. -->
+    <Resource Include="Res/Cursor/Palm.cur" />
+    <Resource Include="Res/Cursor/PalmGrab.cur" />
     <None Update="BigBlueFish.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="assets/fish/**/*" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <EmbeddedResource Include="assets/regions/china-regions.json" />

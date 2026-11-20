@@ -5,7 +5,7 @@
 
 MCP 的連線設定、工具欄位、動作與文字排程、事件的接收及錯誤處理見[內部工具參考](../docs/MCP.md)；共用的通訊協定程式碼在 `BigBlueFish.Control/`，stdio 橋接程式的入口在 `BigBlueFish.Mcp/`，各平台的執行端是 Windows 的 `CompanionMcp.cs`，以及 macOS 與 Linux 共用的 `LinuxMcp.cs`、`LinuxMcpInterface.cs`（外部 MCP 介面）。
 
-本版（台灣繁體中文版 `1.1.3-tw.3`）以 macOS（Apple Silicon）為主要平台：Mac 版在這台 Mac 上建置並執行測試；Windows 與 Linux 的原始碼只確認可以編譯，沒有實際執行或測試。
+本版（台灣繁體中文版 `1.1.5-tw.1`）以 macOS（Apple Silicon）為主要平台：Mac 版在這台 Mac 上建置並執行測試；Windows 與 Linux 的原始碼只確認可以編譯，沒有實際執行或測試。
 
 ## 專案結構
 
@@ -172,7 +172,7 @@ OCR 版的輸出資料夾是 `BigBlueFish.Windows/bin/x64/Release/net10.0-window
 
 發布腳本產生 `BigBlueFish-TW-v<版本>-OCR-Setup.exe` 一鍵安裝程式；Vision 的建置入口保留給歷史維護，不隨公開的 Release 一起發布。安裝程式包含附 .NET 執行環境的 Windows x64 程式，以及已核對的 llama.cpp `b10809` Vulkan 執行環境；模型可以從 Hugging Face 或 ModelScope 的固定來源下載並核對，也支援手動安裝或無模型啟動。模型選擇記錄在安裝資料夾的 `data/model-selection.json`。
 
-根目錄的 `Version.props` 統一管理專案版本。主程式、安裝程式和解除安裝程式的產品版本由它產生；Windows 的檔案版本採用對應的四段格式（`1.1.3.0`）。建置腳本預設讀取這個檔案，也可以用 `-Version` 指定建置版本。`Version.props` 也依原作者 1.1.4 把 `CetCompat` 設為 `false`，讓 Windows 的主程式、MCP 橋接程式、安裝程式和解除安裝程式關閉 CET 相容標記，避免部分沒有更新的舊版 Windows 一啟動就結束；這個設定只影響 Windows 的執行檔。發布出來的 Windows 執行檔可以用 `python3 tools/Verify-WindowsHosts.py <exe 路徑…>` 檢查是否已關閉 CET。
+根目錄的 `Version.props` 統一管理專案版本。主程式、安裝程式和解除安裝程式的產品版本由它產生；Windows 的檔案版本採用對應的四段格式：去掉 `-` 之後的標記再補上 `.0`，例如 `1.1.5-tw.1` 的檔案版本是 `1.1.5.0`。建置腳本預設讀取這個檔案，也可以用 `-Version` 指定建置版本。`Version.props` 也依原作者 1.1.4 把 `CetCompat` 設為 `false`，讓 Windows 的主程式、MCP 橋接程式、安裝程式和解除安裝程式關閉 CET 相容標記，避免部分沒有更新的舊版 Windows 一啟動就結束；這個設定只影響 Windows 的執行檔。發布出來的 Windows 執行檔可以用 `python3 tools/Verify-WindowsHosts.py <exe 路徑…>` 檢查是否已關閉 CET。
 
 專案提供 Vision 與 Ocr 兩種輸入路線，預設建置 Ocr，用 `-InputMode Vision` 建置視覺版。Vision 直接把前景截圖交給多模態模型；Ocr 辨識前景視窗的文字，依位置整理成文字再交給本機模型。`tools/Build-LocalVariant.ps1 -InputMode Ocr -SdkPath <SDK 絕對路徑>` 產生自包含的程式，改成 Vision 就能建置視覺版；`code/build.ps1` 和 `code/run.ps1` 也接受 `-InputMode`。
 

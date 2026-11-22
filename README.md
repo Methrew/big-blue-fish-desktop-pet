@@ -8,7 +8,7 @@
 > - 台灣版：acer1204（[acer1204/big-blue-fish-desktop-pet 的 taiwan-edition 分支](https://github.com/acer1204/big-blue-fish-desktop-pet/tree/taiwan-edition)）
 > - 台灣 macOS 版整合：Methrew（[Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet)）
 >
-> 本版以原作者的藍色大肥魚 1.1.5 為基礎（原作者的 1.1.4、1.1.5 只發布 Windows 與 Linux 版，官方 macOS 版仍是 1.1.3；本版的 Mac 版用 1.1.5 的原始碼建置），整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.5-tw.1`，意思是「原版 1.1.5 的台灣版第 1 次修訂」。acer1204 認可本版整合其台灣版；本版不是由原作者或 acer1204 維護，內容也未經原作者審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
+> 本版以原作者的藍色大肥魚 1.1.5 為基礎（原作者的 1.1.4、1.1.5 只發布 Windows 與 Linux 版，官方 macOS 版仍是 1.1.3；本版的 Mac 版用 1.1.5 的原始碼建置），整合 acer1204 台灣版的功能並移植到 Mac，再把介面、氣泡與文件改成台灣繁體中文和台灣用語。版本號是 `1.1.5-tw.2`，意思是「原版 1.1.5 的台灣版第 2 次修訂」。acer1204 認可本版整合其台灣版；本版不是由原作者或 acer1204 維護，內容也未經原作者審閱或背書；使用上的問題請回報到[本版的 Issues](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)，不要回報給原作者。
 
 藍色大肥魚是一款住在電腦桌面上的 AI 桌寵軟體。她是一位藍髮的小鯨魚娘，形象來自對 DeepSeek 的二創虛擬形象「藍色大肥魚」。軟體內建 4B 本機語言模型，透過 OCR 讀懂主人正在桌面上做的事情，每隔一段時間就從文字氣泡裡送來一句可愛的話，陪伴和關心主人；她也會看看天氣、瀏覽科技新聞，再用自己的方式講給主人聽。
 
@@ -29,8 +29,8 @@
 
 | 版本 | 檔案 |
 | --- | --- |
-| 標準版 | `BigBlueFish-TW-v1.1.5-tw.1-macOS-arm64.dmg` |
-| 無MCP版 | `BigBlueFish-TW-v1.1.5-tw.1-Safe-macOS-arm64.dmg` |
+| 標準版 | `BigBlueFish-TW-v1.1.5-tw.2-macOS-arm64.dmg` |
+| 無MCP版 | `BigBlueFish-TW-v1.1.5-tw.2-Safe-macOS-arm64.dmg` |
 
 檔名開頭是 `BigBlueFish-TW`，和原作者的 `BigBlueFish-v…` 不同。發布頁面還沒有任何版本時，請先[從原始碼建置](#從原始碼建置)。
 
@@ -52,7 +52,7 @@
 
 ### Windows 與 Linux
 
-本版的 Windows 與 Linux 原始碼已經一起合併，也確認可以編譯，但沒有在 Windows 或 Linux 上實際執行或測試，也不提供安裝程式或套件。需要這兩個平台時，請使用[原作者的版本](https://github.com/Bai-Cute/big-blue-fish-desktop-pet/releases/latest)，或自行從原始碼建置（未經測試）。
+本版的 Windows 與 Linux 原始碼已經一起合併，也確認可以編譯。Windows 另有在 Mac 上交叉建置的免安裝測試版（放在發布頁），只在 Windows 11 虛擬機上測過；Linux 沒有實際執行或測試。兩個平台都不提供安裝程式或套件。需要這兩個平台時，請使用[原作者的版本](https://github.com/Bai-Cute/big-blue-fish-desktop-pet/releases/latest)，或自行從原始碼建置（未經測試）。
 
 ## 本版和原版有什麼不同
 

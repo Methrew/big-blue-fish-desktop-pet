@@ -15,7 +15,7 @@
 | 資料夾 | `~/Library/Application Support/bigbluefish-tw`（兩個版本共用） | 同左 |
 | DMG | `BigBlueFish-TW-v<版本>-macOS-arm64.dmg` | `BigBlueFish-TW-v<版本>-Safe-macOS-arm64.dmg` |
 
-- 版本號是 `1.1.5-tw.1`，意思是「原版 1.1.5 的台灣版第 1 次修訂」。在 Finder 的「取得資訊」會看到「1.1.5 (1.1.5-tw.1)」。
+- 版本號是 `1.1.5-tw.2`，意思是「原版 1.1.5 的台灣版第 2 次修訂」。在 Finder 的「取得資訊」會看到「1.1.5 (1.1.5-tw.2)」。
 - 「設定 › 關於與更新」列出版本、致謝和專案連結：原作者 Bai-Cute（Bai-Cute/big-blue-fish-desktop-pet）、台灣版修改 acer1204（acer1204/big-blue-fish-desktop-pet）、台灣 macOS 版整合 Methrew。App 的版權資訊（Info.plist）也寫著同樣的致謝。
 - 這不是原作者發布的版本，使用上的問題請回報到 [Methrew/big-blue-fish-desktop-pet](https://github.com/Methrew/big-blue-fish-desktop-pet/issues)。
 
@@ -26,7 +26,7 @@
 1. 到[本版的發布頁面](https://github.com/Methrew/big-blue-fish-desktop-pet/releases)下載標準版或無MCP版的 DMG。想確認檔案完整，可以把同名的 `.sha256` 一起下載到同一個資料夾，在終端機執行：
 
    ```sh
-   shasum -a 256 -c BigBlueFish-TW-v1.1.5-tw.1-macOS-arm64.dmg.sha256
+   shasum -a 256 -c BigBlueFish-TW-v1.1.5-tw.2-macOS-arm64.dmg.sha256
    ```
 
 2. 打開 DMG，把 App 拖到「應用程式」檔案夾，再從「應用程式」開啟。請不要直接從 DMG 執行：退出磁碟映像後 App 就不見了，「登入時自動開啟」也會拒絕設定。
@@ -543,7 +543,7 @@ code/run-hermes-bridge.sh
 ## 更新
 
 - 檢查更新只看本版的發布頁面 [Methrew/big-blue-fish-desktop-pet/releases](https://github.com/Methrew/big-blue-fish-desktop-pet/releases)，不會把本版換成原作者的版本。可以在「設定 › 關於與更新」按「檢查更新」，或打開「每次啟動時自動檢查更新」。
-- 版本依「原版版本號＋台灣版修訂號」比較：`1.1.3` < `1.1.3-tw.3` < `1.1.5` < `1.1.5-tw.1` < `1.1.6`。
+- 版本依「原版版本號＋台灣版修訂號」比較：`1.1.3` < `1.1.3-tw.3` < `1.1.5` < `1.1.5-tw.1` < `1.1.5-tw.2` < `1.1.6`。
 - 還沒有發布任何正式版本時，啟動時的自動檢查不會出聲；手動檢查會顯示「目前還沒有發布任何正式版本」。
 - macOS 版不會在 App 裡自動替換。發現新版時按提示開啟發布頁面，下載 `BigBlueFish-TW-v<版本>-macOS-arm64.dmg`（無MCP版是 `BigBlueFish-TW-v<版本>-Safe-macOS-arm64.dmg`），結束目前的藍色大肥魚，打開 DMG，把新版拖到「應用程式」檔案夾取代舊版。設定和模型在資料夾裡，不受影響。取代後如果讀不到畫面，請照「[權限](#權限)」一節重新授權。
 - 從原始碼建置的使用者，拉取新的原始碼後重新執行建置步驟即可。

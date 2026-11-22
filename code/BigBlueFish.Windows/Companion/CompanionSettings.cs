@@ -89,10 +89,14 @@ public partial class MainWindow
         sidebar.Children.Add(new TextBlock { Text = "藍色大肥魚", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = new SolidColorBrush(Color.FromRgb(53, 76, 129)), Margin = new Thickness(5, 0, 0, 8) });
         var version = typeof(MainWindow).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
             .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().First().InformationalVersion.Split('+')[0];
+        // The 200 px sidebar holds "1.1.5-tw.1 · 陪伴設定" on one line; with the edition name it was cut to "… · 無MCP版 · 陪"
+        // (Windows 11, 2026-11-22), so 陪伴設定 moves to a second line there, and a longer version or a larger font wraps.
 #if COMPANION_SAFE
-        version += " · 無MCP版";
+        version += " · 無MCP版\n";
+#else
+        version += " · ";
 #endif
-        sidebar.Children.Add(new TextBlock { Text = version + " · 陪伴設定", Foreground = Brushes.SlateGray, Margin = new Thickness(5, 0, 0, 28) });
+        sidebar.Children.Add(new TextBlock { Text = version + "陪伴設定", TextWrapping = TextWrapping.Wrap, Foreground = Brushes.SlateGray, Margin = new Thickness(5, 0, 0, 28) });
 #if COMPANION_SAFE
         var titles = new[] { "陪伴與外觀", "說話與天氣", "模型與供電", LogConsolePage };
 #else

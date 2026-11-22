@@ -1,6 +1,10 @@
 <!-- Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0). -->
 # 更新記錄
 
+## 1.1.5-tw.2（台灣繁體中文版）
+
+Windows 無MCP版設定視窗左上方的副標題原本被截成「1.1.5-tw.1 · 無MCP版 · 陪」，現在「陪伴設定」移到下一行，版本號更長或字型放大時也會換行；標準版的副標題不變。macOS 與 Linux 版的設定頁沒有這段副標題（版本號在「關於與更新」頁），沒有這個問題。
+
 ## 1.1.5-tw.1（台灣繁體中文版）
 
 以原作者 Bai-Cute 的 1.1.5 版（commit aebf9cc）為基礎，合併原作者 1.1.4 與 1.1.5 的變更。原作者這兩版只發布 Windows 與 Linux 版，macOS 版仍停在 1.1.3；本版的 Mac 版用 1.1.5 的原始碼建置，原作者沒有在 Mac 上測試過這兩版的變更。App 與 DMG 的大小和高畫質動畫的 CPU 用量都用這一版在 M4 上重新量測過。

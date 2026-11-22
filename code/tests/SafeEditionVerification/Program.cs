@@ -38,6 +38,12 @@ static class Program
             Check((string)Read("animationPhase")=="Startup","safe keeps ordinary welcome animation");
             Invoke("OpenCompanionSettings");Pump(150);var settings=(Window)Read("companionSettings");
             Check(!Descendants<Button>(settings).Any(b=>b.Content?.ToString() is "Agent 與 MCP" or "連線 Agent"),"safe settings have no Agent connection or MCP page");
+            // The sidebar subtitle was cut to "1.1.5-tw.1 · 無MCP版 · 陪" on Windows 11 (2026-11-22): every line has to fit.
+            var subtitle=Descendants<TextBlock>(settings).Single(t=>t.Text.EndsWith("陪伴設定",StringComparison.Ordinal));
+            var face=new Typeface(subtitle.FontFamily,subtitle.FontStyle,subtitle.FontWeight,subtitle.FontStretch);
+            double LineWidth(string line)=>new FormattedText(line,System.Globalization.CultureInfo.InvariantCulture,FlowDirection.LeftToRight,face,subtitle.FontSize,Brushes.Black,VisualTreeHelper.GetDpi(subtitle).PixelsPerDip).WidthIncludingTrailingWhitespace;
+            string version=assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+            Check(subtitle.Text==version+" · 無MCP版\n陪伴設定"&&subtitle.Text.Split('\n').All(line=>LineWidth(line)<=subtitle.ActualWidth+.5),"safe settings subtitle shows the full version, the edition and 陪伴設定 without clipping");
             Descendants<Button>(settings).Single(b=>b.Content?.ToString()=="記錄主控台").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));Pump(350);
             Check(Descendants<TextBox>(settings).Any(t=>t.Name=="LogConsoleText"&&t.IsReadOnly&&t.Text.Contains("SettingsOpened")),"safe edition has a working shareable log console without loading Agent");
             settings.Close();Invoke("AnimationBoundary");

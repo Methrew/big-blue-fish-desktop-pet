@@ -84,7 +84,7 @@ Python 測試（Python 3.9 以上）：
 
 - `python3 code/tests/HermesBridgeVerification/fake_e2e.py [BigBlueFish.HermesBridge.dll] <BigBlueFish.Mcp>`：用假的魚魚與假的 Hermes 檢查整條橋接路徑（macOS／Linux）。先用 `code/run-hermes-bridge.sh --build` 與 `dotnet publish code/BigBlueFish.Mcp -r osx-arm64` 建置。
 - `python3 code/tests/HermesScenarioVerification/scenarios.py`：需要正在執行的魚魚、Hermes gateway 與模型（Windows、macOS、Linux），魚魚沒有的工具對應的情境會略過。
-- `python3 tools/Verify-MacPackage.py <App 路徑> --edition Standard|Safe --output <資料夾>`：檢查建置好的 App，會以測試模式短暫啟動它。標準版另外以 `--test-battery`（模擬使用電池）再啟動一次，確認魚魚啟動的 Agent 停在「使用電池 · Agent 已暫停」、不會執行任何 CLI，拖到魚魚身上的檔案仍留在輸入框，魚魚也會說明 Agent 已暫停；這一輪的記錄和狀態寫在輸出資料夾的 `battery.log` 與 `battery-status.json`。兩個版本都會再以連不到的遠端模型啟動一次，從選單的說話測試（測試指令 `menu-speech-test`）確認魚魚會用氣泡說明連線失敗的原因；這一輪寫在 `remote.log` 與 `remote-status.json`。
+- `python3 tools/Verify-MacPackage.py <App 路徑> --edition Standard|Safe --output <資料夾>`：檢查建置好的 App，會以測試模式短暫啟動它。標準版另外以 `--test-battery`（模擬使用電池）再啟動一次，確認魚魚啟動的 Agent 停在「使用電池 · Agent 已暫停」、不會執行任何 CLI，拖到魚魚身上的檔案仍留在輸入框，魚魚也會說明 Agent 已暫停；這一輪的記錄和狀態寫在輸出資料夾的 `battery.log` 與 `battery-status.json`。兩個版本都會再以連不到的遠端模型啟動一次，從選單按「說話測試」（測試指令 `menu-speech-test`），確認魚魚會用氣泡說明連線失敗的原因，記錄主控台也寫明這次說話要求是遠端模型（`kind=remote`）；這一輪寫在 `remote.log` 與 `remote-status.json`。
 
 原作者 1.1.4 用 `python3 tools/Compress-Animations.py <輸出資料夾> [--apply]` 重新壓縮了 106 段高畫質動畫（libvpx-vp9、CRF 34、`yuva420p`，仍是 1280×720、每秒 60 格），每段都核對影格數、長度和透明度後才取代原檔；相容動畫沒有改變。這個腳本需要 Python 3.11 以上與 FFmpeg（含 ffprobe），只有要重新壓縮動畫時才用得到。
 

@@ -1025,12 +1025,27 @@ internal sealed class CompanionBrain : IDisposable
         return new(AgentBrief(FixedSpeechInstructions(Persona) + hint, SpeechRequest(context)), true, context, hint);
     }
 
-    // Why the last Generate said nothing (the model or the remote server failed); null after one that spoke or was cancelled.
+    // Why the last Generate said nothing (the model or the remote server failed, or it ran past its 100 seconds); null after
+    // one that spoke, was cancelled or brought empty text.
     internal string? SpeechFailure { get; private set; }
 
     // A speech test the user asked for says why nothing came, as the weather does: on Windows 11 (2026-11-22) a remote
-    // server that refused the connection left the fish silent and the reason only on the settings page.
-    internal string SpeechTestNotice => "主人，" + (SpeechFailure ?? "這次沒有想到要說的話，請稍後再試一次").TrimEnd('。') + "。";
+    // server that refused the connection left the fish silent and the reason only on the settings page. Null without a
+    // known reason (a cancellation, empty text), when the test stays silent as before.
+    internal string? SpeechTestNotice => SpeechFailure is { } failure ? "主人，" + failure.TrimEnd('。') + "。" : null;
+
+    // The reason in Chinese for that notice. This code's own IOException and a cloud service's CloudException carry Chinese
+    // text; .NET's (HttpIOException when a stream ends early, a file error) and HttpRequestException carry the system's
+    // English and may name a local path, so they become the remote server's failure or the general sentence (review of
+    // 2026-11-22). The settings page's Status keeps what it showed before.
+    private string SpeechFailureText(Exception error) => error switch
+    {
+        CloudException => error.Message,
+        IOException when error.GetType() == typeof(IOException) => error.Message,
+        HttpRequestException { StatusCode: { } status } when UseRemote => $"遠端模型回傳 HTTP {(int)status}",
+        HttpRequestException request when UseRemote => RemoteFailure(request),
+        _ => "暫時無法生成，稍後重試"
+    };
 
     internal async Task<string> Generate(bool usePublic, bool useForeground, IntPtr foregroundHandle = default, Action<string>? onPartial = null)
     {
@@ -1184,18 +1199,23 @@ internal sealed class CompanionBrain : IDisposable
             DiagnosticLog.Write(DiagnosticEvent.SpeechCompleted, kind: kind, chars: text.Length, elapsedMs: generationWatch.Elapsed.TotalMilliseconds);
             return CanRunOnCurrentPower ? text : "";
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException e)
         {
             StopRunner();
             DiagnosticLog.Write(DiagnosticEvent.SpeechCancelled, kind: kind);
             Status = "模型已暫停";
+            // This turn's 100 seconds or the HTTP client's ran out; a caller's cancellation also moves its request on, so
+            // the speech test that asked says nothing then.
+            if (e.InnerException is TimeoutException || generationWatch.Elapsed >= TimeSpan.FromSeconds(99))
+                SpeechFailure = "模型超過 100 秒還沒有產生要說的話，請稍後再試一次";
             return "";
         }
         catch (Exception e)
         {
             DiagnosticLog.Write(DiagnosticEvent.SpeechFailed, kind: kind, error: e);
             StopRunner(); RecordFailure("生成", e);
-            Status = SpeechFailure = e is IOException ? e.Message : "暫時無法生成，稍後重試";
+            Status = e is IOException ? e.Message : "暫時無法生成，稍後重試";
+            SpeechFailure = SpeechFailureText(e);
             return "";
         }
         finally

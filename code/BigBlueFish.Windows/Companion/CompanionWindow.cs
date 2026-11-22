@@ -764,7 +764,8 @@ public partial class MainWindow
 
     private Task SpeechCountdownZeroAsync() => GenerateLocalSpeechAsync(false);
 
-    // explainSilence: the user's own speech test, which says in a notice why nothing came (SpeechTestNotice).
+    // explainSilence: the user's own speech test, which says in a notice why nothing came when the reason is known
+    // (CompanionBrain.SpeechTestNotice).
     private async Task GenerateLocalSpeechAsync(bool agentTriggered, bool explainSilence = false)
     {
         var foregroundHandle = speechForegroundOverride
@@ -816,17 +817,18 @@ public partial class MainWindow
             else
                 ShowCompanionBubble(text, agentTriggered);
         }
-        else if (explainSilence && version == speechRequestVersion && !companionClosed && !exitAnimation && !hiddenByUser && !fullscreenHidden
-            && preferences.ModelEnabled && brain.CanRunOnCurrentPower)
+        else if (explainSilence && brain.SpeechTestNotice is { } notice && version == speechRequestVersion && !companionClosed && !exitAnimation
+            && !hiddenByUser && !fullscreenHidden && preferences.ModelEnabled && brain.CanRunOnCurrentPower)
         {
             ClearCompanionModelReply();
-            ShowCompanionNotice(brain.SpeechTestNotice, manual: true);
+            ShowCompanionNotice(notice, manual: true);
         }
         else if (streamed && version == speechRequestVersion)
         {
             ClearCompanionModelReply();
         }
-        // Empty/failed generation is silent for automatic speech and for request_local_speech; the user's test says why.
+        // Empty/failed generation is silent for automatic speech and for request_local_speech; the user's test says why
+        // it failed or timed out.
     }
 
     private void BuildCompanionTray()

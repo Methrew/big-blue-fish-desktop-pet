@@ -250,7 +250,7 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
                     process.wait()
 # The menu's speech test with a remote model whose server refuses the connection: the fish says why nothing came, as the
 # weather does; Windows 11 and macOS left her silent (2026-11-22). Nothing listens on the port, so nothing is sent, and the
-# foreground is not read.
+# foreground is not read; the proxy variables are left out, so the request cannot go to a proxy instead.
 with tempfile.TemporaryDirectory(prefix="bbf-macos-remote-") as temporary:
     data = pathlib.Path(temporary)  # command() above reads the data folder of this run
     with socket.socket() as probe:
@@ -260,7 +260,7 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-remote-") as temporary:
         "CheckUpdatesOnStartup": False, "HideOnFullscreen": False, "Left": 300, "Top": 250,
         "ModelSource": "Remote", "RemoteUrl": f"http://127.0.0.1:{unused}"}))
     (data / "model-selection.json").write_text('{"Source":"none"}')
-    env = {**os.environ, "BIGBLUEFISH_DATA": str(data), "DOTNET_ROOT": "/nonexistent",
+    env = {**{k: v for k, v in os.environ.items() if not k.lower().endswith("_proxy")}, "BIGBLUEFISH_DATA": str(data), "DOTNET_ROOT": "/nonexistent",
            "DOTNET_MULTILEVEL_LOOKUP": "0", "DYLD_LIBRARY_PATH": "", "DYLD_FALLBACK_LIBRARY_PATH": ""}
     refused = f"主人，無法連線遠端模型：伺服器拒絕連線（127.0.0.1:{unused}），請確認伺服器正在執行，並檢查網址和連接埠。"
 
@@ -288,6 +288,12 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-remote-") as temporary:
             (args.output / "remote-status.json").write_text(json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8")
             check(status.get("bubbleVisible") and status.get("text") == refused and status.get("modelPid") is None,
                   "the speech test says why nothing came: " + str(status.get("text")))
+            # The log console names the model that answered the request; it read kind=local before (2026-11-22).
+            command("settings-page 記錄主控台", 15)
+            time.sleep(1.5)  # the console refreshes itself
+            shown = json.loads((data / "remote-log.json").read_text(encoding="utf-8")) if command("texts · 設定 remote-log.json") else []
+            check(any("[SpeechRequested] 收到說話要求 | kind=remote; state=manual" in (item.get("text") or "") for item in shown),
+                  "the log names the remote model for the speech test's request")
             (data / "test-command.txt").write_text("exit")
             process.wait(timeout=15)
             check(process.returncode == 0, "application with a remote model exits normally")

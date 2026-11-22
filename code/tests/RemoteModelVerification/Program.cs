@@ -146,8 +146,13 @@ using (var brain = NewBrain())
     Check(silent == "" && brain.SpeechFailure == refused && brain.SpeechTestNotice == "主人，" + refused && brain.ModelKind == "remote",
         "a refused connection leaves its reason for the speech test's notice: " + brain.SpeechTestNotice);
     brain.UseRemoteModel(Url, Key, "");
-    Check(await brain.Generate(false, false) == server.Reply && brain.SpeechFailure == null, "a turn that speaks clears the failure");
-    Check(brain.SpeechTestNotice == "主人，這次沒有想到要說的話，請稍後再試一次。", "without a failure the test notice says nothing came");
+    Check(await brain.Generate(false, false) == server.Reply && brain.SpeechFailure == null && brain.SpeechTestNotice == null,
+        "a turn that speaks clears the failure, and the test has nothing to explain");
+    // HttpRequestException carries the system's English: the reason in the bubble is the server's answer in Chinese.
+    server.ChatStatus = 500;
+    Check(await brain.Generate(false, false) == "" && brain.SpeechTestNotice == "主人，遠端模型回傳 HTTP 500。",
+        "a server error during the turn is explained in Chinese: " + brain.SpeechTestNotice);
+    server.ChatStatus = 200;
     server.Take();
 }
 

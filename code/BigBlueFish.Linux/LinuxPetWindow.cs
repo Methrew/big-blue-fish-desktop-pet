@@ -305,7 +305,8 @@ internal sealed partial class LinuxPetWindow : Window
         if (nextExternalText != null) { string text = nextExternalText; nextExternalText = null; SayExternal(text); nextSpeech = now.Add(Preferences.NextSpeechDelay(random)); }
         else if (!DispatchAgentDaily()) await Speak(false);
     }
-    // explainSilence: the user's own speech test (SpeakManual), which says in a notice why nothing came (SpeechTestNotice).
+    // explainSilence: the user's own speech test (SpeakManual), which says in a notice why nothing came when the reason is
+    // known (CompanionBrain.SpeechTestNotice).
     async Task Speak(bool weather, bool agentTriggered = false, bool explainSilence = false)
     {
         DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: weather ? "weather" : brain.ModelKind, state: agentTriggered ? "manual" : "automatic");
@@ -325,7 +326,7 @@ internal sealed partial class LinuxPetWindow : Window
             if (text.Length > 0) FinishReply(text);
             // The user asked for this test: say why nothing came, as the weather does (a remote server that refused the
             // connection left the fish silent, Windows 11 and macOS, 2026-11-22).
-            else if (explainSilence && !weather) ShowText(brain.SpeechTestNotice, false);
+            else if (explainSilence && !weather && brain.SpeechTestNotice is { } notice) ShowText(notice, false);
             else if (streamed && !externalSpeech) bubbleWindow.Hide();
             // The user asked for the weather: say why there is none instead of nothing at all.
             else if (weather && !streamed && brain.WeatherFailure is { } failure) ShowText("主人，" + failure.TrimEnd('。') + "。", false);

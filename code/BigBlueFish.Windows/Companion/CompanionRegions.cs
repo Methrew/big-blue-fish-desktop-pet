@@ -11,6 +11,9 @@ internal sealed record CompanionRegion(string Code, string ParentCode, int Level
 {
     // The name pickers show and search (Traditional script); Name stays the data's own.
     public string Display => CompanionRegions.DisplayName(this);
+    // What a screen reader says for a picker item (WPF's UI Automation name of a ComboBox item is its ToString): the record's
+    // own ToString read out every field and the Simplified Name, e.g. "CompanionRegion { Code = TW-061, … }" (2026-11-22).
+    public override string ToString() => Display;
 }
 
 // Country root: China is province → city → district (root "0", 台湾省 71 included as in the original list); the US is
@@ -19,6 +22,8 @@ internal sealed record CompanionRegion(string Code, string ParentCode, int Level
 internal sealed record CompanionCountry(string Code, string Name, string Root, int LeafLevel, string[] Captions)
 {
     public string Display => CompanionRegions.DisplayName(this);
+    // As CompanionRegion: a screen reader says the Traditional name, not "CompanionCountry { Code = CM, Name = … }".
+    public override string ToString() => Display;
 }
 
 internal static class CompanionRegions

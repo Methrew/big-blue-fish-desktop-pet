@@ -68,7 +68,7 @@ DOTNET_ROOT=~/.dotnet "/tmp/bbf-tests/$name/$name" [參數]
 | 專案 | 檢查內容 | 參數 |
 | --- | --- | --- |
 | `TraditionalTextVerification` | 氣泡的繁體轉換（8591 筆語料）、台灣用語修正與串流顯示 | 無 |
-| `WeatherRegionVerification` | 地區清單、繁體地名、MCP 地點代碼、儲存的地點、macOS 鑰匙圈流程（中央氣象署授權碼、遠端模型與三個雲端 AI 服務的 API Key；用假的 `security`，不動到真正的鑰匙圈）、`Cloud` 模型來源的設定正規化與天氣快取 | `live`：實際連線 Open-Meteo 與中央氣象署 |
+| `WeatherRegionVerification` | 地區清單、繁體地名、MCP 地點代碼、儲存的地點、macOS 鑰匙圈流程（中央氣象署授權碼、遠端模型與三個雲端 AI 服務的 API Key；用假的 `security`，不動到真正的鑰匙圈）、`Cloud` 模型來源的設定正規化與天氣快取，以及地點選單項目給螢幕朗讀程式的名稱（繁體地名） | `live`：實際連線 Open-Meteo 與中央氣象署 |
 | `RemoteModelVerification` | 遠端模型：API Key、圖片支援判斷、連線測試訊息、連不上時「說話測試」要說明的原因、只截前景視窗、拒收圖片時改送 OCR 文字（用假的 OpenAI 相容伺服器）。雲端 AI 服務（`CloudVerification.cs`）：用三個本機的假 Claude、OpenAI、Gemini 伺服器，檢查模型清單、分頁與預選、請求內容（金鑰的標頭、人設、圖片、思考強度與備援，沒有 llama.cpp 欄位與取樣參數）、思考設定被拒時的重試、各種錯誤的中文訊息與暫停時間、婉拒與串流中斷、拒收截圖改送文字、每天上限與 `cloud-usage.json`，以及記錄主控台裡沒有金鑰或服務回覆的原文 | `live <網址> [API Key] [模型名稱]`：對真的伺服器測試遠端模型；雲端 AI 服務只用假的伺服器，不會連線真正的 API |
 | `ReminderVerification` | 主動提醒（模擬多種日子，含睡眠計時） | 無 |
 | `ScreenMatchingVerification` | `find_on_screen` 與 `walk_to` 的名稱比對規則、假的畫面 | `BigBlueFish.MacScreen` 的路徑：另外讀這台 Mac 的真實畫面並檢查 JSON 格式 |

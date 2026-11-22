@@ -35,6 +35,12 @@ try
         && !world.Any(c => c.Code is "TW" or "HK" or "MO" or "PR"), "臺灣 Taiwan sorts at its English name, once, after Syria");
     Check(CompanionRegions.DisplayName(CompanionRegions.Taiwan) == "臺灣 Taiwan" && CompanionRegions.DisplayName(CompanionRegions.China) == "中國 China"
         && CompanionRegions.DisplayName(CompanionRegions.UnitedStates) == "美國 United States", "fixed country names are Traditional");
+    // A screen reader says a picker item's ToString (WPF's UI Automation name): the Traditional name, not the record's fields
+    // and the Simplified Name, such as "CompanionCountry { Code = CM, Name = … }" (Windows 11, 2026-11-22).
+    var cameroon = countries.Single(c => c.Code == "CM"); var zhongzheng = CompanionRegions.District("TW-061-01");
+    Check(countries.All(c => c.ToString() == c.Display) && CompanionRegions.All.All(r => r.ToString() == r.Display)
+        && cameroon.ToString() == "喀麥隆 Cameroon" && zhongzheng.ToString() == zhongzheng.Display && !zhongzheng.ToString().Contains('{'),
+        "picker items read out their Traditional display name");
 
     // --- China keeps 台湾省 and every code of the original lists.
     Check(CompanionRegions.Children("0").Select(r => r.Code).Contains("71") && CompanionRegions.Children("71").Length == 20

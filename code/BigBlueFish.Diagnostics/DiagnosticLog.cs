@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
@@ -153,10 +154,15 @@ public static class DiagnosticLog
         }
         return "<ExternalDirectory#" + Convert.ToHexString(SHA256.HashData(pathSalt.Concat(Encoding.UTF8.GetBytes(full)).ToArray()))[..8] + ">";
     }
+    // The release version from Version.props, as the settings page shows it: InformationalVersion keeps the Taiwan revision
+    // (1.1.5-tw.1) that the numeric assembly version (1.1.5) drops, so a shared log or an MCP client tells tw.1 from tw.2
+    // (seen on Windows 11, 2026-11-22). Build metadata after "+" is cut off.
+    public static string VersionText(Assembly assembly) =>
+        (assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? assembly.GetName().Version?.ToString(3) ?? "0.0.0").Split('+')[0];
     public static string ExportText()
     {
         var snapshot = Snapshot();
-        return "藍色大肥魚 · 疑難排解記錄\nVersion: " + typeof(DiagnosticLog).Assembly.GetName().Version!.ToString(3)
+        return "藍色大肥魚 · 疑難排解記錄\nVersion: " + VersionText(typeof(DiagnosticLog).Assembly)
             + "\nOS: " + RuntimeInformation.OSDescription + "\nArchitecture: " + RuntimeInformation.ProcessArchitecture
             + "\nRuntime: " + RuntimeInformation.FrameworkDescription + "\nEntries: " + snapshot.Length + "/" + Capacity
             + "\n只包含這次執行的疑難排解中繼資料；資料夾路徑已匿名化。\n\n" + string.Join(Environment.NewLine, snapshot.Select(x => x.ToString())) + Environment.NewLine;

@@ -163,7 +163,7 @@ public sealed class ControlServer : IDisposable
                 negotiated = true;
                 var version = args.TryGetProperty("protocolVersion", out var requested) && requested.GetString() == "2025-03-26" ? "2025-03-26" : "2025-11-25";
                 Result(id, new { protocolVersion = version, capabilities = new { tools = new { listChanged = false }, logging = new { }, resources = new { subscribe = true, listChanged = false } },
-                    serverInfo = new { name = "BigBlueFish", version = typeof(ControlServer).Assembly.GetName().Version!.ToString(3) },
+                    serverInfo = new { name = "BigBlueFish", version = DiagnosticLog.VersionText(typeof(ControlServer).Assembly) },
                     // One text for both channels: the built-in Agent (ACP, private pipe) and MCP clients outside the fish.
                     instructions = "藍色大肥魚的控制工具，內建Agent連線與外部MCP客戶端共用。內建Agent使用big-blue-fish技能，完整指南可呼叫get_operation_guide；get_operation_guide、get_wakeups、schedule_wakeup與cancel_wakeup只供內建Agent連線使用。"
                         + "讓魚魚說話使用say或say_next，普通Agent文字不會進入氣泡；say/say_next顯示你提供的原文（台灣版會把其中的簡體字轉成繁體），請使用台灣繁體中文與台灣用語。工具成功表示提交操作，不能當作主人已讀或動畫播放完成。"

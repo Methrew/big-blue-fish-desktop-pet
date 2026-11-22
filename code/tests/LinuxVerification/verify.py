@@ -79,8 +79,8 @@ try:
     init=request('initialize',dict(protocolVersion='2025-11-25',capabilities={},clientInfo=dict(name='Linux verification',version='1')))
     bridge.stdin.write('{"jsonrpc":"2.0","method":"notifications/initialized"}\n'); bridge.stdin.flush()
     version=ET.parse(pathlib.Path(__file__).resolve().parents[3]/'Version.props').findtext('.//Version')
-    # The bridge reports the numeric assembly version; Version.props may add the Taiwan revision (1.1.3-tw.1).
-    check(init['serverInfo']['version']==version.split('-')[0],'real stdio bridge negotiates current version')
+    # The bridge reports the whole release version, the Taiwan revision included (1.1.5-tw.2), as the settings page does.
+    check(init['serverInfo']['version']==version,'real stdio bridge negotiates current version')
     names={t['name'] for t in request('tools/list')['tools']}
     check(len(names)==15 and 'get_context' in names,'all MCP tools Linux supports are available')
     # walk_to and find_on_screen need a reader of the screen's contents (Windows, macOS); Linux does not offer them.

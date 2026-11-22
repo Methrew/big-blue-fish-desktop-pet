@@ -50,7 +50,7 @@ public sealed class AcpConnection : IAsyncDisposable
     public async Task Initialize(CancellationToken token)
     {
         var result = await Request("initialize", new { protocolVersion = 1,
-            clientInfo = new { name = "big-blue-fish", title = BigBlueFish.Windows.CompanionEdition.DisplayName, version = typeof(AcpConnection).Assembly.GetName().Version!.ToString(3) },
+            clientInfo = new { name = "big-blue-fish", title = BigBlueFish.Windows.CompanionEdition.DisplayName, version = DiagnosticLog.VersionText(typeof(AcpConnection).Assembly) },
             clientCapabilities = new { fs = new { readTextFile = false, writeTextFile = false }, terminal = false, auth = new { terminal = terminalAuthentication },
                 session = new { configOptions = new { boolean = new { } } } } }, token, TimeSpan.FromSeconds(45));
         if (!result.TryGetProperty("protocolVersion", out var version) || version.GetInt32() != 1)

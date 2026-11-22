@@ -75,7 +75,7 @@ DOTNET_ROOT=~/.dotnet "/tmp/bbf-tests/$name/$name" [參數]
 | `MacEditionVerification` | 版本比較、資產檔名、從原版匯入、登入項目（都在暫存資料夾裡） | `[工作資料夾] [--safe-app <無MCP版建置資料夾>]` |
 | `MacLogicVerification` | 推論裝置名稱、只有相容動畫時的動畫規則、登入 shell 的 PATH（慢速、卡住的 shell）、前景視窗規則、終端機登入指令稿 | `[儲存庫根目錄]` |
 | `MacSystemVerification` | 這台 Mac 的閒置時間、睡眠也計時的時鐘、電池、鎖定與前景程式讀數 | `--finder`：實際詢問 Finder（可能跳出「自動化」權限詢問） |
-| `McpProtocolVerification` | 真正的 stdio 橋接程式與通訊協定、依平台的工具清單（Linux 15 個，Windows 與 macOS 17 個）、唯讀設定與金鑰被拒絕的原因（包括雲端 AI 服務的欄位） | 輸出資料夾裡 `BigBlueFish.Mcp` 的路徑 |
+| `McpProtocolVerification` | 真正的 stdio 橋接程式與通訊協定、依平台的工具清單（Linux 15 個，Windows 與 macOS 17 個）、唯讀設定與金鑰被拒絕的原因（包括雲端 AI 服務的欄位）、`serverInfo` 與記錄匯出檔頭的完整版本號（含 `-tw.N`） | 輸出資料夾裡 `BigBlueFish.Mcp` 的路徑 |
 | `AgentVerification` | ACP 連線、對話恢復、工作區、輸入框附件（`resource_link`、圖片區塊與兩種退回）；DeepSeek Harness Desktop 的 app.asar 檢查（用假的桌面版）；拔掉電源時暫停 Agent 與恢復連線；Agent 沒有回覆或連線中斷時的提示；Claude Code、Codex CLI、Gemini CLI 改用 API Key（`LaunchVerification.cs`：環境變數只給選定的 Harness、拿掉原本登入的權杖與轉址變數、Gemini CLI 的變數設成空值、Codex CLI 的 `config.toml` 與 Gemini CLI 的 `settings.json`、換設定時重新啟動、沒有 Key 不啟動、Key 被拒絕時顯示處理方式、Key 不進記錄與對話檔、兩種登入的對話分開恢復） | 工作資料夾（可省略） |
 | `AnimationVerification` | 動作權重、日期與農曆節日規則 | `[動畫資料夾]`（預設從儲存庫根目錄找） |
 | `OcrLayoutVerification` | OCR 文字依版面整理 | 無 |

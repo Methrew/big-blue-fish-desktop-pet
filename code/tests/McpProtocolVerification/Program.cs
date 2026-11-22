@@ -1,6 +1,7 @@
 // Modified by acer1204 on 2026-10-30 for the taiwan-edition fork of Bai-Cute/big-blue-fish-desktop-pet (Apache-2.0).
 // Modified by Methrew on 2026-11-15 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.3, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 using System.Diagnostics;
+using System.Reflection;
 using System.Text.Json;
 using BigBlueFish.Control;
 using BigBlueFish.Diagnostics;
@@ -29,6 +30,10 @@ async Task<JsonElement> Request(int id, string method, object? parameters = null
 }
 var response = await Request(1, "initialize", new { protocolVersion = "2025-11-25", capabilities = new { }, clientInfo = new { name = "verification", version = "1" } });
 Check(response.GetProperty("result").GetProperty("protocolVersion").GetString() == "2025-11-25", "Protocol handshake");
+// The whole release version from Version.props, the Taiwan revision included; the numeric assembly version drops it.
+var release = typeof(Program).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+Check(response.GetProperty("result").GetProperty("serverInfo").GetProperty("version").GetString() == release
+    && DiagnosticLog.ExportText().Contains("\nVersion: " + release + "\n"), "serverInfo and the shared log header carry the whole release version");
 var instructions = response.GetProperty("result").GetProperty("instructions").GetString()!;
 Check(instructions.Contains("user_message"), "Handshake explains input event handling");
 Check(instructions.Contains("user_returned"), "Handshake names the user_returned event");

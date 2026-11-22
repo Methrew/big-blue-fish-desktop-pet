@@ -1,3 +1,4 @@
+// Modified by Methrew on 2026-11-21 for the Taiwan Traditional Chinese edition of Bai-Cute/big-blue-fish-desktop-pet 1.1.5, which also takes in acer1204's taiwan-edition fork (Apache-2.0).
 using BigBlueFish.Diagnostics;
 using System.IO;
 using System.Net;
@@ -44,6 +45,8 @@ internal static class DiagnosticVerification
         Check(File.ReadAllText(export) == DiagnosticLog.ExportText(), "TXT export exactly matches the current sanitized snapshot");
         Check(File.ReadAllBytes(export).Take(3).SequenceEqual(new byte[] { 239, 187, 191 }), "TXT includes UTF-8 BOM for Windows text editors");
         Check(File.ReadAllText(export).Contains($"Entries: {DiagnosticLog.Capacity}/{DiagnosticLog.Capacity}"), "export includes bounded count and environment header");
+        var release = System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>(typeof(DiagnosticLog).Assembly)!.InformationalVersion.Split('+')[0];
+        Check(File.ReadAllText(export).Contains("\nVersion: " + release + "\n"), "export header names the whole release version, the Taiwan revision included");
         DiagnosticLog.Clear();
         Console.WriteLine($"RESULT {passed} diagnostics checks passed"); return 0;
     }

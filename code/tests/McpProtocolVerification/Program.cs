@@ -213,4 +213,16 @@ Check(secondLine!.Contains("2025-03-26"), "Reconnect and older protocol negotiat
 server.Dispose();
 await second.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
 Check(second.HasExited, "Disabling service disconnects bridge");
+// Nothing on the pipe: the bridge explains itself on stderr in UTF-8, which MCP clients read; on Windows it used the system's
+// code page (950 on a Taiwan Windows 11, 2026-11-22). The bytes are decoded strictly, so another encoding fails here.
+using (var absent = Process.Start(new ProcessStartInfo(bridge) { RedirectStandardInput = true, RedirectStandardOutput = true, RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true,
+    ArgumentList = { "--pipe", pipe + "-absent" } })!)
+{
+    using var bytes = new MemoryStream();
+    await absent.StandardError.BaseStream.CopyToAsync(bytes).WaitAsync(TimeSpan.FromSeconds(20));
+    await absent.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+    var explanation = new System.Text.UTF8Encoding(false, true).GetString(bytes.ToArray());
+    Check(absent.ExitCode == 1 && explanation.StartsWith("藍色大肥魚的內部工具未連線：請在桌寵設定中重新連線 Agent。", StringComparison.Ordinal),
+        "An unconnected bridge exits 1 with its explanation in UTF-8 on stderr");
+}
 Console.WriteLine($"MCP protocol: {checks} checks passed.");

@@ -21,12 +21,21 @@ catch (Exception e)
 {
     // The MCP interface for other clients is the pet's fixed per-user pipe on every platform (a /tmp socket on macOS),
     // there only while the user has it switched on.
-    await Console.Error.WriteLineAsync((internalPipe
+    var message = (internalPipe
         ? "藍色大肥魚的內部工具未連線：請在桌寵設定中重新連線 Agent。"
         : OperatingSystem.IsWindows()
             ? "藍色大肥魚的 MCP 介面未連線：請確認桌寵正在執行，並已在設定中開啟「開啟 MCP 介面」。"
             : "藍色大肥魚的 MCP 介面未連線：請確認桌寵正在執行，並已在設定的「連線 Agent」頁開啟「開啟 MCP 介面」。")
         // The system's own text stays apart from the explanation.
-        + (e is TimeoutException ? "（5 秒內沒有回應）" : "\n（" + e.Message + "）"));
+        + (e is TimeoutException ? "（5 秒內沒有回應）" : "\n（" + e.Message + "）");
+    // MCP clients read a redirected stderr as UTF-8, while .NET on Windows writes it in the system's code page (950 on a
+    // Taiwan Windows 11, 2026-11-22: garbled in a UTF-8 reader, question marks on other systems). A console window keeps Console.Error, which
+    // writes Unicode there; Console.OutputEncoding is left alone, since it would change the code page of that console.
+    if (Console.IsErrorRedirected)
+    {
+        using var error = Console.OpenStandardError();
+        await error.WriteAsync(new System.Text.UTF8Encoding(false).GetBytes(message + Environment.NewLine));
+    }
+    else await Console.Error.WriteLineAsync(message);
     Environment.ExitCode = 1;
 }

@@ -13,6 +13,8 @@ Windows 無MCP版設定視窗左上方的副標題原本被截成「1.1.5-tw.1 �
 
 原版就有的問題：Windows 天氣地點的下拉清單，螢幕朗讀程式原本念出程式內部的欄位和簡體的原始地名（例如「CompanionCountry { Code = CM, Name = …」），現在念畫面上顯示的繁體地名。
 
+原版就有的問題：`BigBlueFish.Mcp` 連不上魚魚時寫到 stderr 的說明，在 Windows 上原本用系統的字碼頁（台灣的 Windows 是 950），以 UTF-8 讀取的 MCP 客戶端會看到亂碼；現在 stderr 被轉向時一律寫 UTF-8，直接在主控台視窗執行時照舊顯示。
+
 ## 1.1.5-tw.1（台灣繁體中文版）
 
 以原作者 Bai-Cute 的 1.1.5 版（commit aebf9cc）為基礎，合併原作者 1.1.4 與 1.1.5 的變更。原作者這兩版只發布 Windows 與 Linux 版，macOS 版仍停在 1.1.3；本版的 Mac 版用 1.1.5 的原始碼建置，原作者沒有在 Mac 上測試過這兩版的變更。App 與 DMG 的大小和高畫質動畫的 CPU 用量都用這一版在 M4 上重新量測過。

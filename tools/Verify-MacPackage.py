@@ -6,6 +6,7 @@ import json
 import os
 import pathlib
 import plistlib
+import socket
 import subprocess
 import sys
 import tempfile
@@ -239,6 +240,57 @@ with tempfile.TemporaryDirectory(prefix="bbf-macos-verify-") as temporary:
             if standard_agent:
                 saved = json.loads((data / "preferences.json").read_text(encoding="utf-8-sig"))
                 check(all(saved.get(name) is True for name in standard_agent), "Safe edition keeps the Standard edition's Agent switches")
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+# The menu's speech test with a remote model whose server refuses the connection: the fish says why nothing came, as the
+# weather does; Windows 11 and macOS left her silent (2026-11-22). Nothing listens on the port, so nothing is sent, and the
+# foreground is not read.
+with tempfile.TemporaryDirectory(prefix="bbf-macos-remote-") as temporary:
+    data = pathlib.Path(temporary)  # command() above reads the data folder of this run
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        unused = probe.getsockname()[1]
+    (data / "preferences.json").write_text(json.dumps({"ModelEnabled": True, "PublicInfo": False, "ForegroundEnabled": False,
+        "CheckUpdatesOnStartup": False, "HideOnFullscreen": False, "Left": 300, "Top": 250,
+        "ModelSource": "Remote", "RemoteUrl": f"http://127.0.0.1:{unused}"}))
+    (data / "model-selection.json").write_text('{"Source":"none"}')
+    env = {**os.environ, "BIGBLUEFISH_DATA": str(data), "DOTNET_ROOT": "/nonexistent",
+           "DOTNET_MULTILEVEL_LOOKUP": "0", "DYLD_LIBRARY_PATH": "", "DYLD_FALLBACK_LIBRARY_PATH": ""}
+    refused = f"主人，無法連線遠端模型：伺服器拒絕連線（127.0.0.1:{unused}），請確認伺服器正在執行，並檢查網址和連接埠。"
+
+    def remote_status(condition, timeout):
+        deadline = time.monotonic() + timeout
+        current = {}
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise RuntimeError("application exited: " + (args.output / "remote.log").read_text())
+            try:
+                current = json.loads((data / "test-status.json").read_text(encoding="utf-8"))
+                if condition(current):
+                    break
+            except (FileNotFoundError, json.JSONDecodeError):
+                pass
+            time.sleep(.25)
+        return current
+
+    with (args.output / "remote.log").open("w") as log:
+        process = subprocess.Popen([str(payload / "BigBlueFish.Mac"), "--test-mode"], env=env, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            remote_status(lambda s: s["phase"] != "Startup", 60)
+            check(command("menu-speech-test", 30), "the menu's speech test runs with an unreachable remote model")
+            status = remote_status(lambda s: s["text"] == refused, 10)
+            (args.output / "remote-status.json").write_text(json.dumps(status, indent=2, ensure_ascii=False), encoding="utf-8")
+            check(status.get("bubbleVisible") and status.get("text") == refused and status.get("modelPid") is None,
+                  "the speech test says why nothing came: " + str(status.get("text")))
+            (data / "test-command.txt").write_text("exit")
+            process.wait(timeout=15)
+            check(process.returncode == 0, "application with a remote model exits normally")
         finally:
             if process.poll() is None:
                 process.terminate()

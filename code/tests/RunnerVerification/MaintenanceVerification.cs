@@ -57,6 +57,11 @@ internal static class MaintenanceVerification
             Check(!brain.ModelAvailable && brain.RunnerPid == null && !brain.Busy, "no-model mode does not preload a runner or attempt timed generation");
             var test = (Task)Invoke(window, "SpeakCompanionTest")!;
             Check(test.IsCompleted && brain.RunnerPid == null && !(bool)Field(window, "speechRequestPending")!, "speech test without model cannot start generation");
+            // Like 天氣, the test without a model opens the installer; it used to log model_missing and show nothing (2026-11-22).
+            var testInstaller = Field(window, "modelInstaller") as ModelInstallWindow;
+            Check(testInstaller != null && testInstaller.IsVisible && app.Windows.OfType<ModelInstallWindow>().Count() == 1, "speech test without a model opens the real model installer");
+            testInstaller!.Close(); Pump();
+            Check(Field(window, "modelInstaller") == null && !app.Windows.OfType<ModelInstallWindow>().Any(), "closing the installer the test opened releases it");
             Invoke(window, "OpenCompanionSettings"); Pump();
             var settings = (Window)Field(window, "companionSettings")!;
             var hide = Children<CheckBox>(settings).Single(c => (string?)c.Content == "全螢幕時自動隱藏桌寵");

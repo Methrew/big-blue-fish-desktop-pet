@@ -141,6 +141,14 @@ using (var brain = NewBrain())
     brain.UseRemoteModel($"http://127.0.0.1:{unused}", Key, "");
     var refused = await brain.TestRemote();
     Check(refused == $"無法連線遠端模型：伺服器拒絕連線（127.0.0.1:{unused}），請確認伺服器正在執行，並檢查網址和連接埠。", "a refused connection is reported in Traditional Chinese, without the system's English text: " + refused);
+    // The speech test says why nothing came, as the weather does; on Windows 11 the fish stayed silent here (2026-11-22).
+    var silent = await brain.Generate(false, false);
+    Check(silent == "" && brain.SpeechFailure == refused && brain.SpeechTestNotice == "主人，" + refused && brain.ModelKind == "remote",
+        "a refused connection leaves its reason for the speech test's notice: " + brain.SpeechTestNotice);
+    brain.UseRemoteModel(Url, Key, "");
+    Check(await brain.Generate(false, false) == server.Reply && brain.SpeechFailure == null, "a turn that speaks clears the failure");
+    Check(brain.SpeechTestNotice == "主人，這次沒有想到要說的話，請稍後再試一次。", "without a failure the test notice says nothing came");
+    server.Take();
 }
 
 // --- Speech turns: what reaches the server from the screen.

@@ -305,7 +305,8 @@ internal sealed partial class LinuxPetWindow : Window
         if (nextExternalText != null) { string text = nextExternalText; nextExternalText = null; SayExternal(text); nextSpeech = now.Add(Preferences.NextSpeechDelay(random)); }
         else if (!DispatchAgentDaily()) await Speak(false);
     }
-    async Task Speak(bool weather, bool agentTriggered = false)
+    // explainSilence: the user's own speech test (SpeakManual), which says in a notice why nothing came (SpeechTestNotice).
+    async Task Speak(bool weather, bool agentTriggered = false, bool explainSilence = false)
     {
         DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: weather ? "weather" : brain.ModelKind, state: agentTriggered ? "manual" : "automatic");
         if (Puppet && !agentTriggered || generating || closed || phase == "Exit" || modelInstalling) { DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, state: "blocked"); return; }
@@ -322,6 +323,9 @@ internal sealed partial class LinuxPetWindow : Window
             var text = weather ? await brain.GenerateWeather(p => Partial(p, version, agentTriggered)) : await brain.Generate(Preferences.PublicInfo, Preferences.ForegroundEnabled, lastForeground, p => Partial(p, version, agentTriggered));
             if (version != speechVersion || Puppet && !agentTriggered || hidden || fullscreenHidden || closed || !Preferences.ModelEnabled || !brain.CanRunOnCurrentPower) return;
             if (text.Length > 0) FinishReply(text);
+            // The user asked for this test: say why nothing came, as the weather does (a remote server that refused the
+            // connection left the fish silent, Windows 11 and macOS, 2026-11-22).
+            else if (explainSilence && !weather) ShowText(brain.SpeechTestNotice, false);
             else if (streamed && !externalSpeech) bubbleWindow.Hide();
             // The user asked for the weather: say why there is none instead of nothing at all.
             else if (weather && !streamed && brain.WeatherFailure is { } failure) ShowText("主人，" + failure.TrimEnd('。') + "。", false);
@@ -357,7 +361,7 @@ internal sealed partial class LinuxPetWindow : Window
             return;
         }
 #endif
-        await Speak(weather, true);
+        await Speak(weather, true, explainSilence: true);
     }
     void OpenMenu()
     {

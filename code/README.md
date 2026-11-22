@@ -69,7 +69,7 @@ DOTNET_ROOT=~/.dotnet "/tmp/bbf-tests/$name/$name" [參數]
 | --- | --- | --- |
 | `TraditionalTextVerification` | 氣泡的繁體轉換（8591 筆語料）、台灣用語修正與串流顯示 | 無 |
 | `WeatherRegionVerification` | 地區清單、繁體地名、MCP 地點代碼、儲存的地點、macOS 鑰匙圈流程（中央氣象署授權碼、遠端模型與三個雲端 AI 服務的 API Key；用假的 `security`，不動到真正的鑰匙圈）、`Cloud` 模型來源的設定正規化與天氣快取 | `live`：實際連線 Open-Meteo 與中央氣象署 |
-| `RemoteModelVerification` | 遠端模型：API Key、圖片支援判斷、連線測試訊息、只截前景視窗、拒收圖片時改送 OCR 文字（用假的 OpenAI 相容伺服器）。雲端 AI 服務（`CloudVerification.cs`）：用三個本機的假 Claude、OpenAI、Gemini 伺服器，檢查模型清單、分頁與預選、請求內容（金鑰的標頭、人設、圖片、思考強度與備援，沒有 llama.cpp 欄位與取樣參數）、思考設定被拒時的重試、各種錯誤的中文訊息與暫停時間、婉拒與串流中斷、拒收截圖改送文字、每天上限與 `cloud-usage.json`，以及記錄主控台裡沒有金鑰或服務回覆的原文 | `live <網址> [API Key] [模型名稱]`：對真的伺服器測試遠端模型；雲端 AI 服務只用假的伺服器，不會連線真正的 API |
+| `RemoteModelVerification` | 遠端模型：API Key、圖片支援判斷、連線測試訊息、連不上時「說話測試」要說明的原因、只截前景視窗、拒收圖片時改送 OCR 文字（用假的 OpenAI 相容伺服器）。雲端 AI 服務（`CloudVerification.cs`）：用三個本機的假 Claude、OpenAI、Gemini 伺服器，檢查模型清單、分頁與預選、請求內容（金鑰的標頭、人設、圖片、思考強度與備援，沒有 llama.cpp 欄位與取樣參數）、思考設定被拒時的重試、各種錯誤的中文訊息與暫停時間、婉拒與串流中斷、拒收截圖改送文字、每天上限與 `cloud-usage.json`，以及記錄主控台裡沒有金鑰或服務回覆的原文 | `live <網址> [API Key] [模型名稱]`：對真的伺服器測試遠端模型；雲端 AI 服務只用假的伺服器，不會連線真正的 API |
 | `ReminderVerification` | 主動提醒（模擬多種日子，含睡眠計時） | 無 |
 | `ScreenMatchingVerification` | `find_on_screen` 與 `walk_to` 的名稱比對規則、假的畫面 | `BigBlueFish.MacScreen` 的路徑：另外讀這台 Mac 的真實畫面並檢查 JSON 格式 |
 | `MacEditionVerification` | 版本比較、資產檔名、從原版匯入、登入項目（都在暫存資料夾裡） | `[工作資料夾] [--safe-app <無MCP版建置資料夾>]` |
@@ -84,7 +84,7 @@ Python 測試（Python 3.9 以上）：
 
 - `python3 code/tests/HermesBridgeVerification/fake_e2e.py [BigBlueFish.HermesBridge.dll] <BigBlueFish.Mcp>`：用假的魚魚與假的 Hermes 檢查整條橋接路徑（macOS／Linux）。先用 `code/run-hermes-bridge.sh --build` 與 `dotnet publish code/BigBlueFish.Mcp -r osx-arm64` 建置。
 - `python3 code/tests/HermesScenarioVerification/scenarios.py`：需要正在執行的魚魚、Hermes gateway 與模型（Windows、macOS、Linux），魚魚沒有的工具對應的情境會略過。
-- `python3 tools/Verify-MacPackage.py <App 路徑> --edition Standard|Safe --output <資料夾>`：檢查建置好的 App，會以測試模式短暫啟動它。標準版另外以 `--test-battery`（模擬使用電池）再啟動一次，確認魚魚啟動的 Agent 停在「使用電池 · Agent 已暫停」、不會執行任何 CLI，拖到魚魚身上的檔案仍留在輸入框，魚魚也會說明 Agent 已暫停；這一輪的記錄和狀態寫在輸出資料夾的 `battery.log` 與 `battery-status.json`。
+- `python3 tools/Verify-MacPackage.py <App 路徑> --edition Standard|Safe --output <資料夾>`：檢查建置好的 App，會以測試模式短暫啟動它。標準版另外以 `--test-battery`（模擬使用電池）再啟動一次，確認魚魚啟動的 Agent 停在「使用電池 · Agent 已暫停」、不會執行任何 CLI，拖到魚魚身上的檔案仍留在輸入框，魚魚也會說明 Agent 已暫停；這一輪的記錄和狀態寫在輸出資料夾的 `battery.log` 與 `battery-status.json`。兩個版本都會再以連不到的遠端模型啟動一次，從選單的說話測試（測試指令 `menu-speech-test`）確認魚魚會用氣泡說明連線失敗的原因；這一輪寫在 `remote.log` 與 `remote-status.json`。
 
 原作者 1.1.4 用 `python3 tools/Compress-Animations.py <輸出資料夾> [--apply]` 重新壓縮了 106 段高畫質動畫（libvpx-vp9、CRF 34、`yuva420p`，仍是 1280×720、每秒 60 格），每段都核對影格數、長度和透明度後才取代原檔；相容動畫沒有改變。這個腳本需要 Python 3.11 以上與 FFmpeg（含 ffprobe），只有要重新壓縮動畫時才用得到。
 

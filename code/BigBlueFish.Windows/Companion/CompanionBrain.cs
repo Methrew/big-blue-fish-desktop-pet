@@ -1025,8 +1025,16 @@ internal sealed class CompanionBrain : IDisposable
         return new(AgentBrief(FixedSpeechInstructions(Persona) + hint, SpeechRequest(context)), true, context, hint);
     }
 
+    // Why the last Generate said nothing (the model or the remote server failed); null after one that spoke or was cancelled.
+    internal string? SpeechFailure { get; private set; }
+
+    // A speech test the user asked for says why nothing came, as the weather does: on Windows 11 (2026-11-22) a remote
+    // server that refused the connection left the fish silent and the reason only on the settings page.
+    internal string SpeechTestNotice => "主人，" + (SpeechFailure ?? "這次沒有想到要說的話，請稍後再試一次").TrimEnd('。') + "。";
+
     internal async Task<string> Generate(bool usePublic, bool useForeground, IntPtr foregroundHandle = default, Action<string>? onPartial = null)
     {
+        SpeechFailure = null;
         if (disposed || Busy || !CanRunOnCurrentPower)
             return "";
         string kind = ModelKind;
@@ -1187,7 +1195,7 @@ internal sealed class CompanionBrain : IDisposable
         {
             DiagnosticLog.Write(DiagnosticEvent.SpeechFailed, kind: kind, error: e);
             StopRunner(); RecordFailure("生成", e);
-            Status = e is IOException ? e.Message : "暫時無法生成，稍後重試";
+            Status = SpeechFailure = e is IOException ? e.Message : "暫時無法生成，稍後重試";
             return "";
         }
         finally

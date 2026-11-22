@@ -126,10 +126,13 @@ public partial class MainWindow
             ShowCompanionNotice(BatteryPauseNotice, true, true);
             return;
         }
+        // Without a model the test opens the installer, as the weather here and the test on macOS and Linux do; it used to
+        // log SpeechSkipped model_missing and show nothing (Windows 11, 2026-11-22). The notices above come first, as before.
+        if (!brain.ModelAvailable) { OpenModelInstaller(); return; }
         // A test directly enters the same single handler used when the ordinary
         // speech countdown reaches zero.
         speechForegroundOverride = CompanionNative.ResolveSpeechForeground(CompanionNative.GetForegroundWindow(), lastExternalForeground);
-        await GenerateLocalSpeechAsync(true);
+        await GenerateLocalSpeechAsync(true, explainSilence: true);
     }
 
     private async Task<bool> TryManualAgentSpeech(bool weather)

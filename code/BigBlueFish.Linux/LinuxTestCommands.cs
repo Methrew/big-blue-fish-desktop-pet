@@ -33,6 +33,9 @@ internal sealed partial class LinuxPetWindow
                 case "settings": OpenSettings(); break;
                 case "close-settings": settings?.Close(); break;
                 case "speech-test": await Speak(false); break;
+                // The speech test of the pet and tray menus (SpeakManual), which says why nothing came; speech-test above is
+                // the automatic turn, which puppet mode holds back (LinuxVerification).
+                case "menu-speech-test": await SpeakManual(false); break;
                 case "weather": await Speak(true); break;
                 case "hide": hidden = true; Hide(); bubbleWindow.Hide(); break;
                 case "show": RestorePet(); break;

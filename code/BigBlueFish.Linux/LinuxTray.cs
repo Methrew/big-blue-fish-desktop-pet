@@ -13,7 +13,9 @@ internal sealed partial class LinuxPetWindow
         var menu = new NativeMenu();
         NativeMenuItem Item(string title, Action action) { var item = new NativeMenuItem(title); item.Click += (_, _) => action(); menu.Items.Add(item); return item; }
         Item("顯示桌寵", RestorePet); Item("設定", OpenSettings);
-        var weather = Item("天氣", async () => await Speak(true)); var speech = Item("說話測試", async () => await Speak(false)); Item("關閉桌寵", Close);
+        // As on Windows, the tray's 天氣 and 說話測試 are the pet menu's own (SpeakManual): they bring a hidden fish back, go to
+        // the Agent when it writes the care and say why a test brought nothing; they used to start the automatic speech.
+        var weather = Item("天氣", async () => await SpeakManual(true)); var speech = Item("說話測試", async () => await SpeakManual(false)); Item("關閉桌寵", Close);
         tray = new TrayIcon { Icon = new WindowIcon(Path.Combine(AppContext.BaseDirectory, "BigBlueFish.ico")), ToolTipText = CompanionEdition.AppName, Menu = menu, IsVisible = true };
         tray.Clicked += (_, _) => RestorePet();
         TrayIcon.SetIcons(Avalonia.Application.Current!, new TrayIcons { tray });

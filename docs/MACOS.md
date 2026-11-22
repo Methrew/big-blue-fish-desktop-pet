@@ -606,7 +606,7 @@ DOTNET=~/.dotnet/dotnet tools/build-macos.sh
 
 產生的 App 在 `release/藍色大肥魚.app`（無MCP版是 `release/藍色大肥魚無MCP版.app`）；第二個參數可以指定其他輸出資料夾。標準版另外內含 `BigBlueFish.Mcp` 與 Hermes 橋接程式。App 名稱、Bundle ID 與致謝都從 `code/BigBlueFish.Windows/Companion/CompanionEdition.cs` 讀取。
 
-`python3 tools/Verify-MacPackage.py "release/藍色大肥魚.app" --edition Standard --output <輸出資料夾>` 會檢查 App 的內容（1280×720 動畫和相容動畫各 106 個、硬體解碼元件、輔助程式是 arm64 等；這台 Mac 能硬體解碼 VP9 時，也確認動畫是以硬體解碼播放），並以測試模式和暫存資料夾短暫啟動 App；標準版還會模擬使用電池再啟動一次，確認魚魚啟動的 Agent 維持暫停、不會執行任何 CLI；執行前請先關閉正在執行的魚魚（包括原版）。發布用的 DMG 由 GitHub Actions 的「macOS package」工作流程建置、驗證並產生 `.sha256`。
+`python3 tools/Verify-MacPackage.py "release/藍色大肥魚.app" --edition Standard --output <輸出資料夾>` 會檢查 App 的內容（1280×720 動畫和相容動畫各 106 個、硬體解碼元件、輔助程式是 arm64 等；這台 Mac 能硬體解碼 VP9 時，也確認動畫是以硬體解碼播放），並以測試模式和暫存資料夾短暫啟動 App；標準版還會模擬使用電池再啟動一次，確認魚魚啟動的 Agent 維持暫停、不會執行任何 CLI；兩個版本也會以連不到的遠端模型再啟動一次，確認「說話測試」會用氣泡說明連線失敗的原因；執行前請先關閉正在執行的魚魚（包括原版）。發布用的 DMG 由 GitHub Actions 的「macOS package」工作流程建置、驗證並產生 `.sha256`。
 
 ### 3. 執行
 

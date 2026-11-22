@@ -97,7 +97,9 @@ internal sealed class CompanionBrain : IDisposable
     // Remote inference does not drain the battery, so the unplugged pause covers the local runner only.
     internal bool CanRunOnCurrentPower => UseRemote || !StopOnBattery || CompanionNative.OnAC;
     // Diagnostic kind of the model that writes this turn: the local runner, the remote server or a cloud AI service.
-    private string ModelKind => UseCloud ? "cloud" : UseRemote ? "remote" : "local";
+    // SpeechRequested and SpeechSkipped name it too, so a request no longer reads kind=local while the remote server
+    // answers it (2026-11-22).
+    internal string ModelKind => UseCloud ? "cloud" : UseRemote ? "remote" : "local";
     private DateTime nextModelCheck;
     private bool modelAvailable;
 

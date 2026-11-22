@@ -307,7 +307,7 @@ internal sealed partial class LinuxPetWindow : Window
     }
     async Task Speak(bool weather, bool agentTriggered = false)
     {
-        DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: weather ? "weather" : "local", state: agentTriggered ? "manual" : "automatic");
+        DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: weather ? "weather" : brain.ModelKind, state: agentTriggered ? "manual" : "automatic");
         if (Puppet && !agentTriggered || generating || closed || phase == "Exit" || modelInstalling) { DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, state: "blocked"); return; }
         if (!brain.ModelAvailable) { await InstallModel(); return; }
         if (!Preferences.ModelEnabled) { ShowText("主人，請先在設定裡開啟「啟用模型說話」喔～", false); return; }

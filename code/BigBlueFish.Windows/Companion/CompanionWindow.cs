@@ -769,10 +769,10 @@ public partial class MainWindow
         var foregroundHandle = speechForegroundOverride
             ?? CompanionNative.ResolveSpeechForeground(CompanionNative.GetForegroundWindow(), lastExternalForeground);
         speechForegroundOverride = null;
-        DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: "local", state: agentTriggered ? "manual" : "automatic");
+        DiagnosticLog.Write(DiagnosticEvent.SpeechRequested, kind: brain.ModelKind, state: agentTriggered ? "manual" : "automatic");
         if (PuppetActive && !agentTriggered || speechRequestPending || companionClosed || exitAnimation || modelInstaller != null || !preferences.ModelEnabled || !brain.ModelAvailable || !brain.CanRunOnCurrentPower)
         {
-            DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, kind: "local", state: speechRequestPending ? "busy"
+            DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, kind: brain.ModelKind, state: speechRequestPending ? "busy"
                 : companionClosed || exitAnimation ? "exit" : modelInstaller != null ? "blocked"
                 : !preferences.ModelEnabled ? "disabled" : !brain.ModelAvailable ? "model_missing"
                 : !brain.CanRunOnCurrentPower ? "power" : "puppet");
@@ -795,7 +795,7 @@ public partial class MainWindow
                 await Task.Delay(100);
             if (version != speechRequestVersion || brain.Busy || weatherRequestPending || companionClosed || exitAnimation || hiddenByUser || fullscreenHidden
                 || !preferences.ModelEnabled || !brain.CanRunOnCurrentPower)
-            { DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, kind: "local", state: brain.Busy || weatherRequestPending ? "busy" : hiddenByUser || fullscreenHidden ? "hidden" : "cancelled"); return; }
+            { DiagnosticLog.Write(DiagnosticEvent.SpeechSkipped, kind: brain.ModelKind, state: brain.Busy || weatherRequestPending ? "busy" : hiddenByUser || fullscreenHidden ? "hidden" : "cancelled"); return; }
             nextSpeech = DateTime.UtcNow.Add(preferences.NextSpeechDelay(companionRandom));
             BeginModelSpeech(); // A preceding weather request may have ended its own loading indicator.
             text = await brain.Generate(preferences.PublicInfo, preferences.ForegroundEnabled, foregroundHandle, partial =>
